@@ -303,37 +303,37 @@ function AdminDashboardContent() {
                 <span className="text-xl">←</span> Back to List
               </button>
 
-              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="bg-white rounded-3xl shadow-sm border border-slate-200">
                 {/* Header */}
-                <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h1 className="text-2xl font-bold text-slate-900">Ticket Details</h1>
+                <div className="px-4 sm:px-8 py-4 sm:py-6 border-b border-slate-100 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 bg-slate-50/50 rounded-t-3xl">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                      <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Ticket Details</h1>
                       <Badge variant={getStatusColor(selectedTicket.status)}>
                         {selectedTicket.status.replace('_', ' ')}
                       </Badge>
                     </div>
-                    <p className="text-slate-500 flex items-center gap-2">
+                    <p className="text-slate-500 flex flex-wrap items-center gap-2 text-sm">
                       <span className="font-mono">#{selectedTicket.id}</span>
-                      <span>•</span>
+                      <span className="hidden sm:inline">•</span>
                       <span>Created {formatDate(selectedTicket.createdAt)}</span>
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="danger" onClick={() => handleDeleteTicket(selectedTicket.id)}>
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
+                    <Button variant="danger" size="sm" onClick={() => handleDeleteTicket(selectedTicket.id)} className="w-full sm:w-auto">
+                      <Trash2 className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Delete</span>
                     </Button>
                   </div>
                 </div>
 
-                <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                   {/* Main Content */}
                   <div className="lg:col-span-2 space-y-8">
                     {/* Issue Section */}
                     <section>
-                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">Issue Description</h3>
-                      <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">Issue Description</h3>
+                      <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-100">
                         <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{selectedTicket.issue}</p>
                       </div>
                     </section>
@@ -341,8 +341,8 @@ function AdminDashboardContent() {
                     {/* Additional Details */}
                     {selectedTicket.additionalDetails && (
                       <section>
-                        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">Additional Details</h3>
-                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                        <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">Additional Details</h3>
+                        <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-100">
                           <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{selectedTicket.additionalDetails}</p>
                         </div>
                       </section>
@@ -351,8 +351,8 @@ function AdminDashboardContent() {
                     {/* Attachments */}
                     {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
                       <section>
-                        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">Attachments</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">Attachments</h3>
+                        <div className="grid grid-cols-1 gap-3 sm:gap-4">
                           {selectedTicket.attachments.map((attachment) => (
                             <div key={attachment.id} className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 transition-all group">
                               <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
@@ -383,8 +383,8 @@ function AdminDashboardContent() {
                     {/* Status History */}
                     {selectedTicket.statusHistory && selectedTicket.statusHistory.length > 0 && (
                       <section>
-                        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">History</h3>
-                        <div className="relative pl-4 border-l-2 border-slate-100 space-y-6">
+                        <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">History</h3>
+                        <div className="relative pl-3 sm:pl-4 border-l-2 border-slate-100 space-y-4 sm:space-y-6">
                           {selectedTicket.statusHistory.map((history) => (
                             <div key={history.id} className="relative">
                               <div className="absolute -left-[21px] top-1.5 w-3 h-3 rounded-full bg-white border-2 border-slate-300" />
@@ -412,10 +412,10 @@ function AdminDashboardContent() {
                   </div>
 
                   {/* Sidebar Info */}
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     {/* Status Card */}
-                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">Current Status</h3>
+                    <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-100">
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3 sm:mb-4">Current Status</h3>
                       <StatusSelect
                         value={selectedTicket.status}
                         onChange={(value) => handleUpdateTicketStatus(selectedTicket.id, value)}
@@ -431,8 +431,8 @@ function AdminDashboardContent() {
                     </div>
 
                     {/* Priority Card */}
-                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">Priority</h3>
+                    <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-100">
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3 sm:mb-4">Priority</h3>
                       <div className="flex items-center gap-3">
                         <Badge variant={getPriorityColor(selectedTicket.priority)} size="lg">
                           {selectedTicket.priority}
@@ -441,8 +441,8 @@ function AdminDashboardContent() {
                     </div>
 
                     {/* User Info */}
-                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">User Information</h3>
+                    <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-100">
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3 sm:mb-4">User Information</h3>
                       <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 font-bold">
                           {selectedTicket.user?.username?.charAt(0).toUpperCase()}
@@ -493,8 +493,8 @@ function AdminDashboardContent() {
                 <span className="text-xl">←</span> Back to List
               </button>
               
-              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden text-slate-900">
-                <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50">
+              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 text-slate-900">
+                <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl">
                   <h1 className="text-2xl font-bold text-slate-900 mb-1">
                     {createView === 'user' && 'Create New User'}
                     {createView === 'branch' && 'Create New Branch'}
@@ -761,16 +761,16 @@ function AdminDashboardContent() {
                       <div 
                         key={ticket.id}
                         onClick={() => handleViewTicket(ticket.id)}
-                        className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                        className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group"
                       >
-                        <div className="flex items-start gap-4">
+                        <div className="flex flex-col sm:flex-row items-start gap-4">
                           {/* User Avatar */}
                           <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-lg shrink-0">
                             {ticket.user?.username?.charAt(0).toUpperCase()}
                           </div>
                           
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1 min-w-0 w-full">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
                               <div>
                                 <h3 className="font-bold text-slate-900 truncate">{ticket.user?.username}</h3>
                                 <p className="text-xs text-slate-500">#{ticket.id.substring(0, 8)}</p>
@@ -782,7 +782,7 @@ function AdminDashboardContent() {
                             
                             <p className="text-sm text-slate-600 mb-4 line-clamp-2">{ticket.issue}</p>
                             
-                            <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-50">
                               <div className="flex items-center gap-2">
                                 <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs text-blue-600 font-bold">
                                   {ticket.branch?.name?.charAt(0)}
@@ -790,7 +790,7 @@ function AdminDashboardContent() {
                                 <span className="text-xs text-slate-500">{ticket.branch?.name}</span>
                               </div>
                               
-                              <div className="flex items-center gap-6">
+                              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs text-slate-400">Status</span>
                                   <span className={`text-xs font-medium ${
@@ -812,7 +812,7 @@ function AdminDashboardContent() {
                             </div>
                           </div>
                           
-                          <button className="p-2 text-slate-300 hover:text-slate-600">
+                          <button className="hidden sm:block p-2 text-slate-300 hover:text-slate-600">
                             <div className="w-1 h-1 bg-current rounded-full mb-1" />
                             <div className="w-1 h-1 bg-current rounded-full mb-1" />
                             <div className="w-1 h-1 bg-current rounded-full" />
@@ -933,8 +933,8 @@ function AdminDashboardContent() {
             )}
 
             {dashboardTab === 'calendar' && (
-              <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-                <div className="flex items-center justify-between mb-8">
+              <div className="bg-white p-4 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-4">
                     {calendarView === 'timeline' && (
                       <button 
@@ -947,16 +947,16 @@ function AdminDashboardContent() {
                     )}
                     <h2 className="text-xl font-bold text-slate-900">Calendar</h2>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">Today</Button>
-                    <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1">
+                  <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
+                    <Button variant="outline" size="sm" className="shrink-0">Today</Button>
+                    <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1 shrink-0">
                       <button className="p-1 hover:bg-white rounded shadow-sm transition-all">
                         <span className="sr-only">Previous month</span>
                         ←
                       </button>
                       <button 
                         onClick={() => setCalendarView(calendarView === 'month' ? 'timeline' : 'month')}
-                        className="text-sm font-medium px-2 hover:bg-white rounded py-1 transition-colors flex items-center gap-2"
+                        className="text-sm font-medium px-2 hover:bg-white rounded py-1 transition-colors flex items-center gap-2 whitespace-nowrap"
                         title="Click to toggle view"
                       >
                         <span>December 2025</span>
@@ -973,64 +973,66 @@ function AdminDashboardContent() {
                 </div>
                 
                 {calendarView === 'month' ? (
-                  <div className="grid grid-cols-7 gap-px bg-slate-200 rounded-lg overflow-hidden border border-slate-200">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                      <div key={day} className="bg-slate-50 p-4 text-center text-sm font-semibold text-slate-600">
-                        {day}
-                      </div>
-                    ))}
-                    {Array.from({ length: 35 }).map((_, i) => {
-                      const day = i - 2; // Offset for demo
-                      const isToday = day === 9;
-                      const date = new Date(2025, 11, day);
-                      const dayTickets = tickets.filter(t => {
-                        const tDate = new Date(t.createdAt);
-                        return tDate.getDate() === day && tDate.getMonth() === 11 && tDate.getFullYear() === 2025;
-                      });
-
-                      return (
-                        <div 
-                          key={i} 
-                          onClick={() => day > 0 && day <= 31 && setCalendarView('timeline')}
-                          className={`bg-white min-h-[120px] p-3 transition-colors ${
-                            day < 1 || day > 31 
-                              ? 'bg-slate-50/50 text-slate-400' 
-                              : 'hover:bg-slate-50 cursor-pointer'
-                          }`}
-                        >
-                          {day > 0 && day <= 31 && (
-                            <>
-                              <div className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-medium mb-2 ${isToday ? 'bg-blue-600 text-white' : 'text-slate-700'}`}>
-                                {day}
-                              </div>
-                              <div className="space-y-1">
-                                {dayTickets.map(ticket => (
-                                  <div 
-                                    key={ticket.id}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleViewTicket(ticket.id);
-                                    }}
-                                    className={`text-xs p-1.5 rounded truncate cursor-pointer hover:opacity-80 ${
-                                      ticket.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                                      ticket.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                      'bg-blue-100 text-blue-700'
-                                    }`}
-                                  >
-                                    {ticket.issue}
-                                  </div>
-                                ))}
-                                {dayTickets.length === 0 && day === 9 && (
-                                  <div className="text-xs bg-slate-100 text-slate-600 p-1.5 rounded mb-1 truncate">
-                                    Team Meeting
-                                  </div>
-                                )}
-                              </div>
-                            </>
-                          )}
+                  <div className="overflow-x-auto pb-4">
+                    <div className="min-w-[600px] grid grid-cols-7 gap-px bg-slate-100 rounded-lg border border-slate-200">
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                        <div key={day} className="bg-slate-50 p-4 text-center text-sm font-semibold text-slate-600">
+                          {day}
                         </div>
-                      );
-                    })}
+                      ))}
+                      {Array.from({ length: 35 }).map((_, i) => {
+                        const day = i - 2; // Offset for demo
+                        const isToday = day === 9;
+                        const date = new Date(2025, 11, day);
+                        const dayTickets = tickets.filter(t => {
+                          const tDate = new Date(t.createdAt);
+                          return tDate.getDate() === day && tDate.getMonth() === 11 && tDate.getFullYear() === 2025;
+                        });
+
+                        return (
+                          <div 
+                            key={i} 
+                            onClick={() => day > 0 && day <= 31 && setCalendarView('timeline')}
+                            className={`bg-white min-h-[120px] p-3 transition-colors ${
+                              day < 1 || day > 31 
+                                ? 'bg-slate-50/50 text-slate-400' 
+                                : 'hover:bg-slate-50 cursor-pointer'
+                            }`}
+                          >
+                            {day > 0 && day <= 31 && (
+                              <>
+                                <div className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-medium mb-2 ${isToday ? 'bg-blue-600 text-white' : 'text-slate-700'}`}>
+                                  {day}
+                                </div>
+                                <div className="space-y-1">
+                                  {dayTickets.map(ticket => (
+                                    <div 
+                                      key={ticket.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleViewTicket(ticket.id);
+                                      }}
+                                      className={`text-xs p-1.5 rounded truncate cursor-pointer hover:opacity-80 ${
+                                        ticket.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                                        ticket.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                        'bg-blue-100 text-blue-700'
+                                      }`}
+                                    >
+                                      {ticket.issue}
+                                    </div>
+                                  ))}
+                                  {dayTickets.length === 0 && day === 9 && (
+                                    <div className="text-xs bg-slate-100 text-slate-600 p-1.5 rounded mb-1 truncate">
+                                      Team Meeting
+                                    </div>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 ) : (
                   <Timeline tickets={tickets} currentDate={new Date(2025, 11, 1)} />
@@ -1513,7 +1515,7 @@ function AdminDashboardContent() {
               </Button>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
               <Table>
                 <TableHeader>
                   <tr>

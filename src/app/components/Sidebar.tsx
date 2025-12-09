@@ -140,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-white rounded-xl shadow-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+        className="lg:hidden fixed top-4 right-4 z-50 p-3 bg-white rounded-xl shadow-lg border border-slate-200 hover:bg-slate-50 transition-colors"
       >
         {isMobileMenuOpen ? (
           <X className="w-6 h-6 text-slate-900" />

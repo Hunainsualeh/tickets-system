@@ -168,9 +168,9 @@ function UserDashboardContent() {
                 <span className="text-xl">←</span> Back to Dashboard
               </button>
 
-              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="bg-white rounded-3xl shadow-sm border border-slate-200">
                 {/* Header */}
-                <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
+                <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50 rounded-t-3xl">
                   <div>
                     <div className="flex items-center gap-3 mb-2">
                       <h1 className="text-2xl font-bold text-slate-900">Ticket Details</h1>
@@ -317,8 +317,8 @@ function UserDashboardContent() {
                 <span className="text-xl">←</span> Back to Dashboard
               </button>
               
-              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden text-slate-900">
-                <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50">
+              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 text-slate-900">
+                <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl">
                   <h2 className="text-2xl font-bold text-slate-900 mb-1">Submit Dispatch Request</h2>
                   <p className="text-slate-500">Fill in the details below to create a new ticket.</p>
                 </div>
@@ -494,7 +494,7 @@ function UserDashboardContent() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
                 <Table>
                   <TableHeader>
                     <tr>
@@ -620,16 +620,16 @@ function UserDashboardContent() {
                         <div 
                           key={ticket.id}
                           onClick={() => setSelectedTicket(ticket)}
-                          className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                          className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group"
                         >
-                          <div className="flex items-start gap-4">
+                          <div className="flex flex-col sm:flex-row items-start gap-4">
                             {/* Branch Icon/Avatar */}
                             <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-lg shrink-0">
                               <Building2 className="w-6 h-6" />
                             </div>
                             
-                            <div className="flex-1 min-w-0">
-                              <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1 min-w-0 w-full">
+                              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
                                 <div>
                                   <h3 className="font-bold text-slate-900 truncate">{ticket.branch?.name}</h3>
                                   <p className="text-xs text-slate-500">#{ticket.id.substring(0, 8)}</p>
@@ -641,12 +641,12 @@ function UserDashboardContent() {
                               
                               <p className="text-sm text-slate-600 mb-4 line-clamp-2">{ticket.issue}</p>
                               
-                              <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-50">
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs text-slate-500">Branch #{ticket.branch?.branchNumber}</span>
                                 </div>
                                 
-                                <div className="flex items-center gap-6">
+                                <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                                   <div className="flex items-center gap-2">
                                     <span className="text-xs text-slate-400">Status</span>
                                     <span className={`text-xs font-medium ${
@@ -676,7 +676,7 @@ function UserDashboardContent() {
                   {/* Right Column: Stats & Widgets */}
                   <div className="space-y-8">
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <StatCard
                         title="My Tickets"
                         count={stats.total}
@@ -709,17 +709,17 @@ function UserDashboardContent() {
               )}
 
               {dashboardTab === 'calendar' && (
-                <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-                  <div className="flex items-center justify-between mb-8">
+                <div className="bg-white p-4 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                     <h2 className="text-xl font-bold text-slate-900">December 2025</h2>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm">Today</Button>
-                      <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1">
+                    <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
+                      <Button variant="ghost" size="sm" className="shrink-0">Today</Button>
+                      <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1 shrink-0">
                         <button className="p-1 hover:bg-white rounded shadow-sm transition-all">
                           <span className="sr-only">Previous month</span>
                           ←
                         </button>
-                        <span className="text-sm font-medium px-2">December 2025</span>
+                        <span className="text-sm font-medium px-2 whitespace-nowrap">December 2025</span>
                         <button className="p-1 hover:bg-white rounded shadow-sm transition-all">
                           <span className="sr-only">Next month</span>
                           →
@@ -728,51 +728,53 @@ function UserDashboardContent() {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-7 gap-px bg-slate-200 rounded-lg overflow-hidden border border-slate-200">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                      <div key={day} className="bg-slate-50 p-4 text-center text-sm font-semibold text-slate-600">
-                        {day}
-                      </div>
-                    ))}
-                    {Array.from({ length: 35 }).map((_, i) => {
-                      const day = i - 2; // Offset for demo
-                      const isToday = day === 9;
-                      const date = new Date(2025, 11, day);
-                      const dayTickets = tickets.filter(t => {
-                        const tDate = new Date(t.createdAt);
-                        return tDate.getDate() === day && tDate.getMonth() === 11 && tDate.getFullYear() === 2025;
-                      });
-
-                      return (
-                        <div key={i} className={`bg-white min-h-[120px] p-3 hover:bg-slate-50 transition-colors ${day < 1 || day > 31 ? 'bg-slate-50/50 text-slate-400' : ''}`}>
-                          {day > 0 && day <= 31 && (
-                            <>
-                              <div className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-medium mb-2 ${isToday ? 'bg-blue-600 text-white' : 'text-slate-700'}`}>
-                                {day}
-                              </div>
-                              <div className="space-y-1">
-                                {dayTickets.map(ticket => (
-                                  <div 
-                                    key={ticket.id}
-                                    onClick={() => {
-                                      setSelectedTicket(ticket);
-                                      setView('tickets');
-                                    }}
-                                    className={`text-xs p-1.5 rounded truncate cursor-pointer hover:opacity-80 ${
-                                      ticket.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                                      ticket.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                      'bg-blue-100 text-blue-700'
-                                    }`}
-                                  >
-                                    {ticket.issue}
-                                  </div>
-                                ))}
-                              </div>
-                            </>
-                          )}
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[600px] grid grid-cols-7 gap-px bg-slate-200 rounded-lg overflow-hidden border border-slate-200">
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                        <div key={day} className="bg-slate-50 p-4 text-center text-sm font-semibold text-slate-600">
+                          {day}
                         </div>
-                      );
-                    })}
+                      ))}
+                      {Array.from({ length: 35 }).map((_, i) => {
+                        const day = i - 2; // Offset for demo
+                        const isToday = day === 9;
+                        const date = new Date(2025, 11, day);
+                        const dayTickets = tickets.filter(t => {
+                          const tDate = new Date(t.createdAt);
+                          return tDate.getDate() === day && tDate.getMonth() === 11 && tDate.getFullYear() === 2025;
+                        });
+
+                        return (
+                          <div key={i} className={`bg-white min-h-[120px] p-3 hover:bg-slate-50 transition-colors ${day < 1 || day > 31 ? 'bg-slate-50/50 text-slate-400' : ''}`}>
+                            {day > 0 && day <= 31 && (
+                              <>
+                                <div className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-medium mb-2 ${isToday ? 'bg-blue-600 text-white' : 'text-slate-700'}`}>
+                                  {day}
+                                </div>
+                                <div className="space-y-1">
+                                  {dayTickets.map(ticket => (
+                                    <div 
+                                      key={ticket.id}
+                                      onClick={() => {
+                                        setSelectedTicket(ticket);
+                                        setView('tickets');
+                                      }}
+                                      className={`text-xs p-1.5 rounded truncate cursor-pointer hover:opacity-80 ${
+                                        ticket.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                                        ticket.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                        'bg-blue-100 text-blue-700'
+                                      }`}
+                                    >
+                                      {ticket.issue}
+                                    </div>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}

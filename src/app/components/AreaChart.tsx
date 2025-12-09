@@ -25,7 +25,7 @@ export function AreaChart({
 }: AreaChartProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   
-  const height = 300;
+  const height = 400;
   const width = 800;
   const padding = { top: 40, right: 20, bottom: 40, left: 40 };
   
@@ -78,20 +78,20 @@ export function AreaChart({
   const areaD2 = points2.length ? `${pathD2} L ${points2[points2.length-1][0]},${height-padding.bottom} L ${points2[0][0]},${height-padding.bottom} Z` : '';
 
   return (
-    <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm p-8">
-      <div className="flex justify-between items-start mb-8">
+    <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8">
         <div className="flex-1">
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
             <div>
               {title && <h3 className="font-bold text-slate-900 text-lg">{title}</h3>}
               {subtitle && <p className="text-slate-500 text-sm mt-1">{subtitle}</p>}
             </div>
-            {action && <div className="ml-4">{action}</div>}
+            {action && <div className="w-full sm:w-auto sm:ml-4">{action}</div>}
           </div>
         </div>
       </div>
       
-      <div className="flex justify-end gap-4 mb-4">
+      <div className="flex flex-wrap justify-end gap-4 mb-4">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-blue-500"></div>
           <span className="text-xs text-slate-600 font-medium">{legend1}</span>
@@ -104,7 +104,7 @@ export function AreaChart({
         )}
       </div>
       
-      <div className="relative w-full aspect-2/1 max-h-[400px]">
+      <div className="relative w-full aspect-[2/1] max-h-[400px]">
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
           <defs>
             <linearGradient id="gradient1" x1="0" y1="0" x2="0" y2="1">
