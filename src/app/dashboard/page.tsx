@@ -70,6 +70,11 @@ function UserDashboardContent() {
     }
   }, [router, searchParams]);
 
+  // Clear ticket detail view when switching views
+  useEffect(() => {
+    setSelectedTicket(null);
+  }, [view]);
+
   const fetchData = async () => {
     try {
       const [branchesRes, ticketsRes] = await Promise.all([
@@ -152,9 +157,18 @@ function UserDashboardContent() {
     completed: tickets.filter((t) => t.status === 'COMPLETED').length,
   };
 
+  const handleNavigation = () => {
+    // Clear any detail views when navigating
+    setSelectedTicket(null);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      <Sidebar userRole={user?.role} username={user?.username} />
+      <Sidebar 
+        userRole={user?.role} 
+        username={user?.username} 
+        onNavigate={handleNavigation}
+      />
       
       {/* Main Content */}
       <main className="flex-1 p-4 lg:p-8 overflow-x-hidden">
@@ -346,6 +360,7 @@ function UserDashboardContent() {
                           { value: 'MEDIUM', label: 'Medium - Important but not urgent' },
                           { value: 'LOW', label: 'Low - Can be addressed later' },
                         ]}
+                        placeholder="Select priority"
                       />
 
                       <div className="lg:col-span-2">

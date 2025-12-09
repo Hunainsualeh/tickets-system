@@ -11,9 +11,10 @@ interface SidebarProps {
   userRole?: 'ADMIN' | 'USER';
   username?: string;
   onTabChange?: (tab: string) => void;
+  onNavigate?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChange }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChange, onNavigate }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -38,6 +39,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
   const handleNavClick = (key: string, href: string) => {
     setIsMobileMenuOpen(false);
     setActiveTab(key);
+    
+    // Call onNavigate to clear any detail views
+    if (onNavigate) onNavigate();
     
     if (pathname === '/admin' && key !== 'overview') {
       // For admin, use query params for tabs

@@ -107,6 +107,13 @@ function AdminDashboardContent() {
     }
   }, [router, searchParams]);
 
+  // Clear detail views when switching tabs
+  useEffect(() => {
+    setSelectedTicket(null);
+    setSelectedUser(null);
+    setSelectedBranch(null);
+  }, [activeTab]);
+
   const fetchData = async () => {
     try {
       const [usersRes, branchesRes, ticketsRes] = await Promise.all([
@@ -283,12 +290,20 @@ function AdminDashboardContent() {
     lowPriority: tickets.filter((t) => t.priority === 'LOW').length,
   };
 
+  const handleNavigation = () => {
+    // Clear any detail views when navigating
+    setSelectedTicket(null);
+    setSelectedUser(null);
+    setSelectedBranch(null);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <Sidebar 
         userRole={user?.role} 
         username={user?.username}
         onTabChange={(tab) => setActiveTab(tab as any)}
+        onNavigate={handleNavigation}
       />
       
       {/* Main Content */}

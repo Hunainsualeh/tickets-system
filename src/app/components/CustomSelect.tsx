@@ -43,9 +43,16 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
       const updatePosition = () => {
         if (containerRef.current) {
           const rect = containerRef.current.getBoundingClientRect();
+          const spaceBelow = window.innerHeight - rect.bottom;
+          const spaceAbove = rect.top;
+          const dropdownHeight = 250; // max-h-60 is approximately 240px
+          
+          // Position above if not enough space below
+          const shouldPositionAbove = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
+          
           setDropdownStyle({
             position: 'fixed',
-            top: `${rect.bottom + 8}px`,
+            top: shouldPositionAbove ? `${rect.top - Math.min(dropdownHeight, spaceAbove) - 8}px` : `${rect.bottom + 8}px`,
             left: `${rect.left}px`,
             width: `${rect.width}px`,
             zIndex: 9999
@@ -76,10 +83,15 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
       <div className="relative">
         <button
           type="button"
-          onClick={() => !disabled && setIsOpen(!isOpen)}
+          onClick={(e) => {
+            e.preventDefault();
+            if (!disabled) {
+              setIsOpen(!isOpen);
+            }
+          }}
           className={`w-full flex items-center justify-between px-4 py-3 bg-white border rounded-xl transition-all duration-200 text-left ${
             isOpen 
-              ? 'border-slate-900 ring-2 ring-slate-900/10' 
+              ? 'border-blue-500 ring-2 ring-blue-500/10' 
               : 'border-slate-200 hover:border-slate-300'
           } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         >
@@ -90,34 +102,54 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         </button>
 
         {mounted && isOpen && createPortal(
-          <div 
-            style={dropdownStyle}
-            className="bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100"
-          >
-            <div className="max-h-60 overflow-y-auto p-1.5 space-y-0.5">
-              {options.map((option) => {
-                const isSelected = option.value === value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => {
-                      onChange(option.value);
-                      setIsOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      isSelected 
-                        ? 'bg-slate-50 text-slate-900' 
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
-                  >
-                    <span className="truncate">{option.label}</span>
-                    {isSelected && <Check className="w-4 h-4 text-slate-900 shrink-0 ml-2" />}
-                  </button>
-                );
-              })}
+          <>
+            {/* Backdrop to close dropdown when clicking outside */}
+            <div 
+              style={{ zIndex: 9998 }}
+              className="fixed inset-0"
+              onClick={() => setIsOpen(false)}
+            />
+            <div 
+              style={dropdownStyle}
+              className="bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 pointer-events-auto"
+            >
+              <div className="max-h-60 overflow-y-auto p-1.5 space-y-0.5">
+                {options.length === 0 ? (
+                  <div className="px-3 py-2.5 text-sm text-slate-500 text-center">
+                    No options available
+                  </div>
+                ) : (
+                  options.map((option) => {
+                    const isSelected = option.value === value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onChange(option.value);
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                          isSelected 
+                            ? 'bg-slate-100 text-slate-900' 
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }`}
+                      >
+                        <span className="truncate text-left">{option.label}</span>
+                        {isSelected && <Check className="w-4 h-4 text-slate-900 shrink-0 ml-2" />}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
             </div>
-          </div>,
+          </>,
           document.body
         )}
       </div>
