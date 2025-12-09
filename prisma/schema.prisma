@@ -1,0 +1,109 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum BranchCategory {
+  BRANCH
+  BACK_OFFICE
+  HYBRID
+  DATA_CENTER
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum TicketStatus {
+  PENDING
+  ACKNOWLEDGED
+  IN_PROGRESS
+  COMPLETED
+  ESCALATED
+  CLOSED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  role      UserRole @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tickets   Ticket[]
+  
+  @@map("users")
+}
+
+model Branch {
+  id            String         @id @default(cuid())
+  name          String
+  branchNumber  String         @unique
+  address       String
+  localContact  String
+  category      BranchCategory
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  tickets       Ticket[]
+  
+  @@map("branches")
+}
+
+model Ticket {
+  id                String       @id @default(cuid())
+  userId            String
+  branchId          String
+  priority          Priority
+  issue             String       @db.Text
+  additionalDetails String?      @db.Text
+  status            TicketStatus @default(PENDING)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch            Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  statusHistory     StatusHistory[]
+  attachments       Attachment[]
+  
+  @@map("tickets")
+}
+
+model StatusHistory {
+  id        String       @id @default(cuid())
+  ticketId  String
+  status    TicketStatus
+  note      String?      @db.Text
+  adminNote String?      @db.Text
+  createdAt DateTime     @default(now())
+  
+  ticket    Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  
+  @@map("status_history")
+}
+
+model Attachment {
+  id          String   @id @default(cuid())
+  ticketId    String
+  fileName    String
+  fileUrl     String
+  fileSize    Int
+  mimeType    String
+  uploadedAt  DateTime @default(now())
+  
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  
+  @@map("attachments")
+}
