@@ -1088,7 +1088,9 @@ function UserDashboardContent() {
             <>
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8 mt-12 lg:mt-0">
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-900">Arsalan's Dashboard</h1>
+                  <h1 className="text-2xl font-bold text-slate-900">
+                    {user?.username ? `${user.username.charAt(0).toUpperCase() + user.username.slice(1)}'s Dashboard` : 'Dashboard'}
+                  </h1>
                   <p className="text-sm text-slate-600 mt-1">
                     Manage your dispatch requests {user?.team?.name && <span className="font-medium text-blue-600">for {user.team.name}</span>}
                   </p>
