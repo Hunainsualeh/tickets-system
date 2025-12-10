@@ -7,7 +7,7 @@ import { Sidebar } from '@/app/components/Sidebar';
 import { Button } from '@/app/components/Button';
 import { Modal } from '@/app/components/Modal';
 import { Input } from '@/app/components/Input';
-import { Plus, Users, Eye } from 'lucide-react';
+import { Plus, Users, Eye, List } from 'lucide-react';
 import Link from 'next/link';
 import { StatCard } from '@/app/components/StatCard';
 
@@ -77,10 +77,20 @@ function TeamsPageContent() {
                 <h1 className="text-3xl font-bold text-slate-900 mb-2">Teams</h1>
                 <p className="text-slate-600">Manage your teams, view hierarchy, and team members</p>
               </div>
-              <Button onClick={() => setShowTeamModal(true)} className="flex items-center gap-2">
-                <Plus className="w-4 h-4" />
-                Add Team
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => router.push('/admin/teams/list')}
+                  className="flex items-center gap-2"
+                >
+                  <List className="w-4 h-4" />
+                  View All
+                </Button>
+                <Button onClick={() => setShowTeamModal(true)} className="flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Add Team
+                </Button>
+              </div>
             </div>
 
           </div>

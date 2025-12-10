@@ -26,6 +26,7 @@ import { Users, Building2, Ticket as TicketIcon, Plus, Edit, Trash2, MessageSqua
 import { Suspense } from 'react';
 import { NoteDetailModal } from '@/app/components/NoteDetailModal';
 import { RequestDetail } from '@/app/components/RequestDetail';
+import * as XLSX from 'xlsx';
 
 function AdminDashboardContent() {
   const router = useRouter();
@@ -37,6 +38,9 @@ function AdminDashboardContent() {
   const [calendarView, setCalendarView] = useState<'month' | 'timeline'>('month');
   const [selectedReportBranch, setSelectedReportBranch] = useState<string>('ALL');
   const [createView, setCreateView] = useState<'user' | 'branch' | 'ticket' | null>(null);
+  const [branchCreateTab, setBranchCreateTab] = useState<'manual' | 'upload'>('manual');
+  const [parsedBranches, setParsedBranches] = useState<any[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   // State
   const [users, setUsers] = useState<User[]>([]);
@@ -276,6 +280,68 @@ function AdminDashboardContent() {
       }
       setShowDeleteModal(false);
       setDeleteTarget(null);
+      fetchData();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsAnalyzing(true);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+        
+        // Map data to branch structure if needed
+        const mappedData = data.map((row: any) => ({
+          name: row['Location'] || row['location'] || row['Branch Name'] || row['name'],
+          branchNumber: (row['Branch Number'] || row['branch number'] || row['branchNumber'])?.toString(),
+          category: (row['Location Type'] || row['location type'] || row['category'] || 'BRANCH').toUpperCase(),
+        })).filter((b: any) => b.name && b.branchNumber); // Filter out invalid rows
+        
+        setParsedBranches(mappedData);
+      } catch (error) {
+        console.error('Error parsing file:', error);
+        alert('Failed to parse file. Please check the format.');
+      } finally {
+        setIsAnalyzing(false);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleBulkCreateBranches = async () => {
+    if (parsedBranches.length === 0) return;
+
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+      
+      // Show loading state if needed, or just process
+      // For better UX, we could show a progress bar, but for now simple alert is fine
+      
+      for (const branch of parsedBranches) {
+        try {
+           await apiClient.createBranch(branch);
+           successCount++;
+        } catch (err) {
+           console.error("Failed to create branch", branch, err);
+           errorCount++;
+        }
+      }
+      
+      alert(`Process completed.\nCreated: ${successCount}\nFailed: ${errorCount}`);
+      setCreateView(null);
+      setParsedBranches([]);
+      setBranchCreateTab('manual');
       fetchData();
     } catch (error: any) {
       alert(error.message);
@@ -756,45 +822,142 @@ function AdminDashboardContent() {
                   )}
 
                   {createView === 'branch' && (
-                    <form onSubmit={handleCreateBranch} className="space-y-6">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <Input
-                          label="Branch Name"
-                          value={branchForm.name}
-                          onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })}
-                          required
-                        />
-                        <Input
-                          label="Branch Number"
-                          value={branchForm.branchNumber}
-                          onChange={(e) => setBranchForm({ ...branchForm, branchNumber: e.target.value })}
-                          required
-                        />
-                        <CustomSelect
-                          label="Category"
-                          value={branchForm.category}
-                          onChange={(value) => setBranchForm({ ...branchForm, category: value })}
-                          options={[
-                            { value: 'BRANCH', label: 'Branch' },
-                            { value: 'HEADQUARTERS', label: 'Headquarters' },
-                            { value: 'WAREHOUSE', label: 'Warehouse' },
-                          ]}
-                        />
-                      </div>
-                      <div className="flex justify-end gap-4 pt-6 border-t border-slate-100">
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          onClick={() => setCreateView(null)}
-                          className="text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                    <div className="space-y-6">
+                      {/* Tabs */}
+                      <div className="flex border-b border-slate-200">
+                        <button
+                          className={`px-4 py-2 font-medium text-sm ${branchCreateTab === 'manual' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                          onClick={() => setBranchCreateTab('manual')}
                         >
-                          Cancel
-                        </Button>
-                        <Button type="submit" size="lg" className="bg-blue-600 hover:bg-blue-500 text-white border-0">
-                          Create Branch
-                        </Button>
+                          Add Manually
+                        </button>
+                        <button
+                          className={`px-4 py-2 font-medium text-sm ${branchCreateTab === 'upload' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                          onClick={() => setBranchCreateTab('upload')}
+                        >
+                          Upload CSV/XLSX
+                        </button>
                       </div>
-                    </form>
+
+                      {branchCreateTab === 'manual' ? (
+                        <form onSubmit={handleCreateBranch} className="space-y-6">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <Input
+                              label="Branch Number"
+                              value={branchForm.branchNumber}
+                              onChange={(e) => setBranchForm({ ...branchForm, branchNumber: e.target.value })}
+                              required
+                            />
+                            <CustomSelect
+                              label="Location Type"
+                              value={branchForm.category}
+                              onChange={(value) => setBranchForm({ ...branchForm, category: value })}
+                              options={[
+                                { value: 'BRANCH', label: 'Branch' },
+                                { value: 'HEADQUARTERS', label: 'Headquarters' },
+                                { value: 'WAREHOUSE', label: 'Warehouse' },
+                              ]}
+                            />
+                            <Input
+                              label="Location"
+                              value={branchForm.name}
+                              onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })}
+                              required
+                            />
+                          </div>
+                          <div className="flex justify-end gap-4 pt-6 border-t border-slate-100">
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              onClick={() => setCreateView(null)}
+                              className="text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                            >
+                              Cancel
+                            </Button>
+                            <Button type="submit" size="lg" className="bg-blue-600 hover:bg-blue-500 text-white border-0">
+                              Create Branch
+                            </Button>
+                          </div>
+                        </form>
+                      ) : (
+                        <div className="space-y-6">
+                          <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:bg-slate-50 transition-colors">
+                            {isAnalyzing ? (
+                              <div className="flex flex-col items-center justify-center py-4">
+                                <div className="w-full max-w-xs bg-slate-200 rounded-full h-2.5 mb-4">
+                                  <div className="bg-blue-600 h-2.5 rounded-full animate-pulse w-full"></div>
+                                </div>
+                                <p className="text-sm font-medium text-slate-600">Analyzing file...</p>
+                              </div>
+                            ) : (
+                              <>
+                                <input
+                                  type="file"
+                                  accept=".csv, .xlsx, .xls"
+                                  onChange={handleFileUpload}
+                                  className="hidden"
+                                  id="branch-file-upload"
+                                />
+                                <label htmlFor="branch-file-upload" className="cursor-pointer">
+                                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                  </div>
+                                  <p className="text-lg font-medium text-slate-900 mb-1">Click to upload or drag and drop</p>
+                                  <p className="text-sm text-slate-500">CSV, Excel files (xlsx, xls)</p>
+                                  <p className="text-xs text-slate-400 mt-2">Required columns: Branch Number, Location Type, Location</p>
+                                </label>
+                              </>
+                            )}
+                          </div>
+
+                          {parsedBranches.length > 0 && (
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center">
+                                <h3 className="font-bold text-slate-900">Preview ({parsedBranches.length} branches)</h3>
+                                <Button onClick={handleBulkCreateBranches}>
+                                  Import {parsedBranches.length} Branches
+                                </Button>
+                              </div>
+                              <div className="border border-slate-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+                                <table className="w-full text-sm text-left">
+                                  <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                                    <tr>
+                                      <th className="px-4 py-3">Name</th>
+                                      <th className="px-4 py-3">Number</th>
+                                      <th className="px-4 py-3">Category</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {parsedBranches.map((branch, index) => (
+                                      <tr key={index} className="hover:bg-slate-50">
+                                        <td className="px-4 py-3">{branch.name}</td>
+                                        <td className="px-4 py-3">{branch.branchNumber}</td>
+                                        <td className="px-4 py-3">
+                                          <Badge size="sm">{branch.category}</Badge>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="flex justify-end gap-4 pt-6 border-t border-slate-100">
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              onClick={() => setCreateView(null)}
+                              className="text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {createView === 'ticket' && (
@@ -974,75 +1137,84 @@ function AdminDashboardContent() {
                   <div className="xl:col-span-2 space-y-4">
                     {overviewTab === 'tickets' ? (
                       <>
-                        {paginatedTickets.map((ticket) => (
-                          <div 
-                            key={ticket.id}
-                            onClick={() => handleViewTicket(ticket.id)}
-                            className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                          >
-                            <div className="flex flex-col sm:flex-row items-start gap-4">
-                              {/* User Avatar */}
-                              <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-lg shrink-0">
-                                {ticket.user?.username?.charAt(0).toUpperCase()}
-                              </div>
-                              
-                              <div className="flex-1 min-w-0 w-full">
-                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
-                                  <div>
-                                    <h3 className="font-bold text-slate-900 truncate">{ticket.user?.username}</h3>
-                                    <p className="text-xs text-slate-500">#{ticket.id.substring(0, 8)}</p>
-                                  </div>
-                                  <Badge variant={getPriorityColor(ticket.priority)}>
-                                    {ticket.priority}
-                                  </Badge>
-                                </div>
-                                
-                                <p className="text-sm text-slate-600 mb-4 line-clamp-2">{ticket.issue}</p>
-                                
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-50">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs text-blue-600 font-bold">
-                                      {ticket.branch?.name?.charAt(0)}
-                                    </div>
-                                    <span className="text-xs text-slate-500">{ticket.branch?.name}</span>
+                        {paginatedTickets.length === 0 ? (
+                          <div className="text-center py-12 bg-white rounded-2xl border border-slate-100">
+                            <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                            <p className="text-slate-600">No tickets found</p>
+                          </div>
+                        ) : (
+                          <>
+                            {paginatedTickets.map((ticket) => (
+                              <div 
+                                key={ticket.id}
+                                onClick={() => handleViewTicket(ticket.id)}
+                                className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                              >
+                                <div className="flex flex-col sm:flex-row items-start gap-4">
+                                  {/* User Avatar */}
+                                  <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-lg shrink-0">
+                                    {ticket.user?.username?.charAt(0).toUpperCase()}
                                   </div>
                                   
-                                  <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-xs text-slate-400">Status</span>
-                                      <span className={`text-xs font-medium ${
-                                        ticket.status === 'COMPLETED' ? 'text-green-600' :
-                                        ticket.status === 'IN_PROGRESS' ? 'text-blue-600' :
-                                        'text-amber-600'
-                                      }`}>
-                                        {ticket.status.replace('_', ' ')}
-                                      </span>
+                                  <div className="flex-1 min-w-0 w-full">
+                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
+                                      <div>
+                                        <h3 className="font-bold text-slate-900 truncate">{ticket.user?.username}</h3>
+                                        <p className="text-xs text-slate-500">#{ticket.id.substring(0, 8)}</p>
+                                      </div>
+                                      <Badge variant={getPriorityColor(ticket.priority)}>
+                                        {ticket.priority}
+                                      </Badge>
                                     </div>
                                     
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-xs text-slate-400">Date</span>
-                                      <span className="text-xs font-medium text-slate-600">
-                                        {new Date(ticket.createdAt).toLocaleDateString()}
-                                      </span>
+                                    <p className="text-sm text-slate-600 mb-4 line-clamp-2">{ticket.issue}</p>
+                                    
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-50">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs text-blue-600 font-bold">
+                                          {ticket.branch?.name?.charAt(0)}
+                                        </div>
+                                        <span className="text-xs text-slate-500">{ticket.branch?.name}</span>
+                                      </div>
+                                      
+                                      <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs text-slate-400">Status</span>
+                                          <span className={`text-xs font-medium ${
+                                            ticket.status === 'COMPLETED' ? 'text-green-600' :
+                                            ticket.status === 'IN_PROGRESS' ? 'text-blue-600' :
+                                            'text-amber-600'
+                                          }`}>
+                                            {ticket.status.replace('_', ' ')}
+                                          </span>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs text-slate-400">Date</span>
+                                          <span className="text-xs font-medium text-slate-600">
+                                            {new Date(ticket.createdAt).toLocaleDateString()}
+                                          </span>
+                                        </div>
+                                      </div>
                                     </div>
                                   </div>
+                                  
+                                  <button className="hidden sm:block p-2 text-slate-300 hover:text-slate-600">
+                                    <div className="w-1 h-1 bg-current rounded-full mb-1" />
+                                    <div className="w-1 h-1 bg-current rounded-full mb-1" />
+                                    <div className="w-1 h-1 bg-current rounded-full" />
+                                  </button>
                                 </div>
                               </div>
-                              
-                              <button className="hidden sm:block p-2 text-slate-300 hover:text-slate-600">
-                                <div className="w-1 h-1 bg-current rounded-full mb-1" />
-                                <div className="w-1 h-1 bg-current rounded-full mb-1" />
-                                <div className="w-1 h-1 bg-current rounded-full" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                        
-                        <Pagination
-                          currentPage={currentPage}
-                          totalPages={totalPages}
-                          onPageChange={setCurrentPage}
-                        />
+                            ))}
+                            
+                            <Pagination
+                              currentPage={currentPage}
+                              totalPages={totalPages}
+                              onPageChange={setCurrentPage}
+                            />
+                          </>
+                        )}
                       </>
                     ) : (
                       <>
@@ -1588,6 +1760,16 @@ function AdminDashboardContent() {
                       </TableCell>
                     </TableRow>
                   ))}
+                  {tickets
+                    .filter(t => ticketFilterStatus === 'ALL' || t.status === ticketFilterStatus)
+                    .filter(t => ticketFilterPriority === 'ALL' || t.priority === ticketFilterPriority)
+                    .length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-slate-500">
+                        No tickets found
+                      </td>
+                    </tr>
+                  )}
                 </TableBody>
               </Table>
             </div>

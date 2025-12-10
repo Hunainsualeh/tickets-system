@@ -140,6 +140,13 @@ class ApiClient {
     });
   }
 
+  async updateTeam(id: string, data: { name: string }) {
+    return this.request(`/api/teams/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
   async deleteTeam(id: string) {
     return this.request(`/api/teams/${id}`, {
       method: 'DELETE',
