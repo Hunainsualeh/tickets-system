@@ -54,7 +54,10 @@ function AdminDashboardContent() {
   const [ticketFilterPriority, setTicketFilterPriority] = useState<string>('ALL');
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [branchesPage, setBranchesPage] = useState(1);
+  const [totalBranchesCount, setTotalBranchesCount] = useState(0);
   const itemsPerPage = 5;
+  const branchesPerPage = 10;
 
   // Modals
   const [showUserModal, setShowUserModal] = useState(false);
@@ -128,7 +131,7 @@ function AdminDashboardContent() {
     try {
       const [usersRes, branchesRes, ticketsRes, teamsRes, requestsRes, notesRes] = await Promise.all([
         apiClient.getUsers(),
-        apiClient.getBranches(),
+        apiClient.getBranches({ page: branchesPage, limit: branchesPerPage }),
         apiClient.getTickets({ search: searchQuery }),
         fetch('/api/teams', {
           headers: {
@@ -149,6 +152,7 @@ function AdminDashboardContent() {
 
       setUsers(usersRes.users);
       setBranches(branchesRes.branches);
+      setTotalBranchesCount(branchesRes.pagination.total);
       setTickets(ticketsRes.tickets);
       setTeams(teamsRes.teams || []);
       setRequests(requestsRes.requests || []);
@@ -159,6 +163,22 @@ function AdminDashboardContent() {
       setLoading(false);
     }
   };
+
+  const fetchBranchesData = async () => {
+    try {
+      const res = await apiClient.getBranches({ page: branchesPage, limit: branchesPerPage });
+      setBranches(res.branches);
+      setTotalBranchesCount(res.pagination.total);
+    } catch (error) {
+      console.error('Error fetching branches:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'branches') {
+      fetchBranchesData();
+    }
+  }, [branchesPage]);
 
   // Debounce search
   useEffect(() => {
@@ -364,7 +384,7 @@ function AdminDashboardContent() {
 
   const stats = {
     totalUsers: users.length,
-    totalBranches: branches.length,
+    totalBranches: totalBranchesCount,
     totalTickets: tickets.length,
     totalRequests: requests.length,
     pendingRequests: requests.filter((r) => r.status === 'PENDING').length,
@@ -1728,6 +1748,12 @@ function AdminDashboardContent() {
                 </TableBody>
               </Table>
             </div>
+
+            <Pagination
+              currentPage={branchesPage}
+              totalPages={Math.ceil(totalBranchesCount / branchesPerPage)}
+              onPageChange={setBranchesPage}
+            />
           </div>
             )
           )}

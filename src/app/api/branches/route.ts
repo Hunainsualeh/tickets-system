@@ -11,13 +11,41 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const branches = await prisma.branch.findMany({
-      orderBy: {
-        name: 'asc',
-      },
-    });
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '1000'); // Default high for backward compatibility
+    const search = searchParams.get('search') || '';
 
-    return NextResponse.json({ branches });
+    const skip = (page - 1) * limit;
+
+    const where = search ? {
+      OR: [
+        { name: { contains: search, mode: 'insensitive' } },
+        { branchNumber: { contains: search, mode: 'insensitive' } },
+      ]
+    } : {};
+
+    const [branches, total] = await prisma.$transaction([
+      prisma.branch.findMany({
+        where: where as any,
+        orderBy: {
+          name: 'asc',
+        },
+        skip,
+        take: limit,
+      }),
+      prisma.branch.count({ where: where as any }),
+    ]);
+
+    return NextResponse.json({ 
+      branches,
+      pagination: {
+        total,
+        pages: Math.ceil(total / limit),
+        page,
+        limit
+      }
+    });
   } catch (error) {
     console.error('Get branches error:', error);
     return NextResponse.json(

@@ -94,8 +94,14 @@ class ApiClient {
   }
 
   // Branches
-  async getBranches() {
-    return this.request('/api/branches');
+  async getBranches(params?: { page?: number; limit?: number; search?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    
+    const queryString = queryParams.toString();
+    return this.request(`/api/branches${queryString ? `?${queryString}` : ''}`);
   }
 
   async createBranch(data: any) {
