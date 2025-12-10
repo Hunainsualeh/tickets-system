@@ -15,6 +15,9 @@ export const getPriorityColor = (priority: string) => {
     HIGH: 'danger',
     MEDIUM: 'warning',
     LOW: 'success',
+    P1: 'danger',
+    P2: 'warning',
+    P3: 'success',
   };
   return colors[priority] || 'default';
 };

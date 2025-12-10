@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { LayoutGrid, Users, Store, ClipboardList, LogOut, Menu, X, Settings, HelpCircle, Bell, Calendar } from 'lucide-react';
+import { LayoutGrid, Users, Store, ClipboardList, LogOut, Menu, X, Settings, HelpCircle, Bell, Calendar, FileText, MessageSquare, Briefcase } from 'lucide-react';
 import { Button } from './Button';
 import { Modal } from './Modal';
 import { apiClient } from '@/lib/api-client';
@@ -27,6 +27,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
     if (pathname === '/admin') {
       const tab = searchParams.get('tab') || 'overview';
       setActiveTab(tab);
+    } else if (pathname?.startsWith('/admin/teams')) {
+      setActiveTab('teams');
+    } else if (pathname === '/dashboard') {
+      const view = searchParams.get('view') || 'overview';
+      setActiveTab(view);
     }
   }, [pathname, searchParams]);
 
@@ -43,14 +48,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
     // Call onNavigate to clear any detail views
     if (onNavigate) onNavigate();
     
-    if (pathname === '/admin' && key !== 'overview') {
+    if (pathname?.startsWith('/admin') && key !== 'overview' && href.includes('?tab=')) {
       // For admin, use query params for tabs
       router.push(`/admin?tab=${key}`);
       if (onTabChange) onTabChange(key);
-    } else if (pathname === '/admin' && key === 'overview') {
+    } else if (pathname?.startsWith('/admin') && key === 'overview') {
       router.push('/admin');
       if (onTabChange) onTabChange('overview');
-    } else if (pathname === '/dashboard') {
+    } else if (pathname?.startsWith('/dashboard')) {
       // For user dashboard
       if (key === 'overview') {
         router.push('/dashboard');
@@ -68,12 +73,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
     ? [
         { icon: LayoutGrid, label: 'Dashboard', key: 'overview', href: '/admin' },
         { icon: Users, label: 'Users', key: 'users', href: '/admin?tab=users' },
+        { icon: Briefcase, label: 'Teams', key: 'teams', href: '/admin/teams' },
         { icon: Store, label: 'Branches', key: 'branches', href: '/admin?tab=branches' },
         { icon: ClipboardList, label: 'Tickets', key: 'tickets', href: '/admin?tab=tickets' },
+        { icon: FileText, label: 'Requests', key: 'requests', href: '/admin?tab=requests' },
+        { icon: MessageSquare, label: 'Notes', key: 'notes', href: '/admin?tab=notes' },
       ]
     : [
         { icon: LayoutGrid, label: 'Dashboard', href: '/dashboard', key: 'overview' },
         { icon: ClipboardList, label: 'My Tickets', href: '/dashboard?view=tickets', key: 'tickets' },
+        { icon: FileText, label: 'Requests', href: '/dashboard?view=requests', key: 'requests' },
+        { icon: MessageSquare, label: 'Notes', href: '/dashboard?view=notes', key: 'notes' },
         { icon: Users, label: 'Profile', href: '/dashboard?view=profile', key: 'profile' },
       ];
 

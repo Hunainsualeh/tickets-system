@@ -36,9 +36,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { name, branchNumber, address, localContact, category } = await request.json();
+    const { name, branchNumber, category } = await request.json();
 
-    if (!name || !branchNumber || !address || !localContact || !category) {
+    if (!name || !branchNumber || !category) {
       return NextResponse.json(
         { error: 'All fields are required' },
         { status: 400 }
@@ -61,8 +61,6 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         branchNumber,
-        address,
-        localContact,
         category,
       },
     });

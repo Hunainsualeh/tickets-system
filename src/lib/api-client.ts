@@ -118,12 +118,35 @@ class ApiClient {
     });
   }
 
+  // Teams
+  async getTeams() {
+    return this.request('/api/teams');
+  }
+
+  async getTeam(id: string) {
+    return this.request(`/api/teams/${id}`);
+  }
+
+  async createTeam(data: { name: string }) {
+    return this.request('/api/teams', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTeam(id: string) {
+    return this.request(`/api/teams/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Tickets
-  async getTickets(filters?: { status?: string; priority?: string; search?: string }) {
+  async getTickets(filters?: { status?: string; priority?: string; search?: string; scope?: string }) {
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
     if (filters?.priority) params.append('priority', filters.priority);
     if (filters?.search) params.append('search', filters.search);
+    if (filters?.scope) params.append('scope', filters.scope);
     
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request(`/api/tickets${query}`);

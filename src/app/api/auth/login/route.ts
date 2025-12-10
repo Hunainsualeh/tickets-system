@@ -75,7 +75,14 @@ export async function POST(request: NextRequest) {
         username: true,
         password: true,
         role: true,
+        teamId: true,
         createdAt: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -115,6 +122,8 @@ export async function POST(request: NextRequest) {
         id: user.id,
         username: user.username,
         role: user.role,
+        teamId: user.teamId,
+        team: user.team,
       },
       expiresIn: '7d',
     });

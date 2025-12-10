@@ -59,41 +59,72 @@ async function main() {
   });
   console.log('Created user:', user2.username);
 
+  // Create teams
+  const team1 = await prisma.team.upsert({
+    where: { name: 'Development Team' },
+    update: {},
+    create: {
+      name: 'Development Team',
+    },
+  });
+  console.log('Created team:', team1.name);
+
+  const team2 = await prisma.team.upsert({
+    where: { name: 'Support Team' },
+    update: {},
+    create: {
+      name: 'Support Team',
+    },
+  });
+  console.log('Created team:', team2.name);
+
+  const team3 = await prisma.team.upsert({
+    where: { name: 'IT Operations' },
+    update: {},
+    create: {
+      name: 'IT Operations',
+    },
+  });
+  console.log('Created team:', team3.name);
+
+  // Assign users to teams
+  await prisma.user.update({
+    where: { id: user1.id },
+    data: { teamId: team1.id },
+  });
+  console.log('Assigned', user1.username, 'to', team1.name);
+
+  await prisma.user.update({
+    where: { id: user2.id },
+    data: { teamId: team2.id },
+  });
+  console.log('Assigned', user2.username, 'to', team2.name);
+
   // Create branches
   const branches = [
     {
       name: 'Main Branch Downtown',
       branchNumber: 'BR001',
-      address: '123 Main Street, Downtown, City, State 12345',
-      localContact: '+1 (555) 123-4567',
       category: 'BRANCH',
     },
     {
       name: 'North Side Branch',
       branchNumber: 'BR002',
-      address: '456 North Avenue, Northside, City, State 12346',
-      localContact: '+1 (555) 234-5678',
       category: 'BRANCH',
     },
     {
       name: 'Corporate Back Office',
       branchNumber: 'BO001',
-      address: '789 Corporate Drive, Business District, City, State 12347',
-      localContact: '+1 (555) 345-6789',
       category: 'BACK_OFFICE',
     },
     {
       name: 'Hybrid Operations Center',
       branchNumber: 'HY001',
-      address: '321 Hybrid Way, Tech Park, City, State 12348',
-      localContact: '+1 (555) 456-7890',
       category: 'HYBRID',
     },
     {
       name: 'Primary Data Center',
       branchNumber: 'DC001',
-      address: '654 Data Center Road, Industrial Zone, City, State 12349',
-      localContact: '+1 (555) 567-8901',
       category: 'DATA_CENTER',
     },
   ];
@@ -116,7 +147,7 @@ async function main() {
       {
         userId: allUsers[0].id,
         branchId: allBranches[0].id,
-        priority: 'HIGH',
+        priority: 'P1',
         issue: 'Network connectivity issues in the main office. Multiple workstations unable to connect to the network.',
         additionalDetails: 'Started around 9 AM this morning. Affecting approximately 15 workstations.',
         status: 'IN_PROGRESS',
@@ -124,7 +155,7 @@ async function main() {
       {
         userId: allUsers[0].id,
         branchId: allBranches[1].id,
-        priority: 'MEDIUM',
+        priority: 'P2',
         issue: 'Printer not working properly. Paper jams frequently.',
         additionalDetails: 'Model: HP LaserJet Pro. Located in the main office area.',
         status: 'ACKNOWLEDGED',
@@ -132,7 +163,7 @@ async function main() {
       {
         userId: allUsers[1]?.id || allUsers[0].id,
         branchId: allBranches[2].id,
-        priority: 'LOW',
+        priority: 'P3',
         issue: 'Request for new software installation - Microsoft Office 365.',
         additionalDetails: 'Needed for the accounting department.',
         status: 'PENDING',

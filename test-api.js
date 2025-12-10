@@ -147,8 +147,6 @@ async function testCreateBranch() {
     body: JSON.stringify({
       name: `Test Branch ${Date.now()}`,
       branchNumber: `TB${Date.now()}`,
-      address: '123 Test Street, Test City',
-      localContact: '+1 555 TEST',
       category: 'BRANCH',
     }),
   });

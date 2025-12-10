@@ -54,7 +54,7 @@ export const Timeline: React.FC<TimelineProps> = ({ tickets, currentDate }) => {
     if (ticket.status === 'PENDING') colorClass = 'bg-amber-500';
     if (ticket.status === 'COMPLETED') colorClass = 'bg-emerald-500';
     if (ticket.status === 'CLOSED') colorClass = 'bg-slate-500';
-    if (ticket.priority === 'HIGH') colorClass = 'bg-rose-500';
+    if (ticket.priority === 'P1') colorClass = 'bg-rose-500';
 
     return {
       gridColumnStart: startDay,
@@ -101,8 +101,8 @@ export const Timeline: React.FC<TimelineProps> = ({ tickets, currentDate }) => {
               <div key={ticket.id} className="grid grid-cols-[200px_1fr] gap-4 group hover:bg-slate-50 rounded-lg transition-colors">
                 <div className="py-2 pl-2 pr-4 flex items-center gap-3 border-r border-slate-100">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium
-                    ${ticket.priority === 'HIGH' ? 'bg-rose-100 text-rose-700' : 
-                      ticket.priority === 'MEDIUM' ? 'bg-amber-100 text-amber-700' : 
+                    ${ticket.priority === 'P1' ? 'bg-rose-100 text-rose-700' : 
+                      ticket.priority === 'P2' ? 'bg-amber-100 text-amber-700' : 
                       'bg-blue-100 text-blue-700'}`}
                   >
                     {ticket.user?.username?.substring(0, 2).toUpperCase() || 'U'}

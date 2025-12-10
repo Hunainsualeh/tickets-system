@@ -16,8 +16,15 @@ export async function GET(request: NextRequest) {
         id: true,
         username: true,
         role: true,
+        teamId: true,
         createdAt: true,
         updatedAt: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 

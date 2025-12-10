@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth, requireAdmin } from '@/lib/middleware';
+import { requireAuth } from '@/lib/middleware';
 import { prisma } from '@/lib/prisma';
 
-// GET all tickets
+// GET all requests
 export async function GET(request: NextRequest) {
   const authResult = requireAuth(request);
   
@@ -13,7 +13,6 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    const priority = searchParams.get('priority');
     const search = searchParams.get('search');
     const scope = searchParams.get('scope');
 
@@ -28,42 +27,38 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Regular users can only see tickets from users in their team
+    // Regular users can only see requests from users in their team
     if (authResult.user.role === 'USER') {
       if (currentUser?.teamId) {
         if (scope === 'me') {
           where.userId = authResult.user.userId;
         } else {
-          // User belongs to a team - show tickets from all team members
+          // User belongs to a team - show requests from all team members
           where.user = {
             teamId: currentUser.teamId,
           };
         }
       } else {
-        // User not in a team - show only their own tickets
+        // User not in a team - show only their own requests
         where.userId = authResult.user.userId;
       }
     }
-    // Admins can see all tickets (no filter applied)
+    // Admins can see all requests (no filter applied)
 
     if (status) {
       where.status = status;
     }
 
-    if (priority) {
-      where.priority = priority;
-    }
-
     if (search) {
       where.OR = [
-        { issue: { contains: search } }, // Removed mode: 'insensitive' for SQLite compatibility if needed, or keep if Postgres/MySQL
-        { additionalDetails: { contains: search } },
+        { title: { contains: search } },
+        { description: { contains: search } },
+        { projectId: { contains: search } },
         { id: { contains: search } },
-        { branch: { name: { contains: search } } },
       ];
     }
 
-    const tickets = await prisma.ticket.findMany({
+    const requests = await prisma.request.findMany({
       where,
       include: {
         user: {
@@ -80,10 +75,9 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        branch: true,
-        statusHistory: {
+        attachments: {
           orderBy: {
-            createdAt: 'desc',
+            uploadedAt: 'desc',
           },
         },
       },
@@ -92,9 +86,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ tickets });
+    return NextResponse.json({ requests });
   } catch (error) {
-    console.error('Get tickets error:', error);
+    console.error('Get requests error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -102,7 +96,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST create new ticket
+// POST create new request
 export async function POST(request: NextRequest) {
   const authResult = requireAuth(request);
   
@@ -111,29 +105,21 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { branchId, priority, issue, additionalDetails, userId } = await request.json();
+    const { title, description, projectId } = await request.json();
 
-    if (!branchId || !priority || !issue) {
+    if (!title || !description) {
       return NextResponse.json(
-        { error: 'Branch, priority, and issue are required' },
+        { error: 'Title and description are required' },
         { status: 400 }
       );
     }
 
-    // For regular users, use their own ID
-    // For admins, they can create tickets for other users
-    let ticketUserId = authResult.user.userId;
-    if (authResult.user.role === 'ADMIN' && userId) {
-      ticketUserId = userId;
-    }
-
-    const ticket = await prisma.ticket.create({
+    const newRequest = await prisma.request.create({
       data: {
-        userId: ticketUserId,
-        branchId,
-        priority,
-        issue,
-        additionalDetails,
+        userId: authResult.user.userId,
+        title,
+        description,
+        projectId: projectId || null,
         status: 'PENDING',
       },
       include: {
@@ -142,24 +128,22 @@ export async function POST(request: NextRequest) {
             id: true,
             username: true,
             role: true,
+            teamId: true,
+            team: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
-        branch: true,
+        attachments: true,
       },
     });
 
-    // Create initial status history entry
-    await prisma.statusHistory.create({
-      data: {
-        ticketId: ticket.id,
-        status: 'PENDING',
-        note: 'Ticket created',
-      },
-    });
-
-    return NextResponse.json({ ticket }, { status: 201 });
+    return NextResponse.json({ request: newRequest }, { status: 201 });
   } catch (error) {
-    console.error('Create ticket error:', error);
+    console.error('Create request error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

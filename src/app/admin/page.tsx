@@ -21,16 +21,19 @@ import { Timeline } from '@/app/components/Timeline';
 import { AreaChart } from '@/app/components/AreaChart';
 import { SearchBar } from '@/app/components/SearchBar';
 import { Pagination } from '@/app/components/Pagination';
-import { getStatusColor, getPriorityColor, formatDate } from '@/lib/utils';
-import { Users, Building2, Ticket as TicketIcon, Plus, Edit, Trash2, MessageSquare, Clock, CheckCircle, XCircle, Search, Filter, Calendar, AlertTriangle, MoreVertical, Mail, Phone, MapPin, ArrowLeft } from 'lucide-react';
+import { getStatusColor, getPriorityColor, formatDate, formatRelativeTime } from '@/lib/utils';
+import { Users, Building2, Ticket as TicketIcon, Plus, Edit, Trash2, MessageSquare, Clock, CheckCircle, XCircle, Search, Filter, Calendar, AlertTriangle, MoreVertical, Mail, Phone, MapPin, ArrowLeft, Eye } from 'lucide-react';
 import { Suspense } from 'react';
+import { NoteDetailModal } from '@/app/components/NoteDetailModal';
+import { RequestDetail } from '@/app/components/RequestDetail';
 
 function AdminDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'tickets'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'tickets' | 'requests' | 'notes'>('overview');
   const [dashboardTab, setDashboardTab] = useState<'stats' | 'calendar' | 'reports'>('stats');
+  const [overviewTab, setOverviewTab] = useState<'tickets' | 'requests'>('tickets');
   const [calendarView, setCalendarView] = useState<'month' | 'timeline'>('month');
   const [selectedReportBranch, setSelectedReportBranch] = useState<string>('ALL');
   const [createView, setCreateView] = useState<'user' | 'branch' | 'ticket' | null>(null);
@@ -39,6 +42,9 @@ function AdminDashboardContent() {
   const [users, setUsers] = useState<User[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [notes, setNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
@@ -56,29 +62,33 @@ function AdminDashboardContent() {
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showTeamModal, setShowTeamModal] = useState(false);
+  const [showNoteDetailModal, setShowNoteDetailModal] = useState(false);
   
   // Selection State
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
+  const [selectedNote, setSelectedNote] = useState<any | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   
   const [editingItem, setEditingItem] = useState<any>(null);
   const [statusUpdate, setStatusUpdate] = useState({ ticketId: '', status: '', adminNote: '' });
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'user' | 'branch' | 'ticket'; name?: string } | null>(null);
 
   // Form states
-  const [userForm, setUserForm] = useState({ username: '', password: '', role: 'USER' });
+  const [userForm, setUserForm] = useState({ username: '', password: '', role: 'USER', teamId: '' });
+  const [teamForm, setTeamForm] = useState({ name: '' });
   const [branchForm, setBranchForm] = useState({
     name: '',
     branchNumber: '',
-    address: '',
-    localContact: '',
     category: 'BRANCH',
   });
   const [ticketForm, setTicketForm] = useState({
     userId: '',
     branchId: '',
-    priority: 'MEDIUM',
+    incNumber: '',
+    priority: 'P2',
     issue: '',
     additionalDetails: '',
     status: 'PENDING',
@@ -102,7 +112,7 @@ function AdminDashboardContent() {
     
     // Update tab from URL params
     const tab = searchParams.get('tab');
-    if (tab && ['overview', 'users', 'branches', 'tickets'].includes(tab)) {
+    if (tab && ['overview', 'users', 'branches', 'tickets', 'requests', 'notes'].includes(tab)) {
       setActiveTab(tab as any);
     }
   }, [router, searchParams]);
@@ -116,15 +126,33 @@ function AdminDashboardContent() {
 
   const fetchData = async () => {
     try {
-      const [usersRes, branchesRes, ticketsRes] = await Promise.all([
+      const [usersRes, branchesRes, ticketsRes, teamsRes, requestsRes, notesRes] = await Promise.all([
         apiClient.getUsers(),
         apiClient.getBranches(),
         apiClient.getTickets({ search: searchQuery }),
+        fetch('/api/teams', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        }).then(res => res.json()),
+        fetch('/api/requests', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        }).then(res => res.json()),
+        fetch('/api/notes', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        }).then(res => res.json()),
       ]);
 
       setUsers(usersRes.users);
       setBranches(branchesRes.branches);
       setTickets(ticketsRes.tickets);
+      setTeams(teamsRes.teams || []);
+      setRequests(requestsRes.requests || []);
+      setNotes(notesRes.notes || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -143,9 +171,66 @@ function AdminDashboardContent() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await apiClient.createUser(userForm);
+      const userData: any = {
+        username: userForm.username,
+        password: userForm.password,
+        role: userForm.role,
+      };
+      if (userForm.teamId) {
+        userData.teamId = userForm.teamId;
+      }
+      await apiClient.createUser(userData);
       setCreateView(null);
-      setUserForm({ username: '', password: '', role: 'USER' });
+      setUserForm({ username: '', password: '', role: 'USER', teamId: '' });
+      fetchData();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleCreateTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/api/teams', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(teamForm),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create team');
+      }
+      
+      setShowTeamModal(false);
+      setTeamForm({ name: '' });
+      fetchData();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleDeleteTeam = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this team? Users in this team will be unassigned.')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/teams/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete team');
+      }
+      
       fetchData();
     } catch (error: any) {
       alert(error.message);
@@ -185,8 +270,6 @@ function AdminDashboardContent() {
       setBranchForm({
         name: '',
         branchNumber: '',
-        address: '',
-        localContact: '',
         category: 'BRANCH',
       });
       fetchData();
@@ -208,7 +291,8 @@ function AdminDashboardContent() {
       setTicketForm({
         userId: '',
         branchId: '',
-        priority: 'MEDIUM',
+        incNumber: '',
+        priority: 'P2',
         issue: '',
         additionalDetails: '',
         status: 'PENDING',
@@ -282,12 +366,14 @@ function AdminDashboardContent() {
     totalUsers: users.length,
     totalBranches: branches.length,
     totalTickets: tickets.length,
+    totalRequests: requests.length,
+    pendingRequests: requests.filter((r) => r.status === 'PENDING').length,
     pendingTickets: tickets.filter((t) => t.status === 'PENDING').length,
     activeTickets: tickets.filter((t) => ['PENDING', 'ACKNOWLEDGED', 'IN_PROGRESS'].includes(t.status)).length,
     completedTickets: tickets.filter((t) => t.status === 'COMPLETED').length,
-    highPriority: tickets.filter((t) => t.priority === 'HIGH').length,
-    mediumPriority: tickets.filter((t) => t.priority === 'MEDIUM').length,
-    lowPriority: tickets.filter((t) => t.priority === 'LOW').length,
+    highPriority: tickets.filter((t) => t.priority === 'P1').length,
+    mediumPriority: tickets.filter((t) => t.priority === 'P2').length,
+    lowPriority: tickets.filter((t) => t.priority === 'P3').length,
   };
 
   const handleNavigation = () => {
@@ -424,6 +510,89 @@ function AdminDashboardContent() {
                         </div>
                       </section>
                     )}
+
+                    {/* Notes Section */}
+                    <section>
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">Notes</h3>
+                      
+                      {/* Add Note Form */}
+                      <form
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          const formData = new FormData(e.currentTarget);
+                          const note = formData.get('note') as string;
+                          
+                          if (!note.trim()) return;
+                          
+                          try {
+                            const response = await fetch(`/api/tickets/${selectedTicket.id}/notes`, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                              },
+                              body: JSON.stringify({ note }),
+                            });
+                            
+                            if (!response.ok) {
+                              throw new Error('Failed to add note');
+                            }
+                            
+                            // Reset form and refresh ticket
+                            e.currentTarget.reset();
+                            handleViewTicket(selectedTicket.id);
+                            fetchData(); // Refresh notes list
+                          } catch (error: any) {
+                            alert(error.message);
+                          }
+                        }}
+                        className="mb-6"
+                      >
+                        <div className="space-y-3">
+                          <Textarea
+                            name="note"
+                            placeholder="Add a note to this ticket..."
+                            rows={3}
+                            required
+                            className="resize-none"
+                          />
+                          <div className="flex justify-end">
+                            <Button type="submit" size="sm">
+                              <MessageSquare className="w-4 h-4 mr-2" />
+                              Add Note
+                            </Button>
+                          </div>
+                        </div>
+                      </form>
+
+                      {/* Display Notes */}
+                      {selectedTicket.notes && selectedTicket.notes.length > 0 ? (
+                        <div className="space-y-4">
+                          {selectedTicket.notes.map((note: any) => (
+                            <div key={note.id} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                              <div className="flex items-start justify-between gap-3 mb-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
+                                    {note.user?.username?.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-slate-900">{note.user?.username}</p>
+                                    <p className="text-xs text-slate-500">{formatDate(note.createdAt)}</p>
+                                  </div>
+                                </div>
+                              </div>
+                              <p className="text-sm text-slate-700 whitespace-pre-wrap">{note.note}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 bg-slate-50 rounded-xl border border-slate-100">
+                          <MessageSquare className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                          <p className="text-sm text-slate-500">No notes yet</p>
+                          <p className="text-xs text-slate-400 mt-1">Be the first to add a note</p>
+                        </div>
+                      )}
+                    </section>
                   </div>
 
                   {/* Sidebar Info */}
@@ -485,14 +654,6 @@ function AdminDashboardContent() {
                           <p className="text-xs text-slate-500 uppercase tracking-wider">Category</p>
                           <Badge size="sm">{selectedTicket.branch?.category}</Badge>
                         </div>
-                        <div>
-                          <p className="text-xs text-slate-500 uppercase tracking-wider">Address</p>
-                          <p className="text-sm text-slate-700">{selectedTicket.branch?.address}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-slate-500 uppercase tracking-wider">Contact</p>
-                          <p className="text-sm text-slate-700">{selectedTicket.branch?.localContact}</p>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -539,17 +700,24 @@ function AdminDashboardContent() {
                           onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
                           required
                         />
-                        <div className="lg:col-span-2">
-                          <CustomSelect
-                            label="Role"
-                            value={userForm.role}
-                            onChange={(value) => setUserForm({ ...userForm, role: value })}
-                            options={[
-                              { value: 'USER', label: 'User' },
-                              { value: 'ADMIN', label: 'Admin' },
-                            ]}
-                          />
-                        </div>
+                        <CustomSelect
+                          label="Role"
+                          value={userForm.role}
+                          onChange={(value) => setUserForm({ ...userForm, role: value })}
+                          options={[
+                            { value: 'USER', label: 'User' },
+                            { value: 'ADMIN', label: 'Admin' },
+                          ]}
+                        />
+                        <CustomSelect
+                          label="Team (Optional)"
+                          value={userForm.teamId}
+                          onChange={(value) => setUserForm({ ...userForm, teamId: value })}
+                          options={[
+                            { value: '', label: 'No Team' },
+                            ...teams.map(team => ({ value: team.id, label: team.name })),
+                          ]}
+                        />
                       </div>
                       <div className="flex justify-end gap-4 pt-6 border-t border-slate-100">
                         <Button 
@@ -592,20 +760,6 @@ function AdminDashboardContent() {
                             { value: 'WAREHOUSE', label: 'Warehouse' },
                           ]}
                         />
-                        <Input
-                          label="Address"
-                          value={branchForm.address}
-                          onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })}
-                          required
-                        />
-                        <div className="lg:col-span-2">
-                          <Input
-                            label="Local Contact"
-                            value={branchForm.localContact}
-                            onChange={(e) => setBranchForm({ ...branchForm, localContact: e.target.value })}
-                            required
-                          />
-                        </div>
                       </div>
                       <div className="flex justify-end gap-4 pt-6 border-t border-slate-100">
                         <Button 
@@ -643,18 +797,22 @@ function AdminDashboardContent() {
                           }))}
                           placeholder="Select a branch"
                         />
-                        <div className="lg:col-span-2">
-                          <CustomSelect
-                            label="Priority"
-                            value={ticketForm.priority}
-                            onChange={(value) => setTicketForm({ ...ticketForm, priority: value })}
-                            options={[
-                              { value: 'HIGH', label: 'High' },
-                              { value: 'MEDIUM', label: 'Medium' },
-                              { value: 'LOW', label: 'Low' },
-                            ]}
-                          />
-                        </div>
+                        <Input
+                          label="INC Number (Optional)"
+                          value={ticketForm.incNumber}
+                          onChange={(e) => setTicketForm({ ...ticketForm, incNumber: e.target.value })}
+                          placeholder="Enter INC number if available"
+                        />
+                        <CustomSelect
+                          label="Priority"
+                          value={ticketForm.priority}
+                          onChange={(value) => setTicketForm({ ...ticketForm, priority: value })}
+                          options={[
+                            { value: 'P1', label: 'P1 (Highest)' },
+                            { value: 'P2', label: 'P2 (Medium)' },
+                            { value: 'P3', label: 'P3 (Lowest)' },
+                          ]}
+                        />
                         <div className="lg:col-span-2">
                           <Textarea
                             label="Issue"
@@ -700,9 +858,11 @@ function AdminDashboardContent() {
                   {dashboardTab === 'reports' && 'Reports'}
                 </>
               )}
-              {activeTab === 'users' && 'Users Management'}
+              {activeTab === 'users' && 'User Management'}
               {activeTab === 'branches' && 'Branches Management'}
               {activeTab === 'tickets' && 'Tickets Management'}
+              {activeTab === 'requests' && 'Requests Management'}
+              {activeTab === 'notes' && 'Notes Management'}
             </h1>
             <p className="text-sm text-slate-600 mt-1">
               {activeTab === 'overview' && (
@@ -712,9 +872,11 @@ function AdminDashboardContent() {
                   {dashboardTab === 'reports' && 'Detailed system analytics'}
                 </>
               )}
-              {activeTab === 'users' && 'Manage system users'}
+              {activeTab === 'users' && 'Manage system users and permissions'}
               {activeTab === 'branches' && 'Manage branch locations'}
               {activeTab === 'tickets' && 'View and manage all tickets'}
+              {activeTab === 'requests' && 'View and manage all user requests'}
+              {activeTab === 'notes' && 'View all ticket notes and communications'}
             </p>
           </div>
 
@@ -758,194 +920,323 @@ function AdminDashboardContent() {
               <>
                 {/* Header Section */}
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
-                  <h1 className="text-2xl font-bold text-slate-900">Tickets</h1>
+                  <div className="flex items-center gap-6">
+                    <h1 
+                      onClick={() => setOverviewTab('tickets')}
+                      className={`text-2xl lg:text-3xl font-bold cursor-pointer transition-colors ${
+                        overviewTab === 'tickets' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
+                      }`}
+                    >
+                      Tickets
+                    </h1>
+                    <h1 
+                      onClick={() => setOverviewTab('requests')}
+                      className={`text-2xl lg:text-3xl font-bold cursor-pointer transition-colors ${
+                        overviewTab === 'requests' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
+                      }`}
+                    >
+                      Requests
+                    </h1>
+                  </div>
                   
                   <div className="flex flex-wrap items-center gap-3">
                     <SearchBar 
                       value={searchQuery}
                       onChange={setSearchQuery}
                       className="w-full lg:w-80"
+                      placeholder={overviewTab === 'tickets' ? "Search tickets..." : "Search requests..."}
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                  {/* Left Column: Ticket List */}
+                  {/* Left Column: List */}
                   <div className="xl:col-span-2 space-y-4">
-                    {paginatedTickets.map((ticket) => (
-                      <div 
-                        key={ticket.id}
-                        onClick={() => handleViewTicket(ticket.id)}
-                        className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                      >
-                        <div className="flex flex-col sm:flex-row items-start gap-4">
-                          {/* User Avatar */}
-                          <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-lg shrink-0">
-                            {ticket.user?.username?.charAt(0).toUpperCase()}
-                          </div>
-                          
-                          <div className="flex-1 min-w-0 w-full">
-                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
-                              <div>
-                                <h3 className="font-bold text-slate-900 truncate">{ticket.user?.username}</h3>
-                                <p className="text-xs text-slate-500">#{ticket.id.substring(0, 8)}</p>
-                              </div>
-                              <Badge variant={getPriorityColor(ticket.priority)}>
-                                {ticket.priority}
-                              </Badge>
-                            </div>
-                            
-                            <p className="text-sm text-slate-600 mb-4 line-clamp-2">{ticket.issue}</p>
-                            
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-50">
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs text-blue-600 font-bold">
-                                  {ticket.branch?.name?.charAt(0)}
-                                </div>
-                                <span className="text-xs text-slate-500">{ticket.branch?.name}</span>
+                    {overviewTab === 'tickets' ? (
+                      <>
+                        {paginatedTickets.map((ticket) => (
+                          <div 
+                            key={ticket.id}
+                            onClick={() => handleViewTicket(ticket.id)}
+                            className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                          >
+                            <div className="flex flex-col sm:flex-row items-start gap-4">
+                              {/* User Avatar */}
+                              <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-lg shrink-0">
+                                {ticket.user?.username?.charAt(0).toUpperCase()}
                               </div>
                               
-                              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-slate-400">Status</span>
-                                  <span className={`text-xs font-medium ${
-                                    ticket.status === 'COMPLETED' ? 'text-green-600' :
-                                    ticket.status === 'IN_PROGRESS' ? 'text-blue-600' :
-                                    'text-amber-600'
-                                  }`}>
-                                    {ticket.status.replace('_', ' ')}
-                                  </span>
+                              <div className="flex-1 min-w-0 w-full">
+                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
+                                  <div>
+                                    <h3 className="font-bold text-slate-900 truncate">{ticket.user?.username}</h3>
+                                    <p className="text-xs text-slate-500">#{ticket.id.substring(0, 8)}</p>
+                                  </div>
+                                  <Badge variant={getPriorityColor(ticket.priority)}>
+                                    {ticket.priority}
+                                  </Badge>
                                 </div>
                                 
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-slate-400">Date</span>
-                                  <span className="text-xs font-medium text-slate-600">
-                                    {new Date(ticket.createdAt).toLocaleDateString()}
-                                  </span>
+                                <p className="text-sm text-slate-600 mb-4 line-clamp-2">{ticket.issue}</p>
+                                
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-50">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs text-blue-600 font-bold">
+                                      {ticket.branch?.name?.charAt(0)}
+                                    </div>
+                                    <span className="text-xs text-slate-500">{ticket.branch?.name}</span>
+                                  </div>
+                                  
+                                  <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-slate-400">Status</span>
+                                      <span className={`text-xs font-medium ${
+                                        ticket.status === 'COMPLETED' ? 'text-green-600' :
+                                        ticket.status === 'IN_PROGRESS' ? 'text-blue-600' :
+                                        'text-amber-600'
+                                      }`}>
+                                        {ticket.status.replace('_', ' ')}
+                                      </span>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-slate-400">Date</span>
+                                      <span className="text-xs font-medium text-slate-600">
+                                        {new Date(ticket.createdAt).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
+                              
+                              <button className="hidden sm:block p-2 text-slate-300 hover:text-slate-600">
+                                <div className="w-1 h-1 bg-current rounded-full mb-1" />
+                                <div className="w-1 h-1 bg-current rounded-full mb-1" />
+                                <div className="w-1 h-1 bg-current rounded-full" />
+                              </button>
                             </div>
                           </div>
-                          
-                          <button className="hidden sm:block p-2 text-slate-300 hover:text-slate-600">
-                            <div className="w-1 h-1 bg-current rounded-full mb-1" />
-                            <div className="w-1 h-1 bg-current rounded-full mb-1" />
-                            <div className="w-1 h-1 bg-current rounded-full" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    <Pagination
-                      currentPage={currentPage}
-                      totalPages={totalPages}
-                      onPageChange={setCurrentPage}
-                    />
+                        ))}
+                        
+                        <Pagination
+                          currentPage={currentPage}
+                          totalPages={totalPages}
+                          onPageChange={setCurrentPage}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        {requests.length === 0 ? (
+                          <div className="text-center py-12 bg-white rounded-2xl border border-slate-100">
+                            <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                            <p className="text-slate-600">No requests found</p>
+                          </div>
+                        ) : (
+                          requests.slice(0, 10).map((request: any) => (
+                            <div 
+                              key={request.id}
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                setActiveTab('requests');
+                              }}
+                              className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                            >
+                              <div className="flex flex-col sm:flex-row items-start gap-4">
+                                {/* User Avatar */}
+                                <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-lg shrink-0">
+                                  {request.user?.username?.charAt(0).toUpperCase()}
+                                </div>
+                                
+                                <div className="flex-1 min-w-0 w-full">
+                                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
+                                    <div className="flex-1">
+                                      <h3 className="font-bold text-slate-900 line-clamp-1">{request.title}</h3>
+                                      <p className="text-xs text-slate-500 mt-1">
+                                        by {request.user?.username}
+                                        {request.user?.team && <span className="text-slate-400"> • {request.user.team.name}</span>}
+                                      </p>
+                                    </div>
+                                    <Badge variant={
+                                      request.status === 'COMPLETED' ? 'success' :
+                                      request.status === 'APPROVED' ? 'info' :
+                                      request.status === 'REJECTED' ? 'danger' :
+                                      request.status === 'IN_PROGRESS' ? 'warning' :
+                                      'default'
+                                    }>
+                                      {request.status.replace('_', ' ')}
+                                    </Badge>
+                                  </div>
+                                  
+                                  <p className="text-sm text-slate-600 mb-4 line-clamp-2">{request.description}</p>
+                                  
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-50">
+                                    <div className="flex items-center gap-2">
+                                      {request.projectId && (
+                                        <span className="text-xs text-slate-500">Project: {request.projectId}</span>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-slate-400">Created</span>
+                                      <span className="text-xs font-medium text-slate-600">
+                                        {formatRelativeTime(request.createdAt)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <button className="hidden sm:block p-2 text-slate-300 hover:text-slate-600">
+                                  <div className="w-1 h-1 bg-current rounded-full mb-1" />
+                                  <div className="w-1 h-1 bg-current rounded-full mb-1" />
+                                  <div className="w-1 h-1 bg-current rounded-full" />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+
+                        {requests.length > 10 && (
+                          <div className="text-center pt-4">
+                            <Button variant="outline" onClick={() => setActiveTab('requests')}>
+                              View All Requests
+                            </Button>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   {/* Right Column: Stats & Widgets */}
                   <div className="space-y-8">
-                    {/* Stats Grid */}
-                    <div className="space-y-6">
-                      {/* Toggle */}
-                      <div className="bg-white p-1 rounded-xl inline-flex border border-slate-200 w-full">
-                        <button 
-                          onClick={() => setStatView('status')}
-                          className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${statView === 'status' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
-                        >
-                          Status
-                        </button>
-                        <button 
-                          onClick={() => setStatView('priority')}
-                          className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${statView === 'priority' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
-                        >
-                          Priority
-                        </button>
-                      </div>
+                    {overviewTab === 'tickets' ? (
+                      /* Stats Grid */
+                      <div className="space-y-6">
+                        {/* Toggle */}
+                        <div className="bg-white p-1 rounded-xl inline-flex border border-slate-200 w-full">
+                          <button 
+                            onClick={() => setStatView('status')}
+                            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${statView === 'status' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                          >
+                            Status
+                          </button>
+                          <button 
+                            onClick={() => setStatView('priority')}
+                            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${statView === 'priority' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                          >
+                            Priority
+                          </button>
+                        </div>
 
-                      {/* Stats List */}
+                        {/* Stats List */}
+                        <div className="space-y-3">
+                          {statView === 'status' ? (
+                            <>
+                              <StatRow
+                                label="All Tickets"
+                                count={stats.totalTickets}
+                                icon={MessageSquare}
+                                color="orange"
+                                onClick={() => setFilterStatus(null)}
+                                active={filterStatus === null}
+                              />
+                              <StatRow
+                                label="Pending"
+                                count={stats.pendingTickets}
+                                icon={Clock}
+                                color="green"
+                                onClick={() => setFilterStatus(filterStatus === 'PENDING' ? null : 'PENDING')}
+                                active={filterStatus === 'PENDING'}
+                              />
+                              <StatRow
+                                label="Completed"
+                                count={stats.completedTickets}
+                                icon={CheckCircle}
+                                color="blue"
+                                onClick={() => setFilterStatus(filterStatus === 'COMPLETED' ? null : 'COMPLETED')}
+                                active={filterStatus === 'COMPLETED'}
+                              />
+                              <StatRow
+                                label="Cancelled"
+                                count={tickets.filter(t => t.status === 'CLOSED').length}
+                                icon={XCircle}
+                                color="gray"
+                                onClick={() => setFilterStatus(filterStatus === 'CLOSED' ? null : 'CLOSED')}
+                                active={filterStatus === 'CLOSED'}
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <StatRow
+                                label="All Priorities"
+                                count={stats.totalTickets}
+                                icon={MessageSquare}
+                                color="indigo"
+                                onClick={() => setFilterPriority(null)}
+                                active={filterPriority === null}
+                              />
+                              <StatRow
+                                label="High Priority"
+                                count={stats.highPriority}
+                                icon={AlertTriangle}
+                                color="red"
+                                onClick={() => setFilterPriority(filterPriority === 'HIGH' ? null : 'HIGH')}
+                                active={filterPriority === 'HIGH'}
+                              />
+                              <StatRow
+                                label="Medium Priority"
+                                count={stats.mediumPriority}
+                                icon={AlertTriangle}
+                                color="orange"
+                                onClick={() => setFilterPriority(filterPriority === 'MEDIUM' ? null : 'MEDIUM')}
+                                active={filterPriority === 'MEDIUM'}
+                              />
+                              <StatRow
+                                label="Low Priority"
+                                count={stats.lowPriority}
+                                icon={AlertTriangle}
+                                color="blue"
+                                onClick={() => setFilterPriority(filterPriority === 'LOW' ? null : 'LOW')}
+                                active={filterPriority === 'LOW'}
+                              />
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      /* Requests Stats */
                       <div className="space-y-3">
-                        {statView === 'status' ? (
-                          <>
-                            <StatRow
-                              label="All Tickets"
-                              count={stats.totalTickets}
-                              icon={MessageSquare}
-                              color="orange"
-                              onClick={() => setFilterStatus(null)}
-                              active={filterStatus === null}
-                            />
-                            <StatRow
-                              label="Pending"
-                              count={stats.pendingTickets}
-                              icon={Clock}
-                              color="green"
-                              onClick={() => setFilterStatus(filterStatus === 'PENDING' ? null : 'PENDING')}
-                              active={filterStatus === 'PENDING'}
-                            />
-                            <StatRow
-                              label="Completed"
-                              count={stats.completedTickets}
-                              icon={CheckCircle}
-                              color="blue"
-                              onClick={() => setFilterStatus(filterStatus === 'COMPLETED' ? null : 'COMPLETED')}
-                              active={filterStatus === 'COMPLETED'}
-                            />
-                            <StatRow
-                              label="Cancelled"
-                              count={tickets.filter(t => t.status === 'CLOSED').length}
-                              icon={XCircle}
-                              color="gray"
-                              onClick={() => setFilterStatus(filterStatus === 'CLOSED' ? null : 'CLOSED')}
-                              active={filterStatus === 'CLOSED'}
-                            />
-                          </>
-                        ) : (
-                          <>
-                            <StatRow
-                              label="All Priorities"
-                              count={stats.totalTickets}
-                              icon={MessageSquare}
-                              color="indigo"
-                              onClick={() => setFilterPriority(null)}
-                              active={filterPriority === null}
-                            />
-                            <StatRow
-                              label="High Priority"
-                              count={stats.highPriority}
-                              icon={AlertTriangle}
-                              color="red"
-                              onClick={() => setFilterPriority(filterPriority === 'HIGH' ? null : 'HIGH')}
-                              active={filterPriority === 'HIGH'}
-                            />
-                            <StatRow
-                              label="Medium Priority"
-                              count={stats.mediumPriority}
-                              icon={AlertTriangle}
-                              color="orange"
-                              onClick={() => setFilterPriority(filterPriority === 'MEDIUM' ? null : 'MEDIUM')}
-                              active={filterPriority === 'MEDIUM'}
-                            />
-                            <StatRow
-                              label="Low Priority"
-                              count={stats.lowPriority}
-                              icon={AlertTriangle}
-                              color="blue"
-                              onClick={() => setFilterPriority(filterPriority === 'LOW' ? null : 'LOW')}
-                              active={filterPriority === 'LOW'}
-                            />
-                          </>
-                        )}
+                        <StatCard
+                          title="Total Requests"
+                          count={stats.totalRequests}
+                          icon={MessageSquare}
+                          variant="purple"
+                        />
+                        <StatCard
+                          title="Pending"
+                          count={stats.pendingRequests}
+                          icon={Clock}
+                          variant="orange"
+                        />
+                        <StatCard
+                          title="Approved"
+                          count={requests.filter((r: any) => r.status === 'APPROVED').length}
+                          icon={CheckCircle}
+                          variant="green"
+                        />
+                        <StatCard
+                          title="In Progress"
+                          count={requests.filter((r: any) => r.status === 'IN_PROGRESS').length}
+                          icon={Clock}
+                          variant="blue"
+                        />
                       </div>
-                    </div>
-
-                    {/* Top Categories - REMOVED */}
-                    
-                    {/* Promo Card - REMOVED */}
+                    )}
                   </div>
                 </div>
               </>
             )}
+
+
 
             {dashboardTab === 'calendar' && (
               <div className="bg-white p-4 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
@@ -1213,11 +1504,7 @@ function AdminDashboardContent() {
               </div>
             ) : (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-slate-900">User Management</h2>
-            </div>
-
-            {/* Total Users Card */}
+            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <StatCard
                 title="Total Users"
@@ -1241,6 +1528,7 @@ function AdminDashboardContent() {
                   <tr>
                     <TableHead>Username</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Team</TableHead>
                     <TableHead>Tickets</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Actions</TableHead>
@@ -1254,6 +1542,13 @@ function AdminDashboardContent() {
                         <Badge variant={user.role === 'ADMIN' ? 'info' : 'default'}>
                           {user.role}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {user.team ? (
+                          <Badge variant="default">{user.team.name}</Badge>
+                        ) : (
+                          <span className="text-slate-400 text-sm">No team</span>
+                        )}
                       </TableCell>
                       <TableCell>{user._count?.tickets || 0}</TableCell>
                       <TableCell className="text-xs text-slate-600">
@@ -1302,16 +1597,12 @@ function AdminDashboardContent() {
                       
                       <div className="pt-6 border-t border-slate-100 text-left space-y-4">
                         <div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Category</p>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Location Type</p>
                           <Badge>{selectedBranch.category}</Badge>
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Address</p>
-                          <p className="text-sm text-slate-700">{selectedBranch.address}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Contact Person</p>
-                          <p className="text-sm text-slate-700">{selectedBranch.localContact}</p>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Location</p>
+                          <p className="text-sm text-slate-700">{selectedBranch.name}</p>
                         </div>
                       </div>
                     </div>
@@ -1406,24 +1697,20 @@ function AdminDashboardContent() {
               <Table>
                 <TableHeader>
                   <tr>
-                    <TableHead>Branch Name</TableHead>
-                    <TableHead>Number</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Address</TableHead>
-                    <TableHead>Contact</TableHead>
+                    <TableHead>Branch Number</TableHead>
+                    <TableHead>Location Type</TableHead>
+                    <TableHead>Location</TableHead>
                     <TableHead>Actions</TableHead>
                   </tr>
                 </TableHeader>
                 <TableBody>
                   {branches.map((branch) => (
                     <TableRow key={branch.id} onClick={() => setSelectedBranch(branch)} className="cursor-pointer hover:bg-slate-50">
-                      <TableCell className="font-medium">{branch.name}</TableCell>
-                      <TableCell>{branch.branchNumber}</TableCell>
+                      <TableCell className="font-medium">{branch.branchNumber}</TableCell>
                       <TableCell>
                         <Badge>{branch.category}</Badge>
                       </TableCell>
-                      <TableCell className="text-xs">{branch.address}</TableCell>
-                      <TableCell className="text-xs">{branch.localContact}</TableCell>
+                      <TableCell className="text-sm">{branch.name}</TableCell>
                       <TableCell>
                         <Button
                           variant="danger"
@@ -1593,6 +1880,270 @@ function AdminDashboardContent() {
             </>
           )}
 
+          {/* Requests Tab */}
+          {activeTab === 'requests' && (
+            <div className="space-y-6 h-[calc(100vh-12rem)]">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">Requests Management</h2>
+                  <p className="text-sm text-slate-500 mt-1">Total: {requests.length} requests</p>
+                </div>
+              </div>
+
+              {/* Chat-like Layout */}
+              <div className="flex gap-4 h-[calc(100%-12rem)] bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                {/* Left: Requests List */}
+                <div className={`${selectedRequest ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-96 border-r border-slate-200`}>
+                  {/* Search Bar */}
+                  <div className="shrink-0 p-4 border-b border-slate-200">
+                    <SearchBar 
+                      value={searchQuery}
+                      onChange={setSearchQuery}
+                      placeholder="Search requests..."
+                    />
+                  </div>
+
+                  {/* Requests List */}
+                  <div className="flex-1 overflow-y-auto">
+                    {requests.length > 0 ? (
+                      <div className="divide-y divide-slate-100">
+                        {requests.map((request: any) => (
+                          <button
+                            key={request.id}
+                            onClick={() => setSelectedRequest(request)}
+                            className={`w-full text-left p-4 hover:bg-slate-50 transition-colors ${
+                              selectedRequest?.id === request.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-medium text-slate-900 line-clamp-1">
+                                  {request.title}
+                                </h3>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  by {request.user?.username}
+                                  {request.user?.team && <span className="text-slate-400"> • {request.user.team.name}</span>}
+                                </p>
+                              </div>
+                              <Badge 
+                                variant={
+                                  request.status === 'COMPLETED' ? 'success' :
+                                  request.status === 'APPROVED' ? 'info' :
+                                  request.status === 'REJECTED' ? 'danger' :
+                                  request.status === 'IN_PROGRESS' ? 'warning' :
+                                  'default'
+                                }
+                                size="sm"
+                              >
+                                {request.status}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-slate-600 line-clamp-2 mb-2">
+                              {request.description}
+                            </p>
+                            <div className="flex items-center justify-between text-xs text-slate-500">
+                              <span className="font-mono">#{request.id.substring(0, 8)}</span>
+                              <span>{formatRelativeTime(request.createdAt)}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                        <MessageSquare className="w-16 h-16 text-slate-300 mb-4" />
+                        <h3 className="text-lg font-medium text-slate-900 mb-2">No requests found</h3>
+                        <p className="text-sm text-slate-500">Requests will appear here when users submit them</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right: Request Details */}
+                <div className={`${selectedRequest ? 'flex' : 'hidden lg:flex'} flex-col flex-1 min-w-0`}>
+                  {selectedRequest ? (
+                    <RequestDetail
+                      request={selectedRequest}
+                      onClose={() => setSelectedRequest(null)}
+                      isAdmin={true}
+                      onStatusChange={async (requestId, status) => {
+                        try {
+                          await fetch(`/api/requests/${requestId}`, {
+                            method: 'PUT',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                            },
+                            body: JSON.stringify({ status }),
+                          });
+                          fetchData();
+                          // Update selected request
+                          setSelectedRequest({ ...selectedRequest, status });
+                        } catch (error) {
+                          console.error('Update request error:', error);
+                        }
+                      }}
+                      onDelete={async (requestId) => {
+                        if (confirm('Are you sure you want to delete this request?')) {
+                          try {
+                            await fetch(`/api/requests/${requestId}`, {
+                              method: 'DELETE',
+                              headers: {
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                              },
+                            });
+                            setSelectedRequest(null);
+                            fetchData();
+                          } catch (error) {
+                            console.error('Delete request error:', error);
+                          }
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                      <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+                        <MessageSquare className="w-10 h-10 text-slate-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-slate-900 mb-2">Select a request</h3>
+                      <p className="text-sm text-slate-500">Choose a request from the list to view and manage its details</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Notes Tab */}
+          {activeTab === 'notes' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">User Notes</h2>
+                  <p className="text-sm text-slate-500 mt-1">Review communication from users on tickets</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <StatCard
+                  title="Total Notes"
+                  count={notes.length}
+                  icon={MessageSquare}
+                  variant="blue"
+                />
+                <StatCard
+                  title="User Notes"
+                  count={notes.filter((n: any) => n.user?.role === 'USER').length}
+                  icon={Users}
+                  variant="purple"
+                />
+                <StatCard
+                  title="Admin Notes"
+                  count={notes.filter((n: any) => n.user?.role === 'ADMIN').length}
+                  icon={MessageSquare}
+                  variant="orange"
+                />
+              </div>
+
+              {notes.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {notes.map((note: any) => (
+                    <div 
+                      key={note.id} 
+                      className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col"
+                    >
+                      {/* Card Header */}
+                      <div className="p-4 border-b border-slate-100">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-xs font-mono text-slate-500 truncate">
+                              Ticket #{note.ticket?.id.slice(0, 8) || 'N/A'}
+                            </span>
+                            <span className="text-xs text-slate-300">•</span>
+                            <span className="text-xs text-slate-500">{formatDate(note.createdAt)}</span>
+                          </div>
+                          {note.user?.role === 'ADMIN' && (
+                            <Badge variant="warning" size="sm">Admin</Badge>
+                          )}
+                        </div>
+                        
+                        {note.ticket && (
+                          <div className="flex items-start gap-2">
+                            <p className="text-sm font-medium text-slate-900 line-clamp-1 flex-1">
+                              {note.ticket.issue}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Card Body */}
+                      <div className="p-4 flex-1 flex flex-col">
+                        {/* Note Content */}
+                        <p className="text-sm text-slate-700 leading-relaxed mb-4 line-clamp-4 flex-1">
+                          {note.note}
+                        </p>
+
+                        {/* User Info */}
+                        <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${
+                            note.user?.role === 'ADMIN' 
+                              ? 'bg-orange-100 text-orange-600' 
+                              : 'bg-blue-100 text-blue-600'
+                          }`}>
+                            {note.user?.username?.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">{note.user?.username}</p>
+                            {note.user?.team && (
+                              <p className="text-xs text-slate-500 truncate">{note.user.team.name}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Footer */}
+                      <div className="p-3 bg-slate-50 border-t border-slate-100 flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => {
+                            setSelectedNote(note);
+                            setShowNoteDetailModal(true);
+                          }}
+                        >
+                          <Eye className="w-3.5 h-3.5 mr-1.5" />
+                          View
+                        </Button>
+                        {note.ticket?.id && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="flex-1"
+                            onClick={() => {
+                              setActiveTab('tickets');
+                              handleViewTicket(note.ticket.id);
+                            }}
+                          >
+                            Ticket
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="text-center py-16">
+                    <MessageSquare className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-slate-900 mb-2">No notes found</h3>
+                    <p className="text-slate-500">Notes will appear here when users add them to tickets</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
       {/* Delete Confirmation Modal */}
       <Modal
         isOpen={showDeleteModal}
@@ -1619,6 +2170,30 @@ function AdminDashboardContent() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Team Modal */}
+      <Modal
+        isOpen={showTeamModal}
+        onClose={() => setShowTeamModal(false)}
+        title="Create New Team"
+        size="sm"
+      >
+        <form onSubmit={handleCreateTeam} className="space-y-4">
+          <Input
+            label="Team Name"
+            value={teamForm.name}
+            onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })}
+            required
+            placeholder="e.g., Development Team, Support Team"
+          />
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="ghost" onClick={() => setShowTeamModal(false)}>
+              Cancel
+            </Button>
+            <Button type="submit">Create Team</Button>
+          </div>
+        </form>
       </Modal>
 
       {/* User Modal */}
@@ -1690,19 +2265,6 @@ function AdminDashboardContent() {
               { value: 'HYBRID', label: 'Hybrid' },
               { value: 'DATA_CENTER', label: 'Data Center' },
             ]}
-          />
-          <Textarea
-            label="Address"
-            value={branchForm.address}
-            onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })}
-            rows={3}
-            required
-          />
-          <Input
-            label="Local Contact"
-            value={branchForm.localContact}
-            onChange={(e) => setBranchForm({ ...branchForm, localContact: e.target.value })}
-            required
           />
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="ghost" onClick={() => setShowBranchModal(false)}>
@@ -1824,6 +2386,17 @@ function AdminDashboardContent() {
       {/* Ticket Details Modal - REMOVED (Replaced by Full Page View) */}
         </div>
       </main>
+
+      {/* Note Detail Modal */}
+      <NoteDetailModal
+        isOpen={showNoteDetailModal}
+        onClose={() => {
+          setShowNoteDetailModal(false);
+          setSelectedNote(null);
+        }}
+        note={selectedNote}
+        isAdmin={true}
+      />
     </div>
   );
 }

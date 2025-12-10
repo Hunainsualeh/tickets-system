@@ -53,14 +53,12 @@ export async function PUT(request: NextRequest, context: Params) {
   }
 
   try {
-    const { name, branchNumber, address, localContact, category } = await request.json();
+    const { name, branchNumber, category } = await request.json();
 
     const updateData: any = {};
     
     if (name) updateData.name = name;
     if (branchNumber) updateData.branchNumber = branchNumber;
-    if (address) updateData.address = address;
-    if (localContact) updateData.localContact = localContact;
     if (category) updateData.category = category;
 
     const branch = await prisma.branch.update({

@@ -17,8 +17,15 @@ export async function GET(request: NextRequest) {
         id: true,
         username: true,
         role: true,
+        teamId: true,
         createdAt: true,
         updatedAt: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         _count: {
           select: {
             tickets: true,
@@ -49,7 +56,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { username, password, role } = await request.json();
+    const { username, password, role, teamId } = await request.json();
 
     if (!username || !password) {
       return NextResponse.json(
@@ -70,6 +77,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate team if provided
+    if (teamId) {
+      const team = await prisma.team.findUnique({
+        where: { id: teamId },
+      });
+
+      if (!team) {
+        return NextResponse.json(
+          { error: 'Invalid team selected' },
+          { status: 400 }
+        );
+      }
+    }
+
     const hashedPassword = await hashPassword(password);
 
     const user = await prisma.user.create({
@@ -77,13 +98,21 @@ export async function POST(request: NextRequest) {
         username,
         password: hashedPassword,
         role: role || 'USER',
+        teamId: teamId || null,
       },
       select: {
         id: true,
         username: true,
         role: true,
+        teamId: true,
         createdAt: true,
         updatedAt: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 

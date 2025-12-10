@@ -56,13 +56,15 @@ export const TableHead: React.FC<TableProps> = ({ children, className = '' }) =>
 
 interface TableCellProps extends TableProps {
   onClick?: (e: React.MouseEvent) => void;
+  colSpan?: number;
 }
 
-export const TableCell: React.FC<TableCellProps> = ({ children, className = '', onClick }) => {
+export const TableCell: React.FC<TableCellProps> = ({ children, className = '', onClick, colSpan }) => {
   return (
     <td 
       className={`px-6 py-4 text-sm text-slate-900 ${className}`}
       onClick={onClick}
+      colSpan={colSpan}
     >
       {children}
     </td>

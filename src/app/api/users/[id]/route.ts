@@ -25,8 +25,15 @@ export async function GET(request: NextRequest, context: Params) {
         id: true,
         username: true,
         role: true,
+        teamId: true,
         createdAt: true,
         updatedAt: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         _count: {
           select: {
             tickets: true,
@@ -59,12 +66,27 @@ export async function PUT(request: NextRequest, context: Params) {
   }
 
   try {
-    const { username, password, role } = await request.json();
+    const { username, password, role, teamId } = await request.json();
+
+    // Validate team if provided
+    if (teamId !== undefined && teamId !== null) {
+      const team = await prisma.team.findUnique({
+        where: { id: teamId },
+      });
+
+      if (!team) {
+        return NextResponse.json(
+          { error: 'Invalid team selected' },
+          { status: 400 }
+        );
+      }
+    }
 
     const updateData: any = {};
     
     if (username) updateData.username = username;
     if (role) updateData.role = role;
+    if (teamId !== undefined) updateData.teamId = teamId;
     if (password) {
       updateData.password = await hashPassword(password);
     }
@@ -76,8 +98,15 @@ export async function PUT(request: NextRequest, context: Params) {
         id: true,
         username: true,
         role: true,
+        teamId: true,
         createdAt: true,
         updatedAt: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
