@@ -52,6 +52,16 @@ function UserDashboardContent() {
     setCurrentPage(1);
   }, [searchQuery]);
 
+  // Close modals when view changes
+  useEffect(() => {
+    setShowSuccessModal(false);
+    setShowNoteDetailModal(false);
+    setSelectedTicket(null);
+    setSelectedNote(null);
+    setSelectedRequest(null);
+    setIsAddingNote(false);
+  }, [view]);
+
   const totalPages = Math.ceil(tickets.length / itemsPerPage);
   const paginatedTickets = tickets.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 

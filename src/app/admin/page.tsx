@@ -104,12 +104,14 @@ function AdminDashboardContent() {
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (!storedUser) {
+      // Middleware handles the redirect, but we keep this for client-side consistency
       router.push('/login');
       return;
     }
 
     const userData = JSON.parse(storedUser);
     if (userData.role !== 'ADMIN') {
+      // Middleware handles this too
       router.push('/dashboard');
       return;
     }
@@ -124,11 +126,21 @@ function AdminDashboardContent() {
     }
   }, [router, searchParams]);
 
-  // Clear detail views when switching tabs
+  // Clear detail views and close modals when switching tabs
   useEffect(() => {
     setSelectedTicket(null);
     setSelectedUser(null);
     setSelectedBranch(null);
+    setSelectedNote(null);
+    setSelectedRequest(null);
+    setShowUserModal(false);
+    setShowBranchModal(false);
+    setShowTicketModal(false);
+    setShowStatusModal(false);
+    setShowDeleteModal(false);
+    setShowTeamModal(false);
+    setShowNoteDetailModal(false);
+    setCreateView(null);
   }, [activeTab]);
 
   const fetchData = async () => {
@@ -854,8 +866,9 @@ function AdminDashboardContent() {
                               onChange={(value) => setBranchForm({ ...branchForm, category: value })}
                               options={[
                                 { value: 'BRANCH', label: 'Branch' },
-                                { value: 'HEADQUARTERS', label: 'Headquarters' },
-                                { value: 'WAREHOUSE', label: 'Warehouse' },
+                                { value: 'BACK_OFFICE', label: 'Back Office' },
+                                { value: 'HYBRID', label: 'Hybrid' },
+                                { value: 'DATA_CENTER', label: 'Data Center' },
                               ]}
                             />
                             <Input

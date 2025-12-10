@@ -49,6 +49,11 @@ class ApiClient {
     return response.json();
   }
 
+  async logout() {
+    await this.request('/api/auth/logout', { method: 'POST' });
+    this.clearToken();
+  }
+
   // Auth
   async login(username: string, password: string) {
     return this.request('/api/auth/login', {

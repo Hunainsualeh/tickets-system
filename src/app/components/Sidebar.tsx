@@ -35,8 +35,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
     }
   }, [pathname, searchParams]);
 
-  const handleLogout = () => {
-    apiClient.clearToken();
+  const handleLogout = async () => {
+    try {
+      await apiClient.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     localStorage.removeItem('user');
     router.push('/login');
   };
