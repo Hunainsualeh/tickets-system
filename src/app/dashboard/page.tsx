@@ -1221,8 +1221,8 @@ function UserDashboardContent() {
                             
                             <div className="flex-1 min-w-0 w-full">
                               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
-                                <div>
-                                  <h3 className="font-bold text-slate-900 truncate">{ticket.branch?.name}</h3>
+                                <div className="min-w-0 flex-1">
+                                  <h3 className="font-bold text-slate-900 truncate max-w-full">{ticket.branch?.name}</h3>
                                   <div className="flex items-center gap-2">
                                     <p className="text-xs text-slate-500">#{ticket.id.substring(0, 8)}</p>
                                     {scope === 'team' && ticket.user?.username && (
@@ -1232,7 +1232,7 @@ function UserDashboardContent() {
                                     )}
                                   </div>
                                 </div>
-                                <Badge variant={getPriorityColor(ticket.priority)}>
+                                <Badge variant={getPriorityColor(ticket.priority)} className="shrink-0">
                                   {getPriorityLabel(ticket.priority)}
                                 </Badge>
                               </div>
