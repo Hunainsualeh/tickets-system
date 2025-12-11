@@ -18,7 +18,15 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    const where = search ? {
+    // DB Health Check
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+    } catch (dbError) {
+      console.error('DB Health Check Failed:', dbError);
+      throw new Error(`DB Connection Failed: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
+    }
+
+    const where: any = search ? {
       OR: [
         { name: { contains: search, mode: 'insensitive' } },
         { branchNumber: { contains: search, mode: 'insensitive' } },
@@ -27,14 +35,14 @@ export async function GET(request: NextRequest) {
 
     const [branches, total] = await prisma.$transaction([
       prisma.branch.findMany({
-        where: where as any,
+        where,
         orderBy: {
           name: 'asc',
         },
         skip,
         take: limit,
       }),
-      prisma.branch.count({ where: where as any }),
+      prisma.branch.count({ where }),
     ]);
 
     return NextResponse.json({ 
@@ -49,7 +57,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Get branches error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Internal server error: ${error instanceof Error ? error.message : String(error)}` },
       { status: 500 }
     );
   }

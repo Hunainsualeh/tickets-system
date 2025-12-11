@@ -6,6 +6,8 @@ export const getStatusColor = (status: string) => {
     COMPLETED: 'success',
     ESCALATED: 'danger',
     CLOSED: 'default',
+    INVOICE: 'default',
+    PAID: 'default',
   };
   return colors[status] || 'default';
 };
@@ -20,6 +22,15 @@ export const getPriorityColor = (priority: string) => {
     P3: 'success',
   };
   return colors[priority] || 'default';
+};
+
+export const getPriorityLabel = (priority: string) => {
+  const labels: Record<string, string> = {
+    P1: 'P1 - Within 4 Hours',
+    P2: 'P2 - Next Working Day',
+    P3: 'P3 - Within 48 Hours',
+  };
+  return labels[priority] || priority;
 };
 
 export const formatDate = (dateString: string) => {

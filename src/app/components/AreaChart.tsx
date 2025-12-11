@@ -25,14 +25,14 @@ export function AreaChart({
 }: AreaChartProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   
-  const height = 400;
+  const height = 350;
   const width = 800;
-  const padding = { top: 40, right: 20, bottom: 40, left: 40 };
+  const padding = { top: 40, right: 40, bottom: 50, left: 60 };
   
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
   
-  const maxValue = Math.max(...data, ...(data2 || []), 1) * 1.2;
+  const maxValue = Math.max(...data, ...(data2 || []), 1) * 1.25;
   
   const getX = (index: number) => padding.left + (index / (labels.length - 1)) * chartWidth;
   const getY = (value: number) => height - padding.bottom - (value / maxValue) * chartHeight;
@@ -78,8 +78,8 @@ export function AreaChart({
   const areaD2 = points2.length ? `${pathD2} L ${points2[points2.length-1][0]},${height-padding.bottom} L ${points2[0][0]},${height-padding.bottom} Z` : '';
 
   return (
-    <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-8">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8">
+    <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-8 hover:shadow-lg transition-shadow duration-300">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
         <div className="flex-1">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
             <div>
@@ -91,33 +91,39 @@ export function AreaChart({
         </div>
       </div>
       
-      <div className="flex flex-wrap justify-end gap-4 mb-4">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-          <span className="text-xs text-slate-600 font-medium">{legend1}</span>
+      <div className="flex flex-wrap justify-end gap-4 mb-6">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg">
+          <div className="w-3 h-3 rounded-full bg-blue-500 shadow-sm"></div>
+          <span className="text-xs text-slate-700 font-semibold">{legend1}</span>
         </div>
         {data2 && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-lg">
             <div className="w-3 h-3 rounded-full bg-red-500"></div>
             <span className="text-xs text-slate-600 font-medium">{legend2}</span>
           </div>
         )}
       </div>
       
-      <div className="relative w-full aspect-[2/1] max-h-[400px]">
+      <div className="relative w-full aspect-2/1 max-h-[400px]">
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
           <defs>
             <linearGradient id="gradient1" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+              <stop offset="0%" stopColor="#6366F1" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#6366F1" stopOpacity="0.02" />
             </linearGradient>
             {data2 && (
               <linearGradient id="gradient2" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ef4444" stopOpacity="0.2" />
-                <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
+                <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0.02" />
               </linearGradient>
             )}
+            <filter id="lineShadow">
+              <feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.3" />
+            </filter>
           </defs>
+
+          {/* Background Grid */}
+          <rect x={padding.left} y={padding.top} width={chartWidth} height={chartHeight} fill="#FAFAFA" rx="8" />
 
           {/* Grid Lines */}
           {Array.from({ length: 5 }).map((_, i) => {
@@ -130,15 +136,17 @@ export function AreaChart({
                   y1={y}
                   x2={width - padding.right}
                   y2={y}
-                  stroke="#e2e8f0"
-                  strokeDasharray="4 4"
+                  stroke="#CBD5E1"
+                  strokeWidth="1"
+                  strokeDasharray="6 4"
+                  opacity="0.6"
                 />
                 <text
-                  x={padding.left - 10}
+                  x={padding.left - 15}
                   y={y + 4}
                   textAnchor="end"
-                  className="text-xs fill-slate-400"
-                  style={{ fontSize: '10px' }}
+                  className="text-xs fill-slate-500 font-medium"
+                  style={{ fontSize: '11px' }}
                 >
                   {i === 4 ? 0 : value}
                 </text>
@@ -150,13 +158,37 @@ export function AreaChart({
           {data2 && <path d={areaD2} fill="url(#gradient2)" />}
           <path d={areaD1} fill="url(#gradient1)" />
 
-          {/* Lines */}
-          {data2 && <path d={pathD2} fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" />}
-          <path d={pathD1} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" />
+          {/* Lines with enhanced styling */}
+          {data2 && <path d={pathD2} fill="none" stroke="#8B5CF6" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" filter="url(#lineShadow)" />}
+          <path d={pathD1} fill="none" stroke="#6366F1" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" filter="url(#lineShadow)" />
 
           {/* Points and Tooltips */}
           {points1.map((point, i) => (
             <g key={i}>
+              {/* Data points with enhanced styling */}
+              <circle
+                cx={point[0]}
+                cy={point[1]}
+                r={hoverIndex === i ? 6 : 4}
+                fill="white"
+                stroke="#6366F1"
+                strokeWidth={hoverIndex === i ? 3 : 2.5}
+                className="transition-all duration-200"
+                style={{ filter: 'drop-shadow(0 2px 4px rgba(99, 102, 241, 0.3))' }}
+              />
+              {data2 && points2[i] && (
+                <circle
+                  cx={points2[i][0]}
+                  cy={points2[i][1]}
+                  r={hoverIndex === i ? 6 : 4}
+                  fill="white"
+                  stroke="#8B5CF6"
+                  strokeWidth={hoverIndex === i ? 3 : 2.5}
+                  className="transition-all duration-200"
+                  style={{ filter: 'drop-shadow(0 2px 4px rgba(139, 92, 246, 0.3))' }}
+                />
+              )}
+
               {/* Hover Trigger Area */}
               <rect
                 x={point[0] - (chartWidth / labels.length) / 2}

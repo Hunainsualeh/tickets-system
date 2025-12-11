@@ -193,6 +193,13 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  async addNote(ticketId: string, note: string) {
+    return this.request(`/api/tickets/${ticketId}/notes`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_URL);

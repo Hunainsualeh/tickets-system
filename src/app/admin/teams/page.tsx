@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
 import { Sidebar } from '@/app/components/Sidebar';
 import { Button } from '@/app/components/Button';
 import { Modal } from '@/app/components/Modal';
 import { Input } from '@/app/components/Input';
-import { Plus, Users, Eye, List } from 'lucide-react';
+import { Plus, Users, Eye, List, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { StatCard } from '@/app/components/StatCard';
 
@@ -19,6 +19,37 @@ function TeamsPageContent() {
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [teamForm, setTeamForm] = useState({ name: '' });
   const [activeTab, setActiveTab] = useState<string>('');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1); // -1 for rounding tolerance
+    }
+  };
+
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, [teams]);
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const { current } = scrollContainerRef;
+      const scrollAmount = 300;
+      if (direction === 'left') {
+        current.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+      } else {
+        current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      }
+      // Check scroll after animation (approximate)
+      setTimeout(checkScroll, 300);
+    }
+  };
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -69,30 +100,15 @@ function TeamsPageContent() {
     <div className="flex h-screen bg-slate-50">
       <Sidebar userRole="ADMIN" username={user?.username} />
       <main className="flex-1 overflow-y-auto">
-        <div className="p-8">
+        <div className="p-4 sm:p-8">
           {/* Header */}
           <div className="mb-6">
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
               <div>
                 <h1 className="text-3xl font-bold text-slate-900 mb-2">Teams</h1>
                 <p className="text-slate-600">Manage your teams, view hierarchy, and team members</p>
               </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="ghost" 
-                  onClick={() => router.push('/admin/teams/list')}
-                  className="flex items-center gap-2"
-                >
-                  <List className="w-4 h-4" />
-                  View All
-                </Button>
-                <Button onClick={() => setShowTeamModal(true)} className="flex items-center gap-2">
-                  <Plus className="w-4 h-4" />
-                  Add Team
-                </Button>
-              </div>
             </div>
-
           </div>
 
           {/* Team Statistics Card */}
@@ -105,6 +121,22 @@ function TeamsPageContent() {
                   icon={Users}
                   variant="purple"
                 />
+              </div>
+
+              {/* Actions Toolbar */}
+              <div className="flex justify-end gap-2 mt-4">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => router.push('/admin/teams/list')}
+                  className="flex items-center gap-2"
+                >
+                  <List className="w-4 h-4" />
+                  View All
+                </Button>
+                <Button onClick={() => setShowTeamModal(true)} className="flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Add Team
+                </Button>
               </div>
             </div>
           )}
@@ -126,8 +158,36 @@ function TeamsPageContent() {
           ) : (
             <>
               {/* Tabs */}
-              <div className="bg-white rounded-t-2xl border border-slate-200 border-b-0">
-                <div className="flex overflow-x-auto">
+              <div className="bg-white rounded-t-2xl border border-slate-200 border-b-0 relative group">
+                {/* Scroll Buttons */}
+                {canScrollLeft && (
+                  <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <button 
+                      onClick={() => scroll('left')}
+                      className="h-full px-2 bg-linear-to-r from-white via-white/80 to-transparent hover:text-blue-600 text-slate-400 transition-colors"
+                      aria-label="Scroll left"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
+                {canScrollRight && (
+                  <div className="absolute right-0 top-0 bottom-0 z-10 flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <button 
+                      onClick={() => scroll('right')}
+                      className="h-full px-2 bg-linear-to-l from-white via-white/80 to-transparent hover:text-blue-600 text-slate-400 transition-colors"
+                      aria-label="Scroll right"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
+
+                <div 
+                  ref={scrollContainerRef}
+                  onScroll={checkScroll}
+                  className="flex overflow-x-auto no-scrollbar scroll-smooth"
+                >
                   {teams.map((team, index) => (
                     <button
                       key={team.id}
@@ -163,7 +223,7 @@ function TeamsPageContent() {
               </div>
 
               {/* Content Area */}
-              <div className="bg-white rounded-b-2xl border border-slate-200 p-8">
+              <div className="bg-white rounded-b-2xl border border-slate-200 p-4 sm:p-8">
                 {activeTeam ? (
                   <>
                     {/* Before we start... section */}
@@ -176,7 +236,7 @@ function TeamsPageContent() {
 
                     {/* People Section */}
                     <div className="mb-8">
-                      <div className="flex items-center justify-between mb-4">
+                      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
                         <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                           <Users className="w-5 h-5 text-slate-600" />
                           People
@@ -233,22 +293,24 @@ function TeamsPageContent() {
                     </div>
 
                     {/* Team Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8 p-4 bg-slate-50 rounded-xl">
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-slate-900">{activeTeam.users?.length || 0}</p>
-                        <p className="text-sm text-slate-600">Total Members</p>
+                    <div className="flex flex-wrap items-center gap-4 sm:gap-6 mt-6 text-sm text-slate-600 border-t border-slate-100 pt-6">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900">{activeTeam.users?.length || 0}</span>
+                        <span>Total Members</span>
                       </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-purple-600">
+                      <div className="hidden sm:block h-4 w-px bg-slate-200"></div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-purple-600">
                           {activeTeam.users?.filter((u: any) => u.role === 'ADMIN').length || 0}
-                        </p>
-                        <p className="text-sm text-slate-600">Admins</p>
+                        </span>
+                        <span>Admins</span>
                       </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-green-600">
+                      <div className="hidden sm:block h-4 w-px bg-slate-200"></div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-green-600">
                           {activeTeam.users?.filter((u: any) => u.role === 'USER').length || 0}
-                        </p>
-                        <p className="text-sm text-slate-600">Users</p>
+                        </span>
+                        <span>Users</span>
                       </div>
                     </div>
                   </>

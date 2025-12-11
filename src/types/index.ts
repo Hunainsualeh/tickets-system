@@ -48,7 +48,7 @@ export interface Ticket {
   priority: 'P1' | 'P2' | 'P3';
   issue: string;
   additionalDetails?: string;
-  status: 'PENDING' | 'ACKNOWLEDGED' | 'IN_PROGRESS' | 'COMPLETED' | 'ESCALATED' | 'CLOSED';
+  status: 'PENDING' | 'ACKNOWLEDGED' | 'IN_PROGRESS' | 'COMPLETED' | 'ESCALATED' | 'CLOSED' | 'INVOICE' | 'PAID';
   createdAt: string;
   updatedAt: string;
   user?: User;

@@ -20,7 +20,7 @@ export const Timeline: React.FC<TimelineProps> = ({ tickets, currentDate }) => {
 
   const getTicketStyle = (ticket: Ticket) => {
     const start = new Date(ticket.createdAt);
-    const end = ticket.status === 'COMPLETED' || ticket.status === 'CLOSED' 
+    const end = ['COMPLETED', 'CLOSED', 'INVOICE', 'PAID'].includes(ticket.status)
       ? new Date(ticket.updatedAt) 
       : new Date(); // If active, extend to now
 

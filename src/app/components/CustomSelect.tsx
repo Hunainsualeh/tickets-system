@@ -10,6 +10,7 @@ interface CustomSelectProps {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  searchable?: boolean;
 }
 
 export const CustomSelect: React.FC<CustomSelectProps> = ({ 
@@ -19,12 +20,27 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   options, 
   disabled,
   placeholder = "Select an option...",
-  className = ""
+  className = "",
+  searchable = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+
+  useEffect(() => {
+    if (isOpen && searchable && searchInputRef.current) {
+      // Focus the search input when dropdown opens
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
+    }
+    if (!isOpen) {
+      setSearchQuery('');
+    }
+  }, [isOpen, searchable]);
 
   useEffect(() => {
     setMounted(true);
@@ -72,6 +88,10 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   }, [isOpen]);
 
   const selectedOption = options.find(opt => opt.value === value);
+  
+  const filteredOptions = searchable 
+    ? options.filter(opt => opt.label.toLowerCase().includes(searchQuery.toLowerCase()))
+    : options;
 
   return (
     <div className={`w-full ${className}`} ref={containerRef}>
@@ -111,15 +131,28 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
             />
             <div 
               style={dropdownStyle}
-              className="bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 pointer-events-auto"
+              className="bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 pointer-events-auto flex flex-col"
             >
+              {searchable && (
+                <div className="p-2 border-b border-slate-100">
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+              )}
               <div className="max-h-60 overflow-y-auto p-1.5 space-y-0.5">
-                {options.length === 0 ? (
+                {filteredOptions.length === 0 ? (
                   <div className="px-3 py-2.5 text-sm text-slate-500 text-center">
-                    No options available
+                    No options found
                   </div>
                 ) : (
-                  options.map((option) => {
+                  filteredOptions.map((option) => {
                     const isSelected = option.value === value;
                     return (
                       <button

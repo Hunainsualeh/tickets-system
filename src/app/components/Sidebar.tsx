@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { LayoutGrid, Users, Store, ClipboardList, LogOut, Menu, X, Settings, HelpCircle, Bell, Calendar, FileText, MessageSquare, Briefcase } from 'lucide-react';
+import { LayoutGrid, Users, Store, ClipboardList, LogOut, Menu, X, Settings, HelpCircle, Bell, Calendar, FileText, MessageSquare, Briefcase, Landmark, BarChart3 } from 'lucide-react';
 import { Button } from './Button';
 import { Modal } from './Modal';
 import { apiClient } from '@/lib/api-client';
@@ -80,12 +80,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
         { icon: Briefcase, label: 'Teams', key: 'teams', href: '/admin/teams' },
         { icon: Store, label: 'Branches', key: 'branches', href: '/admin?tab=branches' },
         { icon: ClipboardList, label: 'Tickets', key: 'tickets', href: '/admin?tab=tickets' },
+        { icon: BarChart3, label: 'Analytics', key: 'analytics', href: '/admin?tab=analytics' },
         { icon: FileText, label: 'Requests', key: 'requests', href: '/admin?tab=requests' },
         { icon: MessageSquare, label: 'Notes', key: 'notes', href: '/admin?tab=notes' },
       ]
     : [
         { icon: LayoutGrid, label: 'Dashboard', href: '/dashboard', key: 'overview' },
         { icon: ClipboardList, label: 'My Tickets', href: '/dashboard?view=tickets', key: 'tickets' },
+        { icon: BarChart3, label: 'Analytics', href: '/dashboard?view=analytics', key: 'analytics' },
         { icon: FileText, label: 'Requests', href: '/dashboard?view=requests', key: 'requests' },
         { icon: MessageSquare, label: 'Notes', href: '/dashboard?view=notes', key: 'notes' },
         { icon: Users, label: 'Profile', href: '/dashboard?view=profile', key: 'profile' },
@@ -96,9 +98,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
       <div className="p-6 mb-4">
         <div className="flex items-center gap-3 px-2 mb-10">
           <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center shadow-lg shadow-slate-900/20">
-            <LayoutGrid className="w-6 h-6 text-white" />
+            <Landmark className="w-6 h-6 text-white" />
           </div>
-          <span className="text-xl font-bold text-slate-900 tracking-tight">TicketSystem</span>
+          <span className="text-xl font-bold text-slate-900 tracking-tight">Ticket System</span>
         </div>
 
         {username && (

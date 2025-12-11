@@ -13,26 +13,29 @@ import { Textarea } from '@/app/components/Textarea';
 import { Input } from '@/app/components/Input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/Table';
 import { Sidebar } from '@/app/components/Sidebar';
-import { StatCard } from '@/app/components/StatCard';
+import { StatRow } from '@/app/components/StatRow';
 import { SearchBar } from '@/app/components/SearchBar';
 import { Pagination } from '@/app/components/Pagination';
-import { getStatusColor, getPriorityColor, formatDate, formatRelativeTime } from '@/lib/utils';
+import { getStatusColor, getPriorityColor, getPriorityLabel, formatDate, formatRelativeTime } from '@/lib/utils';
 import { Plus, CheckCircle, Clock, AlertCircle, MessageSquare, XCircle, Search, Filter, Calendar, Building2, Copy, User as UserIcon, Shield, Lock, Eye } from 'lucide-react';
 import { Suspense } from 'react';
 import { SuccessModal } from '@/app/components/SuccessModal';
 import { NoteDetailModal } from '@/app/components/NoteDetailModal';
 import { RequestDetail } from '@/app/components/RequestDetail';
+import { AnalyticsSection } from '@/app/components/AnalyticsSection';
+import { KanbanBoard } from '@/app/components/KanbanBoard';
 
 function UserDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
+  const [companyName, setCompanyName] = useState('');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [notes, setNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'dashboard' | 'create' | 'tickets' | 'profile' | 'requests' | 'create-request' | 'notes'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'create' | 'tickets' | 'profile' | 'requests' | 'create-request' | 'notes' | 'analytics'>('dashboard');
   const [dashboardTab, setDashboardTab] = useState<'overview' | 'calendar'>('overview');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedNote, setSelectedNote] = useState<any | null>(null);
@@ -40,6 +43,8 @@ function UserDashboardContent() {
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [scope, setScope] = useState<'me' | 'team'>('me');
+  const [filterPriority, setFilterPriority] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
   const [newNote, setNewNote] = useState('');
@@ -97,6 +102,9 @@ function UserDashboardContent() {
           setUser(response.user);
           localStorage.setItem('user', JSON.stringify(response.user));
         }
+        if (response.companyName) {
+          setCompanyName(response.companyName);
+        }
       } catch (error) {
         console.error('Error fetching user data:', error);
       }
@@ -105,7 +113,7 @@ function UserDashboardContent() {
 
     // Update view from URL params
     const viewParam = searchParams.get('view');
-    if (viewParam && ['dashboard', 'create', 'tickets', 'profile', 'requests', 'create-request', 'notes'].includes(viewParam)) {
+    if (viewParam && ['dashboard', 'create', 'tickets', 'profile', 'requests', 'create-request', 'notes', 'analytics'].includes(viewParam)) {
       setView(viewParam as any);
     } else {
       setView('dashboard');
@@ -325,15 +333,15 @@ function UserDashboardContent() {
 
               <div className="bg-white rounded-3xl shadow-sm border border-slate-200">
                 {/* Header */}
-                <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50 rounded-t-3xl">
+                <div className="px-4 sm:px-8 py-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start bg-slate-50/50 rounded-t-3xl gap-4">
                   <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h1 className="text-2xl font-bold text-slate-900">Ticket Details</h1>
+                    <div className="flex flex-wrap items-center gap-3 mb-2">
+                      <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Ticket Details</h1>
                       <Badge variant={getStatusColor(selectedTicket.status)}>
-                        {selectedTicket.status.replace('_', ' ')}
+                        {['INVOICE', 'PAID'].includes(selectedTicket.status) ? 'CLOSED' : selectedTicket.status.replace('_', ' ')}
                       </Badge>
                     </div>
-                    <p className="text-slate-500 flex items-center gap-2">
+                    <p className="text-slate-500 flex flex-wrap items-center gap-2 text-sm sm:text-base">
                       <span className="font-mono">#{selectedTicket.id}</span>
                       <span>•</span>
                       <span>Created {formatDate(selectedTicket.createdAt)}</span>
@@ -341,7 +349,7 @@ function UserDashboardContent() {
                   </div>
                 </div>
 
-                <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="p-4 sm:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Main Content */}
                   <div className="lg:col-span-2 space-y-8">
                     {/* Issue Section */}
@@ -395,11 +403,13 @@ function UserDashboardContent() {
                     )}
 
                     {/* Status History */}
-                    {selectedTicket.statusHistory && selectedTicket.statusHistory.length > 0 && (
+                    {selectedTicket.statusHistory && selectedTicket.statusHistory.filter(h => !['INVOICE', 'PAID'].includes(h.status)).length > 0 && (
                       <section>
                         <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">History</h3>
                         <div className="relative pl-4 border-l-2 border-slate-100 space-y-6">
-                          {selectedTicket.statusHistory.map((history) => (
+                          {selectedTicket.statusHistory
+                            .filter(h => !['INVOICE', 'PAID'].includes(h.status))
+                            .map((history) => (
                             <div key={history.id} className="relative">
                               <div className="absolute -left-[21px] top-1.5 w-3 h-3 rounded-full bg-white border-2 border-slate-300" />
                               <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
@@ -489,7 +499,7 @@ function UserDashboardContent() {
                       <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">Priority</h3>
                       <div className="flex items-center gap-3">
                         <Badge variant={getPriorityColor(selectedTicket.priority)} size="lg">
-                          {selectedTicket.priority}
+                          {getPriorityLabel(selectedTicket.priority)}
                         </Badge>
                       </div>
                     </div>
@@ -536,9 +546,10 @@ function UserDashboardContent() {
                         onChange={(value) => setTicketForm({ ...ticketForm, branchId: value })}
                         options={branches.map((b) => ({
                           value: b.id,
-                          label: `${b.name} (${b.branchNumber})`,
+                          label: `${b.branchNumber} - ${b.name}`,
                         }))}
                         placeholder="Select a branch"
+                        searchable={true}
                       />
 
                       <Input
@@ -553,9 +564,9 @@ function UserDashboardContent() {
                         value={ticketForm.priority}
                         onChange={(value) => setTicketForm({ ...ticketForm, priority: value })}
                         options={[
-                          { value: 'P1', label: 'P1 - Urgent issue requiring immediate attention' },
-                          { value: 'P2', label: 'P2 - Important but not urgent' },
-                          { value: 'P3', label: 'P3 - Can be addressed later' },
+                          { value: 'P1', label: 'P1 - Within 4 Hours' },
+                          { value: 'P2', label: 'P2 - Next Working Day' },
+                          { value: 'P3', label: 'P3 - Within 48 Hours' },
                         ]}
                         placeholder="Select priority"
                       />
@@ -719,6 +730,13 @@ function UserDashboardContent() {
                 </div>
               </div>
             </div>
+          ) : view === 'analytics' && user ? (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <AnalyticsSection 
+                tickets={tickets} 
+                currentUser={user} 
+              />
+            </div>
           ) : view === 'notes' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
@@ -729,11 +747,13 @@ function UserDashboardContent() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <StatCard
-                  title="Total Notes"
+                <StatRow
+                  label="Total Notes"
                   count={notes.length}
                   icon={MessageSquare}
-                  variant="blue"
+                  color="blue"
+                  variant="ticket"
+                  asTicket
                 />
               </div>
 
@@ -775,7 +795,7 @@ function UserDashboardContent() {
                                   <div className="flex gap-2 shrink-0">
                                     {note.ticket.status && (
                                       <Badge variant={getStatusColor(note.ticket.status)} size="sm">
-                                        {note.ticket.status.replace('_', ' ')}
+                                        {['INVOICE', 'PAID'].includes(note.ticket.status) ? 'CLOSED' : note.ticket.status.replace('_', ' ')}
                                       </Badge>
                                     )}
                                   </div>
@@ -868,10 +888,10 @@ function UserDashboardContent() {
                           </TableCell>
                         )}
                         <TableCell>
-                          <Badge variant={getPriorityColor(ticket.priority)}>{ticket.priority}</Badge>
+                          <Badge variant={getPriorityColor(ticket.priority)}>{getPriorityLabel(ticket.priority)}</Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={getStatusColor(ticket.status)}>{ticket.status.replace('_', ' ')}</Badge>
+                          <Badge variant={getStatusColor(ticket.status)}>{['INVOICE', 'PAID'].includes(ticket.status) ? 'CLOSED' : ticket.status.replace('_', ' ')}</Badge>
                         </TableCell>
                         <TableCell className="text-slate-600 text-sm">{formatDate(ticket.createdAt)}</TableCell>
                       </TableRow>
@@ -899,115 +919,113 @@ function UserDashboardContent() {
             </div>
           ) : view === 'requests' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 h-[calc(100vh-8rem)]">
-              {/* Header - Fixed */}
+              {/* Header */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-900">My Requests</h1>
-                  <p className="text-sm text-slate-600 mt-1">Total: {requests.length} requests</p>
+                  <h1 className="text-2xl font-bold text-slate-900">
+                    {scope === 'team' ? 'Team Requests' : 'My Requests'}
+                  </h1>
+                  <p className="text-sm text-slate-600 mt-1">Manage and track request progress</p>
                 </div>
                 
-                <Button onClick={() => setView('create-request')}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Request
-                </Button>
+                <div className="flex items-center gap-3">
+                  {user?.team && (
+                    <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+                      <button
+                        onClick={() => setScope('me')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                          scope === 'me' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        My Requests
+                      </button>
+                      <button
+                        onClick={() => setScope('team')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                          scope === 'team' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Team Requests
+                      </button>
+                    </div>
+                  )}
+                  <Button onClick={() => setView('create-request')}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Request
+                  </Button>
+                </div>
               </div>
 
-              {/* Chat-like Layout */}
-              <div className="flex gap-4 h-[calc(100%-5rem)] bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                {/* Left: Requests List */}
-                <div className={`${selectedRequest ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-96 border-r border-slate-200`}>
-                  {/* Search Bar */}
-                  <div className="shrink-0 p-4 border-b border-slate-200">
-                    <SearchBar 
+              {/* Filters Bar */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
+                <div className="flex-1 min-w-0">
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input
+                      type="text"
                       value={searchQuery}
-                      onChange={setSearchQuery}
-                      placeholder="Search requests..."
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search requests by title, description, or user..."
+                      className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                     />
                   </div>
-
-                  {/* Requests List */}
-                  <div className="flex-1 overflow-y-auto">
-                    {requests.length > 0 ? (
-                      <div className="divide-y divide-slate-100">
-                        {requests.map((request) => (
-                          <button
-                            key={request.id}
-                            onClick={() => setSelectedRequest(request)}
-                            className={`w-full text-left p-4 hover:bg-slate-50 transition-colors ${
-                              selectedRequest?.id === request.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-3 mb-2">
-                              <h3 className="font-medium text-slate-900 line-clamp-1 flex-1">
-                                {request.title}
-                              </h3>
-                              <Badge 
-                                variant={
-                                  request.status === 'COMPLETED' ? 'success' :
-                                  request.status === 'APPROVED' ? 'info' :
-                                  request.status === 'REJECTED' ? 'danger' :
-                                  request.status === 'IN_PROGRESS' ? 'warning' :
-                                  'default'
-                                }
-                                size="sm"
-                              >
-                                {request.status}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-slate-600 line-clamp-2 mb-2">
-                              {request.description}
-                            </p>
-                            <div className="flex items-center justify-between">
-                              <div className="flex flex-col gap-1">
-                                <span className="text-xs text-slate-500 font-mono">
-                                  #{request.id.substring(0, 8)}
-                                </span>
-                                {scope === 'team' && request.user?.username && (
-                                  <span className="text-xs text-blue-600 font-medium">
-                                    by {request.user.username}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-xs text-slate-500">
-                                {formatRelativeTime(request.createdAt)}
-                              </span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                        <MessageSquare className="w-16 h-16 text-slate-300 mb-4" />
-                        <h3 className="text-lg font-medium text-slate-900 mb-2">No requests yet</h3>
-                        <p className="text-sm text-slate-500 mb-4">Create your first request to get started</p>
-                        <Button onClick={() => setView('create-request')} size="sm">
-                          <Plus className="w-4 h-4 mr-2" />
-                          New Request
-                        </Button>
-                      </div>
-                    )}
-                  </div>
                 </div>
+                <div className="flex items-center gap-3">
+                  <CustomSelect
+                    value={filterPriority || 'ALL'}
+                    onChange={(value) => setFilterPriority(value === 'ALL' ? null : value)}
+                    options={[
+                      { value: 'ALL', label: 'All Priorities' },
+                      { value: 'HIGH', label: 'High Priority' },
+                      { value: 'MEDIUM', label: 'Medium Priority' },
+                      { value: 'LOW', label: 'Low Priority' }
+                    ]}
+                    className="w-full sm:w-40"
+                  />
+                  <CustomSelect
+                    value={filterStatus || 'ALL'}
+                    onChange={(value) => setFilterStatus(value === 'ALL' ? null : value)}
+                    options={[
+                      { value: 'ALL', label: 'All Status' },
+                      { value: 'PENDING', label: 'Open' },
+                      { value: 'APPROVED', label: 'Approved' },
+                      { value: 'REJECTED', label: 'Rejected' },
+                      { value: 'IN_PROGRESS', label: 'In Progress' },
+                      { value: 'COMPLETED', label: 'Completed' }
+                    ]}
+                    className="w-full sm:w-40"
+                  />
+                </div>
+              </div>
 
-                {/* Right: Request Details */}
-                <div className={`${selectedRequest ? 'flex' : 'hidden lg:flex'} flex-col flex-1 min-w-0`}>
-                  {selectedRequest ? (
+              {/* Kanban Board */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-6 overflow-x-auto">
+                <KanbanBoard
+                  requests={requests.filter(r => 
+                    (!searchQuery || 
+                    r.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    r.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    r.user?.username?.toLowerCase().includes(searchQuery.toLowerCase())) &&
+                    (!filterPriority || r.priority === filterPriority) &&
+                    (!filterStatus || r.status === filterStatus)
+                  )}
+                  onRequestClick={setSelectedRequest}
+                  isAdmin={false}
+                />
+              </div>
+
+              {/* Request Detail Modal */}
+              {selectedRequest && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedRequest(null)}>
+                  <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
                     <RequestDetail
                       request={selectedRequest}
                       onClose={() => setSelectedRequest(null)}
                       isAdmin={false}
                     />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                      <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mb-4">
-                        <MessageSquare className="w-10 h-10 text-slate-400" />
-                      </div>
-                      <h3 className="text-lg font-medium text-slate-900 mb-2">Select a request</h3>
-                      <p className="text-sm text-slate-500">Choose a request from the list to view its details</p>
-                    </div>
-                  )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : view === 'create-request' ? (
             <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1133,16 +1151,12 @@ function UserDashboardContent() {
                       </button>
                     </div>
                   )}
-                  <SearchBar 
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    className="w-full lg:w-80"
-                  />
-                  
-                  <button className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">
-                    <Filter className="w-4 h-4" />
-                    <span>Filter</span>
-                  </button>
+                  {companyName && (
+                    <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                      <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                      <span className="font-semibold text-slate-700">{companyName}</span>
+                    </div>
+                  )}
 
                   <Button onClick={() => setView('create')}>
                     <Plus className="w-4 h-4 mr-2" />
@@ -1219,7 +1233,7 @@ function UserDashboardContent() {
                                   </div>
                                 </div>
                                 <Badge variant={getPriorityColor(ticket.priority)}>
-                                  {ticket.priority}
+                                  {getPriorityLabel(ticket.priority)}
                                 </Badge>
                               </div>
                               
@@ -1236,9 +1250,10 @@ function UserDashboardContent() {
                                     <span className={`text-xs font-medium ${
                                       ticket.status === 'COMPLETED' ? 'text-green-600' :
                                       ticket.status === 'IN_PROGRESS' ? 'text-blue-600' :
+                                      ['CLOSED', 'INVOICE', 'PAID'].includes(ticket.status) ? 'text-slate-600' :
                                       'text-amber-600'
                                     }`}>
-                                      {ticket.status.replace('_', ' ')}
+                                      {['INVOICE', 'PAID'].includes(ticket.status) ? 'CLOSED' : ticket.status.replace('_', ' ')}
                                     </span>
                                   </div>
                                   
@@ -1279,29 +1294,37 @@ function UserDashboardContent() {
 
                     {/* Stats Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <StatCard
-                        title={(user as any)?.team ? "Team Tickets" : "My Tickets"}
+                      <StatRow
+                        label={(user as any)?.team ? "Team Tickets" : "My Tickets"}
                         count={stats.total}
                         icon={MessageSquare}
-                        variant="orange"
+                        color="orange"
+                        variant="ticket"
+                        asTicket
                       />
-                      <StatCard
-                        title="Pending"
+                      <StatRow
+                        label="Pending"
                         count={stats.pending}
                         icon={Clock}
-                        variant="lime"
+                        color="green"
+                        variant="ticket"
+                        asTicket
                       />
-                      <StatCard
-                        title="Completed"
+                      <StatRow
+                        label="Completed"
                         count={stats.completed}
                         icon={CheckCircle}
-                        variant="green"
+                        color="blue"
+                        variant="ticket"
+                        asTicket
                       />
-                      <StatCard
-                        title="In Progress"
+                      <StatRow
+                        label="In Progress"
                         count={stats.inProgress}
                         icon={Clock}
-                        variant="grey"
+                        color="gray"
+                        variant="ticket"
+                        asTicket
                       />
                     </div>
 
@@ -1364,6 +1387,7 @@ function UserDashboardContent() {
                                       className={`text-xs p-1.5 rounded truncate cursor-pointer hover:opacity-80 ${
                                         ticket.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
                                         ticket.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                        ['CLOSED', 'INVOICE', 'PAID'].includes(ticket.status) ? 'bg-slate-100 text-slate-700' :
                                         'bg-blue-100 text-blue-700'
                                       }`}
                                     >

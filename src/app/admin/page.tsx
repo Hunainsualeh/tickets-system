@@ -21,18 +21,21 @@ import { Timeline } from '@/app/components/Timeline';
 import { AreaChart } from '@/app/components/AreaChart';
 import { SearchBar } from '@/app/components/SearchBar';
 import { Pagination } from '@/app/components/Pagination';
-import { getStatusColor, getPriorityColor, formatDate, formatRelativeTime } from '@/lib/utils';
-import { Users, Building2, Ticket as TicketIcon, Plus, Edit, Trash2, MessageSquare, Clock, CheckCircle, XCircle, Search, Filter, Calendar, AlertTriangle, MoreVertical, Mail, Phone, MapPin, ArrowLeft, Eye } from 'lucide-react';
+import { getStatusColor, getPriorityColor, getPriorityLabel, formatDate, formatRelativeTime } from '@/lib/utils';
+import { Users, Building2, Ticket as TicketIcon, Plus, Edit, Trash2, MessageSquare, Clock, CheckCircle, XCircle, Search, Filter, Calendar, AlertTriangle, MoreVertical, Mail, Phone, MapPin, ArrowLeft, Eye, History } from 'lucide-react';
 import { Suspense } from 'react';
 import { NoteDetailModal } from '@/app/components/NoteDetailModal';
 import { RequestDetail } from '@/app/components/RequestDetail';
+import { AnalyticsSection } from '@/app/components/AnalyticsSection';
+import { KanbanBoard } from '@/app/components/KanbanBoard';
 import * as XLSX from 'xlsx';
 
 function AdminDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'tickets' | 'requests' | 'notes'>('overview');
+  const [companyName, setCompanyName] = useState('');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'tickets' | 'requests' | 'notes' | 'analytics'>('overview');
   const [dashboardTab, setDashboardTab] = useState<'stats' | 'calendar' | 'reports'>('stats');
   const [overviewTab, setOverviewTab] = useState<'tickets' | 'requests'>('tickets');
   const [calendarView, setCalendarView] = useState<'month' | 'timeline'>('month');
@@ -41,6 +44,10 @@ function AdminDashboardContent() {
   const [branchCreateTab, setBranchCreateTab] = useState<'manual' | 'upload'>('manual');
   const [parsedBranches, setParsedBranches] = useState<any[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [branchSearchQuery, setBranchSearchQuery] = useState('');
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [isEditingBranch, setIsEditingBranch] = useState(false);
+  const [editingBranchId, setEditingBranchId] = useState<string | null>(null);
   
   // State
   const [users, setUsers] = useState<User[]>([]);
@@ -121,7 +128,7 @@ function AdminDashboardContent() {
     
     // Update tab from URL params
     const tab = searchParams.get('tab');
-    if (tab && ['overview', 'users', 'branches', 'tickets', 'requests', 'notes'].includes(tab)) {
+    if (tab && ['overview', 'users', 'branches', 'tickets', 'requests', 'notes', 'analytics'].includes(tab)) {
       setActiveTab(tab as any);
     }
   }, [router, searchParams]);
@@ -145,7 +152,7 @@ function AdminDashboardContent() {
 
   const fetchData = async () => {
     try {
-      const [usersRes, branchesRes, ticketsRes, teamsRes, requestsRes, notesRes] = await Promise.all([
+      const [usersRes, branchesRes, ticketsRes, teamsRes, requestsRes, notesRes, meRes] = await Promise.all([
         apiClient.getUsers(),
         apiClient.getBranches({ page: branchesPage, limit: branchesPerPage }),
         apiClient.getTickets({ search: searchQuery }),
@@ -164,6 +171,7 @@ function AdminDashboardContent() {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
         }).then(res => res.json()),
+        apiClient.getMe(),
       ]);
 
       setUsers(usersRes.users);
@@ -173,6 +181,9 @@ function AdminDashboardContent() {
       setTeams(teamsRes.teams || []);
       setRequests(requestsRes.requests || []);
       setNotes(notesRes.notes || []);
+      if (meRes.companyName) {
+        setCompanyName(meRes.companyName);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -182,7 +193,11 @@ function AdminDashboardContent() {
 
   const fetchBranchesData = async () => {
     try {
-      const res = await apiClient.getBranches({ page: branchesPage, limit: branchesPerPage });
+      const res = await apiClient.getBranches({ 
+        page: branchesPage, 
+        limit: branchesPerPage,
+        search: branchSearchQuery
+      });
       setBranches(res.branches);
       setTotalBranchesCount(res.pagination.total);
     } catch (error) {
@@ -195,6 +210,17 @@ function AdminDashboardContent() {
       fetchBranchesData();
     }
   }, [branchesPage]);
+
+  // Debounce branch search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (activeTab === 'branches') {
+        setBranchesPage(1);
+        fetchBranchesData();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [branchSearchQuery]);
 
   // Debounce search
   useEffect(() => {
@@ -376,6 +402,38 @@ function AdminDashboardContent() {
     }
   };
 
+  const handleEditBranch = (branch: Branch) => {
+    setBranchForm({
+      name: branch.name,
+      branchNumber: branch.branchNumber,
+      category: branch.category,
+    });
+    setIsEditingBranch(true);
+    setEditingBranchId(branch.id);
+    setCreateView('branch');
+    setBranchCreateTab('manual');
+  };
+
+  const handleUpdateBranch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBranchId) return;
+
+    try {
+      await apiClient.updateBranch(editingBranchId, branchForm);
+      setCreateView(null);
+      setBranchForm({
+        name: '',
+        branchNumber: '',
+        category: 'BRANCH',
+      });
+      setIsEditingBranch(false);
+      setEditingBranchId(null);
+      fetchBranchesData();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
   const handleDeleteBranch = async (id: string) => {
     setDeleteTarget({ id, type: 'branch' });
     setShowDeleteModal(true);
@@ -519,6 +577,15 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   <div className="flex gap-2">
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      onClick={() => router.push(`/admin/tickets/${selectedTicket.id}/timeline`)} 
+                      className="w-full sm:w-auto"
+                    >
+                      <History className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">View Full History</span>
+                    </Button>
                     <Button variant="danger" size="sm" onClick={() => handleDeleteTicket(selectedTicket.id)} className="w-full sm:w-auto">
                       <Trash2 className="w-4 h-4 sm:mr-2" />
                       <span className="hidden sm:inline">Delete</span>
@@ -708,6 +775,8 @@ function AdminDashboardContent() {
                           { value: 'COMPLETED', label: 'Completed' },
                           { value: 'ESCALATED', label: 'Escalated' },
                           { value: 'CLOSED', label: 'Closed' },
+                          { value: 'INVOICE', label: 'Invoice' },
+                          { value: 'PAID', label: 'Paid' },
                         ]}
                       />
                     </div>
@@ -717,7 +786,7 @@ function AdminDashboardContent() {
                       <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3 sm:mb-4">Priority</h3>
                       <div className="flex items-center gap-3">
                         <Badge variant={getPriorityColor(selectedTicket.priority)} size="lg">
-                          {selectedTicket.priority}
+                          {getPriorityLabel(selectedTicket.priority)}
                         </Badge>
                       </div>
                     </div>
@@ -731,7 +800,7 @@ function AdminDashboardContent() {
                         </div>
                         <div>
                           <p className="font-medium text-slate-900">{selectedTicket.user?.username}</p>
-                          <p className="text-xs text-slate-500">Requester</p>
+                          <p className="text-xs text-slate-500">{selectedTicket.user?.team?.name || 'No Team'}</p>
                         </div>
                       </div>
                     </div>
@@ -771,12 +840,12 @@ function AdminDashboardContent() {
                 <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl">
                   <h1 className="text-2xl font-bold text-slate-900 mb-1">
                     {createView === 'user' && 'Create New User'}
-                    {createView === 'branch' && 'Create New Branch'}
+                    {createView === 'branch' && (isEditingBranch ? 'Edit Branch' : 'Create New Branch')}
                     {createView === 'ticket' && 'Create New Ticket'}
                   </h1>
                   <p className="text-slate-500">
                     {createView === 'user' && 'Add a new user to the system'}
-                    {createView === 'branch' && 'Add a new branch location'}
+                    {createView === 'branch' && (isEditingBranch ? 'Update branch details' : 'Add a new branch location')}
                     {createView === 'ticket' && 'Create a ticket on behalf of a user'}
                   </p>
                 </div>
@@ -836,6 +905,7 @@ function AdminDashboardContent() {
                   {createView === 'branch' && (
                     <div className="space-y-6">
                       {/* Tabs */}
+                      {!isEditingBranch && (
                       <div className="flex border-b border-slate-200">
                         <button
                           className={`px-4 py-2 font-medium text-sm ${branchCreateTab === 'manual' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
@@ -850,9 +920,10 @@ function AdminDashboardContent() {
                           Upload CSV/XLSX
                         </button>
                       </div>
+                      )}
 
                       {branchCreateTab === 'manual' ? (
-                        <form onSubmit={handleCreateBranch} className="space-y-6">
+                        <form onSubmit={isEditingBranch ? handleUpdateBranch : handleCreateBranch} className="space-y-6">
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <Input
                               label="Branch Number"
@@ -882,13 +953,17 @@ function AdminDashboardContent() {
                             <Button 
                               type="button" 
                               variant="ghost" 
-                              onClick={() => setCreateView(null)}
+                              onClick={() => {
+                                setCreateView(null);
+                                setIsEditingBranch(false);
+                                setEditingBranchId(null);
+                              }}
                               className="text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                             >
                               Cancel
                             </Button>
                             <Button type="submit" size="lg" className="bg-blue-600 hover:bg-blue-500 text-white border-0">
-                              Create Branch
+                              {isEditingBranch ? 'Update Branch' : 'Create Branch'}
                             </Button>
                           </div>
                         </form>
@@ -982,6 +1057,7 @@ function AdminDashboardContent() {
                           onChange={(value) => setTicketForm({ ...ticketForm, userId: value })}
                           options={users.map((u) => ({ value: u.id, label: u.username }))}
                           placeholder="Select a user"
+                          searchable={true}
                         />
                         <CustomSelect
                           label="Branch"
@@ -989,9 +1065,10 @@ function AdminDashboardContent() {
                           onChange={(value) => setTicketForm({ ...ticketForm, branchId: value })}
                           options={branches.map((b) => ({
                             value: b.id,
-                            label: `${b.name} (${b.branchNumber})`,
+                            label: `${b.branchNumber} - ${b.name}`,
                           }))}
                           placeholder="Select a branch"
+                          searchable={true}
                         />
                         <Input
                           label="INC Number (Optional)"
@@ -1004,9 +1081,9 @@ function AdminDashboardContent() {
                           value={ticketForm.priority}
                           onChange={(value) => setTicketForm({ ...ticketForm, priority: value })}
                           options={[
-                            { value: 'P1', label: 'P1 (Highest)' },
-                            { value: 'P2', label: 'P2 (Medium)' },
-                            { value: 'P3', label: 'P3 (Lowest)' },
+                            { value: 'P1', label: 'P1 - Within 4 Hours' },
+                            { value: 'P2', label: 'P2 - Next Working Day' },
+                            { value: 'P3', label: 'P3 - Within 48 Hours' },
                           ]}
                         />
                         <div className="lg:col-span-2">
@@ -1045,36 +1122,44 @@ function AdminDashboardContent() {
             </div>
           ) : (
             <>
-              <div className="mb-6 lg:mb-8 mt-12 lg:mt-0">
-            <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">
-              {activeTab === 'overview' && (
-                <>
-                  {dashboardTab === 'stats' && 'Overview'}
-                  {dashboardTab === 'calendar' && 'Calendar'}
-                  {dashboardTab === 'reports' && 'Reports'}
-                </>
-              )}
-              {activeTab === 'users' && 'User Management'}
-              {activeTab === 'branches' && 'Branches Management'}
-              {activeTab === 'tickets' && 'Tickets Management'}
-              {activeTab === 'requests' && 'Requests Management'}
-              {activeTab === 'notes' && 'Notes Management'}
-            </h1>
-            <p className="text-sm text-slate-600 mt-1">
-              {activeTab === 'overview' && (
-                <>
-                  {dashboardTab === 'stats' && 'System overview and statistics'}
-                  {dashboardTab === 'calendar' && 'Schedule and timeline view'}
-                  {dashboardTab === 'reports' && 'Detailed system analytics'}
-                </>
-              )}
-              {activeTab === 'users' && 'Manage system users and permissions'}
-              {activeTab === 'branches' && 'Manage branch locations'}
-              {activeTab === 'tickets' && 'View and manage all tickets'}
-              {activeTab === 'requests' && 'View and manage all user requests'}
-              {activeTab === 'notes' && 'View all ticket notes and communications'}
-            </p>
-          </div>
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 lg:mb-8 mt-12 lg:mt-0">
+                <div>
+                  <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">
+                    {activeTab === 'overview' && (
+                      <>
+                        {dashboardTab === 'stats' && 'Overview'}
+                        {dashboardTab === 'calendar' && 'Calendar'}
+                        {dashboardTab === 'reports' && 'Reports'}
+                      </>
+                    )}
+                    {activeTab === 'users' && 'User Management'}
+                    {activeTab === 'branches' && 'Branches Management'}
+                    {activeTab === 'tickets' && 'Tickets Management'}
+                    {activeTab === 'requests' && 'Requests Management'}
+                    {activeTab === 'notes' && 'Notes Management'}
+                  </h1>
+                  <p className="text-sm text-slate-600 mt-1">
+                    {activeTab === 'overview' && (
+                      <>
+                        {dashboardTab === 'stats' && 'System overview and statistics'}
+                        {dashboardTab === 'calendar' && 'Schedule and timeline view'}
+                        {dashboardTab === 'reports' && 'Detailed system analytics'}
+                      </>
+                    )}
+                    {activeTab === 'users' && 'Manage system users and permissions'}
+                    {activeTab === 'branches' && 'Manage branch locations'}
+                    {activeTab === 'tickets' && 'View and manage all tickets'}
+                    {activeTab === 'requests' && 'View and manage all user requests'}
+                    {activeTab === 'notes' && 'View all ticket notes and communications'}
+                  </p>
+                </div>
+                {companyName && (
+                  <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                    <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                    <span className="font-semibold text-slate-700">{companyName}</span>
+                  </div>
+                )}
+              </div>
 
           {activeTab === 'overview' && (
           <div className="space-y-6">
@@ -1136,12 +1221,6 @@ function AdminDashboardContent() {
                   </div>
                   
                   <div className="flex flex-wrap items-center gap-3">
-                    <SearchBar 
-                      value={searchQuery}
-                      onChange={setSearchQuery}
-                      className="w-full lg:w-80"
-                      placeholder={overviewTab === 'tickets' ? "Search tickets..." : "Search requests..."}
-                    />
                   </div>
                 </div>
 
@@ -1176,7 +1255,7 @@ function AdminDashboardContent() {
                                         <p className="text-xs text-slate-500">#{ticket.id.substring(0, 8)}</p>
                                       </div>
                                       <Badge variant={getPriorityColor(ticket.priority)}>
-                                        {ticket.priority}
+                                        {getPriorityLabel(ticket.priority)}
                                       </Badge>
                                     </div>
                                     
@@ -1343,6 +1422,7 @@ function AdminDashboardContent() {
                                 color="orange"
                                 onClick={() => setFilterStatus(null)}
                                 active={filterStatus === null}
+                                variant="ticket"
                               />
                               <StatRow
                                 label="Pending"
@@ -1351,6 +1431,7 @@ function AdminDashboardContent() {
                                 color="green"
                                 onClick={() => setFilterStatus(filterStatus === 'PENDING' ? null : 'PENDING')}
                                 active={filterStatus === 'PENDING'}
+                                variant="ticket"
                               />
                               <StatRow
                                 label="Completed"
@@ -1359,6 +1440,7 @@ function AdminDashboardContent() {
                                 color="blue"
                                 onClick={() => setFilterStatus(filterStatus === 'COMPLETED' ? null : 'COMPLETED')}
                                 active={filterStatus === 'COMPLETED'}
+                                variant="ticket"
                               />
                               <StatRow
                                 label="Cancelled"
@@ -1367,6 +1449,7 @@ function AdminDashboardContent() {
                                 color="gray"
                                 onClick={() => setFilterStatus(filterStatus === 'CLOSED' ? null : 'CLOSED')}
                                 active={filterStatus === 'CLOSED'}
+                                variant="ticket"
                               />
                             </>
                           ) : (
@@ -1671,26 +1754,27 @@ function AdminDashboardContent() {
                       
                       <div className="p-8">
                         <div className="space-y-8">
-                          {/* Mock Activity Feed - In real app, fetch user specific logs */}
+                          {/* Activity Feed */}
                           <div className="relative pl-8 border-l-2 border-slate-100 space-y-8">
-                            <div className="relative">
-                              <div className="absolute -left-[33px] top-0 w-8 h-8 rounded-full bg-blue-50 border-4 border-white flex items-center justify-center text-blue-600">
-                                <TicketIcon className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <p className="text-sm text-slate-900"><span className="font-bold">Created a new ticket</span> regarding printer issues</p>
-                                <p className="text-xs text-slate-500 mt-1">Today, 12:00 PM</p>
-                              </div>
-                            </div>
-                            <div className="relative">
-                              <div className="absolute -left-[33px] top-0 w-8 h-8 rounded-full bg-green-50 border-4 border-white flex items-center justify-center text-green-600">
-                                <CheckCircle className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <p className="text-sm text-slate-900"><span className="font-bold">Ticket #1234</span> was marked as resolved</p>
-                                <p className="text-xs text-slate-500 mt-1">Yesterday, 4:30 PM</p>
-                              </div>
-                            </div>
+                            {tickets
+                              .filter(t => t.userId === selectedUser.id)
+                              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                              .slice(0, 5)
+                              .map(ticket => (
+                                <div key={ticket.id} className="relative">
+                                  <div className="absolute -left-[33px] top-0 w-8 h-8 rounded-full bg-blue-50 border-4 border-white flex items-center justify-center text-blue-600">
+                                    <TicketIcon className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm text-slate-900">
+                                      <span className="font-bold">Created ticket</span> #{ticket.incNumber || ticket.id.substring(0, 8)}
+                                    </p>
+                                    <p className="text-sm text-slate-600 mt-1 line-clamp-1">{ticket.issue}</p>
+                                    <p className="text-xs text-slate-500 mt-1">{formatRelativeTime(ticket.createdAt)}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            
                             <div className="relative">
                               <div className="absolute -left-[33px] top-0 w-8 h-8 rounded-full bg-slate-100 border-4 border-white flex items-center justify-center text-slate-600">
                                 <Users className="w-4 h-4" />
@@ -1901,8 +1985,32 @@ function AdminDashboardContent() {
             </div>
 
             {/* Actions Toolbar */}
-            <div className="flex justify-end mb-4">
-              <Button onClick={() => setCreateView('branch')}>
+            <div className="flex justify-end items-center mb-4 gap-3">
+              <div className={`relative flex justify-end transition-all duration-300 ease-in-out ${isSearchExpanded ? 'w-64' : 'w-10'}`}>
+                {isSearchExpanded ? (
+                  <div className="w-full animate-in fade-in zoom-in-95 duration-200">
+                    <SearchBar
+                      placeholder="Search branches..."
+                      value={branchSearchQuery}
+                      onChange={setBranchSearchQuery}
+                      autoFocus
+                      onBlur={() => !branchSearchQuery && setIsSearchExpanded(false)}
+                    />
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setIsSearchExpanded(true)}
+                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 transition-all shadow-sm"
+                  >
+                    <Search className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+              <Button onClick={() => {
+                setIsEditingBranch(false);
+                setBranchForm({ name: '', branchNumber: '', category: 'BRANCH' });
+                setCreateView('branch');
+              }}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Branch
               </Button>
@@ -1927,16 +2035,28 @@ function AdminDashboardContent() {
                       </TableCell>
                       <TableCell className="text-sm">{branch.name}</TableCell>
                       <TableCell>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteBranch(branch.id);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditBranch(branch);
+                            }}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteBranch(branch.id);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1951,6 +2071,14 @@ function AdminDashboardContent() {
             />
           </div>
             )
+          )}
+
+          {activeTab === 'analytics' && user && (
+            <AnalyticsSection 
+              tickets={tickets} 
+              users={users}
+              currentUser={user} 
+            />
           )}
 
           {activeTab === 'tickets' && (
@@ -2013,6 +2141,8 @@ function AdminDashboardContent() {
                             { value: 'COMPLETED', label: 'Completed' },
                             { value: 'ESCALATED', label: 'Escalated' },
                             { value: 'CLOSED', label: 'Closed' },
+                            { value: 'INVOICE', label: 'Invoice' },
+                            { value: 'PAID', label: 'Paid' },
                           ]}
                         />
                       </div>
@@ -2032,7 +2162,7 @@ function AdminDashboardContent() {
                   </div>
                 )}
               </div>
-              <Button onClick={() => setCreateView('ticket')} className="bg-[#052e16] hover:bg-[#052e16]/90 w-full sm:w-auto">
+              <Button onClick={() => setCreateView('ticket')} variant="outline" className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-2" />
                 Create Ticket
               </Button>
@@ -2064,7 +2194,7 @@ function AdminDashboardContent() {
                       <TableCell>{ticket.branch?.name}</TableCell>
                       <TableCell>
                         <Badge variant={getPriorityColor(ticket.priority)}>
-                          {ticket.priority}
+                          {getPriorityLabel(ticket.priority)}
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-xs truncate">{ticket.issue}</TableCell>
@@ -2079,6 +2209,8 @@ function AdminDashboardContent() {
                             { value: 'COMPLETED', label: 'Completed' },
                             { value: 'ESCALATED', label: 'Escalated' },
                             { value: 'CLOSED', label: 'Closed' },
+                            { value: 'INVOICE', label: 'Invoice' },
+                            { value: 'PAID', label: 'Paid' },
                           ]}
                         />
                       </TableCell>
@@ -2105,84 +2237,75 @@ function AdminDashboardContent() {
           {activeTab === 'requests' && (
             <div className="space-y-6 h-[calc(100vh-12rem)]">
               {/* Header */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
                   <h2 className="text-xl font-semibold text-slate-900">Requests Management</h2>
-                  <p className="text-sm text-slate-500 mt-1">Total: {requests.length} requests</p>
+                  <p className="text-sm text-slate-500 mt-1">Manage and track all user requests</p>
                 </div>
               </div>
 
-              {/* Chat-like Layout */}
-              <div className="flex gap-4 h-[calc(100%-12rem)] bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                {/* Left: Requests List */}
-                <div className={`${selectedRequest ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-96 border-r border-slate-200`}>
-                  {/* Search Bar */}
-                  <div className="shrink-0 p-4 border-b border-slate-200">
-                    <SearchBar 
+              {/* Filters Bar */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
+                <div className="flex-1 min-w-0">
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input
+                      type="text"
                       value={searchQuery}
-                      onChange={setSearchQuery}
-                      placeholder="Search requests..."
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search requests by title, description, or user..."
+                      className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                     />
                   </div>
-
-                  {/* Requests List */}
-                  <div className="flex-1 overflow-y-auto">
-                    {requests.length > 0 ? (
-                      <div className="divide-y divide-slate-100">
-                        {requests.map((request: any) => (
-                          <button
-                            key={request.id}
-                            onClick={() => setSelectedRequest(request)}
-                            className={`w-full text-left p-4 hover:bg-slate-50 transition-colors ${
-                              selectedRequest?.id === request.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-3 mb-2">
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-medium text-slate-900 line-clamp-1">
-                                  {request.title}
-                                </h3>
-                                <p className="text-xs text-slate-500 mt-1">
-                                  by {request.user?.username}
-                                  {request.user?.team && <span className="text-slate-400"> • {request.user.team.name}</span>}
-                                </p>
-                              </div>
-                              <Badge 
-                                variant={
-                                  request.status === 'COMPLETED' ? 'success' :
-                                  request.status === 'APPROVED' ? 'info' :
-                                  request.status === 'REJECTED' ? 'danger' :
-                                  request.status === 'IN_PROGRESS' ? 'warning' :
-                                  'default'
-                                }
-                                size="sm"
-                              >
-                                {request.status}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-slate-600 line-clamp-2 mb-2">
-                              {request.description}
-                            </p>
-                            <div className="flex items-center justify-between text-xs text-slate-500">
-                              <span className="font-mono">#{request.id.substring(0, 8)}</span>
-                              <span>{formatRelativeTime(request.createdAt)}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                        <MessageSquare className="w-16 h-16 text-slate-300 mb-4" />
-                        <h3 className="text-lg font-medium text-slate-900 mb-2">No requests found</h3>
-                        <p className="text-sm text-slate-500">Requests will appear here when users submit them</p>
-                      </div>
-                    )}
-                  </div>
                 </div>
+                <div className="flex items-center gap-3">
+                  <CustomSelect
+                    value={filterPriority || 'ALL'}
+                    onChange={(value) => setFilterPriority(value === 'ALL' ? null : value)}
+                    options={[
+                      { value: 'ALL', label: 'All Priorities' },
+                      { value: 'HIGH', label: 'High Priority' },
+                      { value: 'MEDIUM', label: 'Medium Priority' },
+                      { value: 'LOW', label: 'Low Priority' }
+                    ]}
+                    className="w-full sm:w-40"
+                  />
+                  <CustomSelect
+                    value={filterStatus || 'ALL'}
+                    onChange={(value) => setFilterStatus(value === 'ALL' ? null : value)}
+                    options={[
+                      { value: 'ALL', label: 'All Status' },
+                      { value: 'PENDING', label: 'Open' },
+                      { value: 'APPROVED', label: 'Approved' },
+                      { value: 'REJECTED', label: 'Rejected' },
+                      { value: 'IN_PROGRESS', label: 'In Progress' },
+                      { value: 'COMPLETED', label: 'Completed' }
+                    ]}
+                    className="w-full sm:w-40"
+                  />
+                </div>
+              </div>
 
-                {/* Right: Request Details */}
-                <div className={`${selectedRequest ? 'flex' : 'hidden lg:flex'} flex-col flex-1 min-w-0`}>
-                  {selectedRequest ? (
+              {/* Kanban Board */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-6 overflow-x-auto">
+                <KanbanBoard
+                  requests={requests.filter(r => 
+                    (!searchQuery || 
+                    r.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    r.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    r.user?.username?.toLowerCase().includes(searchQuery.toLowerCase())) &&
+                    (!filterPriority || r.priority === filterPriority) &&
+                    (!filterStatus || r.status === filterStatus)
+                  )}
+                  onRequestClick={setSelectedRequest}
+                  isAdmin={true}
+                />
+              </div>
+
+              {/* Request Detail Modal */}
+              {selectedRequest && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedRequest(null)}>
+                  <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
                     <RequestDetail
                       request={selectedRequest}
                       onClose={() => setSelectedRequest(null)}
@@ -2198,7 +2321,6 @@ function AdminDashboardContent() {
                             body: JSON.stringify({ status }),
                           });
                           fetchData();
-                          // Update selected request
                           setSelectedRequest({ ...selectedRequest, status });
                         } catch (error) {
                           console.error('Update request error:', error);
@@ -2221,17 +2343,9 @@ function AdminDashboardContent() {
                         }
                       }}
                     />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                      <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mb-4">
-                        <MessageSquare className="w-10 h-10 text-slate-400" />
-                      </div>
-                      <h3 className="text-lg font-medium text-slate-900 mb-2">Select a request</h3>
-                      <p className="text-sm text-slate-500">Choose a request from the list to view and manage its details</p>
-                    </div>
-                  )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -2271,84 +2385,69 @@ function AdminDashboardContent() {
                   {notes.map((note: any) => (
                     <div 
                       key={note.id} 
-                      className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col"
+                      className="relative group h-full"
                     >
-                      {/* Card Header */}
-                      <div className="p-4 border-b border-slate-100">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="text-xs font-mono text-slate-500 truncate">
-                              Ticket #{note.ticket?.id.slice(0, 8) || 'N/A'}
-                            </span>
-                            <span className="text-xs text-slate-300">•</span>
-                            <span className="text-xs text-slate-500">{formatDate(note.createdAt)}</span>
+                      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-200 text-left relative h-full flex flex-col">
+                        {/* Chat Bubble Tail */}
+                        <div className="absolute -bottom-2 left-8 w-4 h-4 bg-white border-b border-r transform rotate-45 border-slate-200 group-hover:border-slate-300" />
+
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border ${
+                              note.user?.role === 'ADMIN'
+                                ? 'bg-orange-100 text-orange-600 border-orange-200'
+                                : 'bg-purple-100 text-purple-600 border-purple-200'
+                            }`}>
+                              {note.user?.username?.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-slate-900">{note.user?.username}</p>
+                              <p className="text-[10px] text-slate-500 uppercase tracking-wide font-semibold">
+                                {note.user?.role === 'ADMIN' ? 'Administrator' : (note.user?.team?.name || 'User')}
+                              </p>
+                            </div>
                           </div>
-                          {note.user?.role === 'ADMIN' && (
-                            <Badge variant="warning" size="sm">Admin</Badge>
-                          )}
+                          <span className="text-xs text-slate-400 font-medium bg-slate-50 px-2 py-1 rounded-full">
+                            {formatRelativeTime(note.createdAt)}
+                          </span>
                         </div>
                         
-                        {note.ticket && (
-                          <div className="flex items-start gap-2">
-                            <p className="text-sm font-medium text-slate-900 line-clamp-1 flex-1">
-                              {note.ticket.issue}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Card Body */}
-                      <div className="p-4 flex-1 flex flex-col">
-                        {/* Note Content */}
-                        <p className="text-sm text-slate-700 leading-relaxed mb-4 line-clamp-4 flex-1">
+                        <p className="text-slate-600 text-sm leading-relaxed mb-4 flex-1 line-clamp-4">
                           {note.note}
                         </p>
 
-                        {/* User Info */}
-                        <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${
-                            note.user?.role === 'ADMIN' 
-                              ? 'bg-orange-100 text-orange-600' 
-                              : 'bg-blue-100 text-blue-600'
-                          }`}>
-                            {note.user?.username?.charAt(0).toUpperCase()}
+                        <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2 mt-auto">
+                          <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded-md">
+                            <TicketIcon className="w-3 h-3" />
+                            <span>#{note.ticket?.incNumber || note.ticket?.id.slice(0, 8)}</span>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">{note.user?.username}</p>
-                            {note.user?.team && (
-                              <p className="text-xs text-slate-500 truncate">{note.user.team.name}</p>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 px-2 text-xs hover:bg-slate-100"
+                              onClick={() => {
+                                setSelectedNote(note);
+                                setShowNoteDetailModal(true);
+                              }}
+                            >
+                              View
+                            </Button>
+                            {note.ticket?.id && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 px-2 text-xs hover:bg-slate-100"
+                                onClick={() => {
+                                  setActiveTab('tickets');
+                                  handleViewTicket(note.ticket.id);
+                                }}
+                              >
+                                Ticket
+                              </Button>
                             )}
                           </div>
                         </div>
-                      </div>
-
-                      {/* Card Footer */}
-                      <div className="p-3 bg-slate-50 border-t border-slate-100 flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => {
-                            setSelectedNote(note);
-                            setShowNoteDetailModal(true);
-                          }}
-                        >
-                          <Eye className="w-3.5 h-3.5 mr-1.5" />
-                          View
-                        </Button>
-                        {note.ticket?.id && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="flex-1"
-                            onClick={() => {
-                              setActiveTab('tickets');
-                              handleViewTicket(note.ticket.id);
-                            }}
-                          >
-                            Ticket
-                          </Button>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -2504,34 +2603,30 @@ function AdminDashboardContent() {
         size="lg"
       >
         <form onSubmit={handleCreateTicket} className="space-y-4">
-          <Select
+          <CustomSelect
             label="User"
             value={ticketForm.userId}
-            onChange={(e) => setTicketForm({ ...ticketForm, userId: e.target.value })}
-            options={[
-              { value: '', label: 'Select User' },
-              ...users.map((u) => ({ value: u.id, label: u.username })),
-            ]}
-            required
+            onChange={(value) => setTicketForm({ ...ticketForm, userId: value })}
+            options={users.map((u) => ({ value: u.id, label: u.username }))}
+            placeholder="Select User"
+            searchable={true}
           />
-          <Select
+          <CustomSelect
             label="Branch"
             value={ticketForm.branchId}
-            onChange={(e) => setTicketForm({ ...ticketForm, branchId: e.target.value })}
-            options={[
-              { value: '', label: 'Select Branch' },
-              ...branches.map((b) => ({ value: b.id, label: b.name })),
-            ]}
-            required
+            onChange={(value) => setTicketForm({ ...ticketForm, branchId: value })}
+            options={branches.map((b) => ({ value: b.id, label: `${b.branchNumber} - ${b.name}` }))}
+            placeholder="Select Branch"
+            searchable={true}
           />
           <Select
             label="Priority"
             value={ticketForm.priority}
             onChange={(e) => setTicketForm({ ...ticketForm, priority: e.target.value })}
             options={[
-              { value: 'HIGH', label: 'High' },
-              { value: 'MEDIUM', label: 'Medium' },
-              { value: 'LOW', label: 'Low' },
+              { value: 'P1', label: 'P1 - Within 4 Hours' },
+              { value: 'P2', label: 'P2 - Next Working Day' },
+              { value: 'P3', label: 'P3 - Within 48 Hours' },
             ]}
           />
           <Textarea

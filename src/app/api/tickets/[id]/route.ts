@@ -26,6 +26,12 @@ export async function GET(request: NextRequest, context: Params) {
             id: true,
             username: true,
             role: true,
+            team: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         branch: true,
