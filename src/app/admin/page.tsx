@@ -2387,6 +2387,23 @@ function AdminDashboardContent() {
                     )}
                     onRequestClick={setSelectedRequest}
                     isAdmin={true}
+                    onStatusChange={async (requestId, status) => {
+                      try {
+                        await fetch(`/api/requests/${requestId}`, {
+                          method: 'PUT',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                          },
+                          body: JSON.stringify({ status }),
+                        });
+                        fetchData();
+                        toast.success('Request status updated');
+                      } catch (error) {
+                        console.error('Update request error:', error);
+                        toast.error('Failed to update request status');
+                      }
+                    }}
                   />
                 )}
               </div>
