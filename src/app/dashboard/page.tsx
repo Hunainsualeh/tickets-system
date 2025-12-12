@@ -30,7 +30,13 @@ function UserDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : null;
+    }
+    return null;
+  });
   const [companyName, setCompanyName] = useState('');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -94,9 +100,6 @@ function UserDashboardContent() {
       return;
     }
 
-    const userData = JSON.parse(storedUser);
-    setUser(userData);
-
     // Fetch fresh user data to get team info
     const fetchUserData = async () => {
       try {
@@ -113,15 +116,17 @@ function UserDashboardContent() {
       }
     };
     fetchUserData();
+  }, []); // Only run on mount
 
-    // Update view from URL params
+  // Update view from URL params
+  useEffect(() => {
     const viewParam = searchParams.get('view');
     if (viewParam && ['dashboard', 'create', 'tickets', 'profile', 'requests', 'create-request', 'notes', 'analytics'].includes(viewParam)) {
       setView(viewParam as any);
     } else {
       setView('dashboard');
     }
-  }, [router, searchParams]);
+  }, [searchParams]);
 
   // Clear ticket detail view when switching views
   useEffect(() => {
@@ -165,6 +170,7 @@ function UserDashboardContent() {
 
   // Debounce search
   useEffect(() => {
+    setLoading(true);
     const timer = setTimeout(() => {
       fetchData();
     }, 500);
@@ -304,7 +310,7 @@ function UserDashboardContent() {
     }
   };
 
-  if (loading) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
@@ -576,12 +582,20 @@ function UserDashboardContent() {
             </div>
           ) : view === 'create' ? (
             <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <button 
-                onClick={() => setView('dashboard')} 
-                className="mb-6 text-slate-500 hover:text-slate-900 flex items-center gap-2 font-medium transition-colors"
-              >
-                <span className="text-xl">←</span> Back to Dashboard
-              </button>
+              <div className="flex justify-between items-center mb-6">
+                <button 
+                  onClick={() => setView('dashboard')} 
+                  className="text-slate-500 hover:text-slate-900 flex items-center gap-2 font-medium transition-colors"
+                >
+                  <span className="text-xl">←</span> Back to Dashboard
+                </button>
+                {companyName && (
+                  <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                    <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                    <span className="font-semibold text-slate-700">{companyName}</span>
+                  </div>
+                )}
+              </div>
               
               <div className="bg-white rounded-3xl shadow-sm border border-slate-200 text-slate-900">
                 <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl">
@@ -700,9 +714,17 @@ function UserDashboardContent() {
             </div>
           ) : view === 'profile' ? (
             <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="mb-8">
-                <h1 className="text-2xl font-bold text-slate-900">My Profile</h1>
-                <p className="text-sm text-slate-600 mt-1">View your account details</p>
+              <div className="flex justify-between items-start mb-8">
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900">My Profile</h1>
+                  <p className="text-sm text-slate-600 mt-1">View your account details</p>
+                </div>
+                {companyName && (
+                  <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                    <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                    <span className="font-semibold text-slate-700">{companyName}</span>
+                  </div>
+                )}
               </div>
 
               <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
@@ -817,6 +839,15 @@ function UserDashboardContent() {
             </div>
           ) : view === 'analytics' && user ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-slate-900">Analytics</h1>
+                {companyName && (
+                  <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                    <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                    <span className="font-semibold text-slate-700">{companyName}</span>
+                  </div>
+                )}
+              </div>
               <AnalyticsSection 
                 tickets={tickets} 
                 currentUser={user} 
@@ -829,6 +860,12 @@ function UserDashboardContent() {
                   <h1 className="text-2xl font-bold text-slate-900">My Notes</h1>
                   <p className="text-sm text-slate-600 mt-1">View all your ticket communications</p>
                 </div>
+                {companyName && (
+                  <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                    <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                    <span className="font-semibold text-slate-700">{companyName}</span>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -928,6 +965,12 @@ function UserDashboardContent() {
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-3">
+                  {companyName && (
+                    <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                      <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                      <span className="font-semibold text-slate-700">{companyName}</span>
+                    </div>
+                  )}
                   <SearchBar 
                     value={searchQuery}
                     onChange={setSearchQuery}
@@ -943,42 +986,51 @@ function UserDashboardContent() {
               {/* Team Scope Selector */}
               {user?.teams && (user as any).teams.length > 0 && (
                 <div className="mb-6 flex flex-wrap items-center gap-3">
-                  <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+                  <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-lg p-1">
                     <button
                       onClick={() => {
                         setScope('me');
                         setSelectedTeamId(null);
                       }}
-                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                        scope === 'me' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                        scope === 'me' 
+                          ? 'bg-slate-100 text-slate-900' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                       }`}
                     >
-                      My Tickets
+                      <UserIcon className="w-4 h-4" />
+                      My View
                     </button>
                     <button
                       onClick={() => setScope('team')}
-                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                        scope === 'team' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                        scope === 'team' 
+                          ? 'bg-slate-100 text-slate-900' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                       }`}
                     >
-                      Team Tickets
+                      <Building2 className="w-4 h-4" />
+                      Team View
                     </button>
                   </div>
 
                   {/* Team Selector */}
                   {scope === 'team' && (
-                    <select
-                      value={selectedTeamId || ''}
-                      onChange={(e) => setSelectedTeamId(e.target.value || null)}
-                      className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">All Teams</option>
-                      {(user as any).teams.map((userTeam: any) => (
-                        <option key={userTeam.team.id} value={userTeam.team.id}>
-                          {userTeam.team.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div style={{ minWidth: '200px' }}>
+                      <CustomSelect
+                        value={selectedTeamId || ''}
+                        onChange={(value) => setSelectedTeamId(value || null)}
+                        options={[
+                          { value: '', label: 'All Teams' },
+                          ...(user as any).teams.map((userTeam: any) => ({
+                            value: userTeam.team.id,
+                            label: userTeam.team.name
+                          }))
+                        ]}
+                        placeholder="Select a team"
+                        searchable
+                      />
+                    </div>
                   )}
                 </div>
               )}
@@ -990,6 +1042,7 @@ function UserDashboardContent() {
                       <TableHead>ID</TableHead>
                       <TableHead>Issue</TableHead>
                       <TableHead>Branch</TableHead>
+                      <TableHead>Team</TableHead>
                       {scope === 'team' && <TableHead>Created By</TableHead>}
                       <TableHead>Priority</TableHead>
                       <TableHead>Status</TableHead>
@@ -997,45 +1050,87 @@ function UserDashboardContent() {
                     </tr>
                   </TableHeader>
                   <TableBody>
-                    {paginatedTickets.map((ticket) => (
-                      <TableRow key={ticket.id} onClick={() => setSelectedTicket(ticket)} className="cursor-pointer hover:bg-slate-50">
-                        <TableCell className="font-mono text-xs text-slate-500">#{ticket.id.substring(0, 8)}</TableCell>
-                        <TableCell className="font-medium text-slate-900 max-w-md truncate">{ticket.issue}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-slate-900">{ticket.branch?.name}</span>
-                            <span className="text-xs text-slate-500">#{ticket.branch?.branchNumber}</span>
-                          </div>
-                        </TableCell>
-                        {scope === 'team' && (
+                    {loading ? (
+                      // Skeleton Loading State
+                      Array.from({ length: 5 }).map((_, index) => (
+                        <TableRow key={index} className="animate-pulse">
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
-                                {ticket.user?.username?.charAt(0).toUpperCase()}
-                              </div>
-                              <span className="text-sm text-slate-700">{ticket.user?.username}</span>
+                            <div className="h-4 bg-slate-200 rounded w-16"></div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="h-4 bg-slate-200 rounded w-48"></div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-2">
+                              <div className="h-4 bg-slate-200 rounded w-32"></div>
+                              <div className="h-3 bg-slate-200 rounded w-20"></div>
                             </div>
                           </TableCell>
-                        )}
-                        <TableCell>
-                          <div className={`inline-flex items-center justify-center px-2 sm:px-2.5 py-1 rounded-full text-xs sm:text-sm font-semibold border-2 bg-white whitespace-nowrap ${
-                            ticket.priority === 'P1' ? 'text-red-600 border-red-600' :
-                            ticket.priority === 'P2' ? 'text-amber-600 border-amber-600' :
-                            'text-green-600 border-green-600'
-                          }`}>
-                            <span className="hidden sm:inline">{getPriorityLabel(ticket.priority)}</span>
-                            <span className="sm:hidden">{ticket.priority}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusColor(ticket.status)}>{['INVOICE', 'PAID'].includes(ticket.status) ? 'CLOSED' : ticket.status.replace('_', ' ')}</Badge>
-                        </TableCell>
-                        <TableCell className="text-slate-600 text-sm">{formatDate(ticket.createdAt)}</TableCell>
-                      </TableRow>
-                    ))}
-                    {tickets.length === 0 && (
+                          <TableCell>
+                            <div className="h-4 bg-slate-200 rounded w-24"></div>
+                          </TableCell>
+                          {scope === 'team' && (
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-slate-200"></div>
+                                <div className="h-4 bg-slate-200 rounded w-20"></div>
+                              </div>
+                            </TableCell>
+                          )}
+                          <TableCell>
+                            <div className="h-6 bg-slate-200 rounded-full w-24"></div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="h-6 bg-slate-200 rounded-full w-20"></div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="h-4 bg-slate-200 rounded w-24"></div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : paginatedTickets.length > 0 ? (
+                      paginatedTickets.map((ticket) => (
+                        <TableRow key={ticket.id} onClick={() => setSelectedTicket(ticket)} className="cursor-pointer hover:bg-slate-50">
+                          <TableCell className="font-mono text-xs text-slate-500">#{ticket.id.substring(0, 8)}</TableCell>
+                          <TableCell className="font-medium text-slate-900 max-w-md truncate">{ticket.issue}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-slate-900">{ticket.branch?.name}</span>
+                              <span className="text-xs text-slate-500">#{ticket.branch?.branchNumber}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-slate-700">{ticket.team?.name || '-'}</span>
+                          </TableCell>
+                          {scope === 'team' && (
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
+                                  {ticket.user?.username?.charAt(0).toUpperCase()}
+                                </div>
+                                <span className="text-sm text-slate-700">{ticket.user?.username}</span>
+                              </div>
+                            </TableCell>
+                          )}
+                          <TableCell>
+                            <div className={`inline-flex items-center justify-center px-2 sm:px-2.5 py-1 rounded-full text-xs sm:text-sm font-semibold border-2 bg-white whitespace-nowrap ${
+                              ticket.priority === 'P1' ? 'text-red-600 border-red-600' :
+                              ticket.priority === 'P2' ? 'text-amber-600 border-amber-600' :
+                              'text-green-600 border-green-600'
+                            }`}>
+                              <span className="hidden sm:inline">{getPriorityLabel(ticket.priority)}</span>
+                              <span className="sm:hidden">{ticket.priority}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={getStatusColor(ticket.status)}>{['INVOICE', 'PAID'].includes(ticket.status) ? 'CLOSED' : ticket.status.replace('_', ' ')}</Badge>
+                          </TableCell>
+                          <TableCell className="text-slate-600 text-sm">{formatDate(ticket.createdAt)}</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-slate-500">
+                        <td colSpan={7} className="p-8 text-center text-slate-500">
                           No tickets found.
                         </td>
                       </tr>
@@ -1066,6 +1161,12 @@ function UserDashboardContent() {
                 </div>
                 
                 <div className="flex items-center gap-3">
+                  {companyName && (
+                    <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                      <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                      <span className="font-semibold text-slate-700">{companyName}</span>
+                    </div>
+                  )}
                   {(user?.teams && (user as any).teams.length > 0) && (
                     <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
                       <button
@@ -1166,12 +1267,20 @@ function UserDashboardContent() {
             </div>
           ) : view === 'create-request' ? (
             <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <button 
-                onClick={() => setView('requests')} 
-                className="mb-6 text-slate-500 hover:text-slate-900 flex items-center gap-2 font-medium transition-colors"
-              >
-                <span className="text-xl">←</span> Back to Requests
-              </button>
+              <div className="flex justify-between items-center mb-6">
+                <button 
+                  onClick={() => setView('requests')} 
+                  className="text-slate-500 hover:text-slate-900 flex items-center gap-2 font-medium transition-colors"
+                >
+                  <span className="text-xl">←</span> Back to Requests
+                </button>
+                {companyName && (
+                  <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                    <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                    <span className="font-semibold text-slate-700">{companyName}</span>
+                  </div>
+                )}
+              </div>
 
               <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl">
@@ -1292,18 +1401,21 @@ function UserDashboardContent() {
                     </div>
                   )}
                   {scope === 'team' && user?.teams && (user as any).teams.length > 0 && (
-                    <select
-                      value={selectedTeamId || ''}
-                      onChange={(e) => setSelectedTeamId(e.target.value || null)}
-                      className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">{companyName || 'All Teams'}</option>
-                      {(user as any).teams.map((userTeam: any) => (
-                        <option key={userTeam.team.id} value={userTeam.team.id}>
-                          {userTeam.team.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div style={{ minWidth: '200px' }}>
+                      <CustomSelect
+                        value={selectedTeamId || ''}
+                        onChange={(value) => setSelectedTeamId(value || null)}
+                        options={[
+                          { value: '', label: companyName || 'All Teams' },
+                          ...(user as any).teams.map((userTeam: any) => ({
+                            value: userTeam.team.id,
+                            label: userTeam.team.name
+                          }))
+                        ]}
+                        placeholder="Select a team"
+                        searchable
+                      />
+                    </div>
                   )}
                   {companyName && (
                     <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">

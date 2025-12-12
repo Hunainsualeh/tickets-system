@@ -8,7 +8,7 @@ import { Sidebar } from '@/app/components/Sidebar';
 import { Button } from '@/app/components/Button';
 import { Modal } from '@/app/components/Modal';
 import { Input } from '@/app/components/Input';
-import { Plus, Users, Eye, List, ChevronLeft, ChevronRight, UserPlus, Shield } from 'lucide-react';
+import { Plus, Users, Eye, List, ChevronLeft, ChevronRight, UserPlus, Shield, Building2 } from 'lucide-react';
 import Link from 'next/link';
 import { StatCard } from '@/app/components/StatCard';
 
@@ -16,6 +16,7 @@ function TeamsPageContent() {
   const router = useRouter();
   const toast = useToast();
   const [user, setUser] = useState<any>(null);
+  const [companyName, setCompanyName] = useState('');
   const [teams, setTeams] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,13 +69,17 @@ function TeamsPageContent() {
 
   const fetchTeams = async () => {
     try {
-      const [teamsRes, usersRes] = await Promise.all([
+      const [teamsRes, usersRes, meRes] = await Promise.all([
         apiClient.getTeams(),
         apiClient.getUsers(),
+        apiClient.getMe(),
       ]);
       const fetchedTeams = teamsRes.teams || [];
       setTeams(fetchedTeams);
       setUsers(usersRes.users || []);
+      if (meRes.companyName) {
+        setCompanyName(meRes.companyName);
+      }
       // Set the first team as active tab
       if (fetchedTeams.length > 0 && !activeTab) {
         setActiveTab(fetchedTeams[0].id);
@@ -166,6 +171,12 @@ function TeamsPageContent() {
                 <h1 className="text-3xl font-bold text-slate-900 mb-2">Teams</h1>
                 <p className="text-slate-600">Manage your teams, view hierarchy, and team members</p>
               </div>
+              {companyName && (
+                <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                  <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                  <span className="font-semibold text-slate-700">{companyName}</span>
+                </div>
+              )}
             </div>
           </div>
 

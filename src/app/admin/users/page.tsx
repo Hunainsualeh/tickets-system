@@ -9,12 +9,13 @@ import { Button } from '@/app/components/Button';
 import { Modal } from '@/app/components/Modal';
 import { Input } from '@/app/components/Input';
 import { StatCard } from '@/app/components/StatCard';
-import { Users, Plus, Edit, Trash2, UserPlus, Shield, UserCheck } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, UserPlus, Shield, UserCheck, Building2 } from 'lucide-react';
 
 function UsersManagementContent() {
   const router = useRouter();
   const toast = useToast();
   const [user, setUser] = useState<any>(null);
+  const [companyName, setCompanyName] = useState('');
   const [users, setUsers] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,12 +47,16 @@ function UsersManagementContent() {
 
   const fetchData = async () => {
     try {
-      const [usersRes, teamsRes] = await Promise.all([
+      const [usersRes, teamsRes, meRes] = await Promise.all([
         apiClient.getUsers(),
         apiClient.getTeams(),
+        apiClient.getMe(),
       ]);
       setUsers(usersRes.users || []);
       setTeams(teamsRes.teams || []);
+      if (meRes.companyName) {
+        setCompanyName(meRes.companyName);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -157,6 +162,12 @@ function UsersManagementContent() {
                 <h1 className="text-3xl font-bold text-slate-900 mb-2">User Management</h1>
                 <p className="text-slate-600">Manage users, assign teams, and control access</p>
               </div>
+              {companyName && (
+                <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                  <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                  <span className="font-semibold text-slate-700">{companyName}</span>
+                </div>
+              )}
             </div>
           </div>
 

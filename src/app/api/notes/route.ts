@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const ticketId = searchParams.get('ticketId');
     const scope = searchParams.get('scope');
+    const teamId = searchParams.get('teamId');
 
     let where: any = {};
 
@@ -40,18 +41,48 @@ export async function GET(request: NextRequest) {
             userId: authResult.user.userId,
           };
         } else {
-          // User belongs to teams - show notes from all team tickets
-          where.ticket = {
-            user: {
-              teams: {
-                some: {
+          // Filter by specific team if teamId is provided
+          if (teamId) {
+            if (userTeamIds.includes(teamId)) {
+              // Strict filtering: Only show notes from tickets explicitly assigned to this team
+              where.ticket = {
+                teamId: teamId,
+              };
+            } else {
+              // User not allowed to see this team
+              where.ticket = {
+                teamId: { in: [] },
+              };
+            }
+          } else {
+            // All Teams View: Show notes from tickets assigned to any of user's teams
+            // AND unassigned tickets created by members of user's teams
+            where.ticket = {
+              OR: [
+                {
                   teamId: {
                     in: userTeamIds,
                   },
                 },
-              },
-            },
-          };
+                {
+                  AND: [
+                    { teamId: null },
+                    {
+                      user: {
+                        teams: {
+                          some: {
+                            teamId: {
+                              in: userTeamIds,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+            };
+          }
         }
       } else {
         // User not in any team - show only notes from their tickets

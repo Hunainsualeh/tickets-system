@@ -42,29 +42,41 @@ export async function GET(request: NextRequest) {
           where.userId = authResult.user.userId;
         } else {
           // Filter by specific team if teamId is provided
-          const teamIdsToFilter = teamId ? [teamId] : userTeamIds;
-          
-          // User belongs to teams - show tickets from all team members
-          where.OR = [
-            // Tickets created by team members
-            {
-              user: {
-                teams: {
-                  some: {
-                    teamId: {
-                      in: teamIdsToFilter,
-                    },
-                  },
+          if (teamId) {
+            if (userTeamIds.includes(teamId)) {
+              // Strict filtering: Only show tickets explicitly assigned to this team
+              where.teamId = teamId;
+            } else {
+              // User not allowed to see this team
+              where.teamId = { in: [] };
+            }
+          } else {
+            // All Teams View: Show tickets assigned to any of user's teams
+            // AND unassigned tickets created by members of user's teams
+            where.OR = [
+              {
+                teamId: {
+                  in: userTeamIds,
                 },
               },
-            },
-            // Tickets assigned to their teams
-            {
-              teamId: {
-                in: teamIdsToFilter,
+              {
+                AND: [
+                  { teamId: null },
+                  {
+                    user: {
+                      teams: {
+                        some: {
+                          teamId: {
+                            in: userTeamIds,
+                          },
+                        },
+                      },
+                    },
+                  },
+                ],
               },
-            },
-          ];
+            ];
+          }
         }
       } else {
         // User not in any team - show only their own tickets

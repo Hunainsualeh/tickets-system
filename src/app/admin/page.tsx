@@ -523,7 +523,7 @@ function AdminDashboardContent() {
   const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
   const paginatedTickets = filteredTickets.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  if (loading) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
@@ -880,12 +880,20 @@ function AdminDashboardContent() {
             </div>
           ) : createView ? (
             <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <button 
-                onClick={() => setCreateView(null)} 
-                className="mb-6 text-slate-500 hover:text-slate-900 flex items-center gap-2 font-medium transition-colors"
-              >
-                <span className="text-xl">←</span> Back to List
-              </button>
+              <div className="flex justify-between items-center mb-6">
+                <button 
+                  onClick={() => setCreateView(null)} 
+                  className="text-slate-500 hover:text-slate-900 flex items-center gap-2 font-medium transition-colors"
+                >
+                  <span className="text-xl">←</span> Back to List
+                </button>
+                {companyName && (
+                  <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                    <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                    <span className="font-semibold text-slate-700">{companyName}</span>
+                  </div>
+                )}
+              </div>
               
               <div className="bg-white rounded-3xl shadow-sm border border-slate-200 text-slate-900">
                 <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl">
@@ -1815,7 +1823,18 @@ function AdminDashboardContent() {
                   </tr>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user: any) => (
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, index) => (
+                      <TableRow key={index} className="animate-pulse">
+                        <TableCell><div className="h-4 bg-slate-200 rounded w-24"></div></TableCell>
+                        <TableCell><div className="h-6 bg-slate-200 rounded-full w-16"></div></TableCell>
+                        <TableCell><div className="h-6 bg-slate-200 rounded-full w-20"></div></TableCell>
+                        <TableCell><div className="h-4 bg-slate-200 rounded w-8"></div></TableCell>
+                        <TableCell><div className="h-4 bg-slate-200 rounded w-24"></div></TableCell>
+                        <TableCell><div className="h-8 w-8 bg-slate-200 rounded"></div></TableCell>
+                      </TableRow>
+                    ))
+                  ) : users.map((user: any) => (
                     <TableRow key={user.id} onClick={() => setSelectedUser(user)} className="cursor-pointer hover:bg-slate-50">
                       <TableCell className="font-medium">{user.username}</TableCell>
                       <TableCell>
@@ -1859,7 +1878,7 @@ function AdminDashboardContent() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {tickets
+                  {!loading && tickets
                     .filter(t => ticketFilterStatus === 'ALL' || t.status === ticketFilterStatus)
                     .filter(t => ticketFilterPriority === 'ALL' || t.priority === ticketFilterPriority)
                     .length === 0 && (
@@ -2029,7 +2048,16 @@ function AdminDashboardContent() {
                   </tr>
                 </TableHeader>
                 <TableBody>
-                  {branches.map((branch) => (
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, index) => (
+                      <TableRow key={index} className="animate-pulse">
+                        <TableCell><div className="h-4 bg-slate-200 rounded w-24"></div></TableCell>
+                        <TableCell><div className="h-6 bg-slate-200 rounded-full w-20"></div></TableCell>
+                        <TableCell><div className="h-4 bg-slate-200 rounded w-48"></div></TableCell>
+                        <TableCell><div className="flex gap-2"><div className="h-8 w-8 bg-slate-200 rounded"></div><div className="h-8 w-8 bg-slate-200 rounded"></div></div></TableCell>
+                      </TableRow>
+                    ))
+                  ) : branches.map((branch) => (
                     <TableRow key={branch.id} onClick={() => setSelectedBranch(branch)} className="cursor-pointer hover:bg-slate-50">
                       <TableCell className="font-medium">{branch.branchNumber}</TableCell>
                       <TableCell>
@@ -2076,11 +2104,25 @@ function AdminDashboardContent() {
           )}
 
           {activeTab === 'analytics' && user && (
-            <AnalyticsSection 
-              tickets={tickets} 
-              users={users}
-              currentUser={user} 
-            />
+            loading ? (
+              <div className="space-y-6 animate-pulse">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="h-32 bg-slate-200 rounded-2xl"></div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="h-96 bg-slate-200 rounded-2xl"></div>
+                  <div className="h-96 bg-slate-200 rounded-2xl"></div>
+                </div>
+              </div>
+            ) : (
+              <AnalyticsSection 
+                tickets={tickets} 
+                users={users}
+                currentUser={user} 
+              />
+            )
           )}
 
           {activeTab === 'tickets' && (
@@ -2185,7 +2227,20 @@ function AdminDashboardContent() {
                   </tr>
                 </TableHeader>
                 <TableBody>
-                  {tickets
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, index) => (
+                      <TableRow key={index} className="animate-pulse">
+                        <TableCell><div className="h-4 bg-slate-200 rounded w-16"></div></TableCell>
+                        <TableCell><div className="h-4 bg-slate-200 rounded w-24"></div></TableCell>
+                        <TableCell><div className="h-4 bg-slate-200 rounded w-32"></div></TableCell>
+                        <TableCell><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
+                        <TableCell><div className="h-6 bg-slate-200 rounded-full w-16"></div></TableCell>
+                        <TableCell><div className="h-4 bg-slate-200 rounded w-48"></div></TableCell>
+                        <TableCell><div className="h-8 bg-slate-200 rounded w-32"></div></TableCell>
+                        <TableCell><div className="h-8 w-8 bg-slate-200 rounded"></div></TableCell>
+                      </TableRow>
+                    ))
+                  ) : tickets
                     .filter(t => ticketFilterStatus === 'ALL' || t.status === ticketFilterStatus)
                     .filter(t => ticketFilterPriority === 'ALL' || t.priority === ticketFilterPriority)
                     .map((ticket) => (
@@ -2307,18 +2362,33 @@ function AdminDashboardContent() {
 
               {/* Kanban Board */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-6 overflow-x-auto">
-                <KanbanBoard
-                  requests={requests.filter(r => 
-                    (!searchQuery || 
-                    r.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    r.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    r.user?.username?.toLowerCase().includes(searchQuery.toLowerCase())) &&
-                    (!filterPriority || r.priority === filterPriority) &&
-                    (!filterStatus || r.status === filterStatus)
-                  )}
-                  onRequestClick={setSelectedRequest}
-                  isAdmin={true}
-                />
+                {loading ? (
+                  <div className="flex gap-4 min-w-max">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="w-80 bg-slate-50 rounded-xl p-4 animate-pulse">
+                        <div className="h-6 bg-slate-200 rounded w-1/2 mb-4"></div>
+                        <div className="space-y-3">
+                          {Array.from({ length: 3 }).map((_, j) => (
+                            <div key={j} className="bg-white rounded-lg p-4 h-32 border border-slate-100"></div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <KanbanBoard
+                    requests={requests.filter(r => 
+                      (!searchQuery || 
+                      r.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      r.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      r.user?.username?.toLowerCase().includes(searchQuery.toLowerCase())) &&
+                      (!filterPriority || r.priority === filterPriority) &&
+                      (!filterStatus || r.status === filterStatus)
+                    )}
+                    onRequestClick={setSelectedRequest}
+                    isAdmin={true}
+                  />
+                )}
               </div>
 
               {/* Request Detail Modal */}
@@ -2399,7 +2469,26 @@ function AdminDashboardContent() {
                 />
               </div>
 
-              {notes.length > 0 ? (
+              {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 h-48 animate-pulse">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-full bg-slate-200"></div>
+                        <div className="flex-1">
+                          <div className="h-4 bg-slate-200 rounded w-24 mb-2"></div>
+                          <div className="h-3 bg-slate-200 rounded w-16"></div>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-3 bg-slate-200 rounded w-full"></div>
+                        <div className="h-3 bg-slate-200 rounded w-full"></div>
+                        <div className="h-3 bg-slate-200 rounded w-2/3"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : notes.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {notes.map((note: any) => (
                     <div 
