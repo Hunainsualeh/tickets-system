@@ -1497,7 +1497,7 @@ function AdminDashboardContent() {
                                 label="All Tickets"
                                 count={stats.totalTickets}
                                 icon={MessageSquare}
-                                color="orange"
+                                color="navy"
                                 onClick={() => setFilterStatus(null)}
                                 active={filterStatus === null}
                                 variant="ticket"
@@ -1506,7 +1506,7 @@ function AdminDashboardContent() {
                                 label="Pending"
                                 count={stats.pendingTickets}
                                 icon={Clock}
-                                color="green"
+                                color="teal"
                                 onClick={() => setFilterStatus(filterStatus === 'PENDING' ? null : 'PENDING')}
                                 active={filterStatus === 'PENDING'}
                                 variant="ticket"
@@ -1515,7 +1515,7 @@ function AdminDashboardContent() {
                                 label="Completed"
                                 count={stats.completedTickets}
                                 icon={CheckCircle}
-                                color="blue"
+                                color="indigo"
                                 onClick={() => setFilterStatus(filterStatus === 'COMPLETED' ? null : 'COMPLETED')}
                                 active={filterStatus === 'COMPLETED'}
                                 variant="ticket"
@@ -1524,7 +1524,7 @@ function AdminDashboardContent() {
                                 label="Cancelled"
                                 count={tickets.filter(t => t.status === 'CLOSED').length}
                                 icon={XCircle}
-                                color="gray"
+                                color="slate"
                                 onClick={() => setFilterStatus(filterStatus === 'CLOSED' ? null : 'CLOSED')}
                                 active={filterStatus === 'CLOSED'}
                                 variant="ticket"
@@ -1575,7 +1575,7 @@ function AdminDashboardContent() {
                           title="Total Requests"
                           count={stats.totalRequests}
                           icon={MessageSquare}
-                          variant="purple"
+                          variant="indigo"
                         />
                         <StatCard
                           title="Pending"
@@ -1593,7 +1593,7 @@ function AdminDashboardContent() {
                           title="In Progress"
                           count={requests.filter((r: any) => r.status === 'IN_PROGRESS').length}
                           icon={Clock}
-                          variant="blue"
+                          variant="teal"
                         />
                       </div>
                     )}
@@ -1790,7 +1790,7 @@ function AdminDashboardContent() {
                 title="Total Users"
                 count={stats.totalUsers}
                 icon={Users}
-                variant="blue"
+                variant="teal"
               />
             </div>
 
@@ -1916,7 +1916,7 @@ function AdminDashboardContent() {
                         title="Total Tickets"
                         count={tickets.filter(t => t.branchId === selectedBranch.id).length}
                         icon={TicketIcon}
-                        variant="purple"
+                        variant="navy"
                       />
                       <StatCard
                         title="Pending Issues"
@@ -1982,7 +1982,7 @@ function AdminDashboardContent() {
                 title="Total Branches"
                 count={stats.totalBranches}
                 icon={Building2}
-                variant="purple"
+                variant="slate"
               />
             </div>
 
@@ -2095,7 +2095,7 @@ function AdminDashboardContent() {
                 title="Total Tickets"
                 count={stats.totalTickets}
                 icon={TicketIcon}
-                variant="orange"
+                variant="navy"
               />
             </div>
 
@@ -2383,19 +2383,19 @@ function AdminDashboardContent() {
                   title="Total Notes"
                   count={notes.length}
                   icon={MessageSquare}
-                  variant="blue"
+                  variant="indigo"
                 />
                 <StatCard
                   title="User Notes"
                   count={notes.filter((n: any) => n.user?.role === 'USER').length}
                   icon={Users}
-                  variant="purple"
+                  variant="teal"
                 />
                 <StatCard
                   title="Admin Notes"
                   count={notes.filter((n: any) => n.user?.role === 'ADMIN').length}
                   icon={MessageSquare}
-                  variant="orange"
+                  variant="slate"
                 />
               </div>
 

@@ -5,7 +5,7 @@ interface StatCardProps {
   title: string;
   count: number | string;
   icon: LucideIcon;
-  variant: 'orange' | 'lime' | 'green' | 'grey' | 'blue' | 'purple';
+  variant: 'orange' | 'lime' | 'green' | 'grey' | 'blue' | 'purple' | 'teal' | 'navy' | 'slate' | 'indigo';
   avatars?: string[]; // URLs for avatars
   onClick?: () => void;
   isActive?: boolean;
@@ -18,6 +18,10 @@ const variants = {
   grey: 'bg-[#95a5a6] text-white',
   blue: 'bg-[#3498db] text-white',
   purple: 'bg-[#9b59b6] text-white',
+  teal: 'bg-gradient-to-br from-[#14b8a6] to-[#0d9488] text-white',
+  navy: 'bg-gradient-to-br from-[#1e40af] to-[#1e3a8a] text-white',
+  slate: 'bg-gradient-to-br from-[#475569] to-[#334155] text-white',
+  indigo: 'bg-gradient-to-br from-[#4f46e5] to-[#4338ca] text-white',
 };
 
 const iconVariants = {
@@ -27,6 +31,10 @@ const iconVariants = {
   grey: 'bg-white/20 text-white',
   blue: 'bg-white/20 text-white',
   purple: 'bg-white/20 text-white',
+  teal: 'bg-white/20 text-white',
+  navy: 'bg-white/20 text-white',
+  slate: 'bg-white/20 text-white',
+  indigo: 'bg-white/20 text-white',
 };
 
 export const StatCard: React.FC<StatCardProps> = ({ 

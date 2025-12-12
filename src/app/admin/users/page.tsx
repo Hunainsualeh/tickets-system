@@ -8,7 +8,8 @@ import { Sidebar } from '@/app/components/Sidebar';
 import { Button } from '@/app/components/Button';
 import { Modal } from '@/app/components/Modal';
 import { Input } from '@/app/components/Input';
-import { Users, Plus, Edit, Trash2, UserPlus, Shield } from 'lucide-react';
+import { StatCard } from '@/app/components/StatCard';
+import { Users, Plus, Edit, Trash2, UserPlus, Shield, UserCheck } from 'lucide-react';
 
 function UsersManagementContent() {
   const router = useRouter();
@@ -156,12 +157,42 @@ function UsersManagementContent() {
                 <h1 className="text-3xl font-bold text-slate-900 mb-2">User Management</h1>
                 <p className="text-slate-600">Manage users, assign teams, and control access</p>
               </div>
-              <Button onClick={openCreateModal} className="flex items-center gap-2">
-                <Plus className="w-4 h-4" />
-                Add User
-              </Button>
             </div>
           </div>
+
+          {/* User Statistics Cards */}
+          {!loading && users.length > 0 && (
+            <div className="mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <StatCard
+                  title="Total Users"
+                  count={users.length}
+                  icon={Users}
+                  variant="teal"
+                />
+                <StatCard
+                  title="Admin Users"
+                  count={users.filter((u) => u.role === 'ADMIN').length}
+                  icon={Shield}
+                  variant="navy"
+                />
+                <StatCard
+                  title="Regular Users"
+                  count={users.filter((u) => u.role === 'USER').length}
+                  icon={UserCheck}
+                  variant="slate"
+                />
+              </div>
+
+              {/* Actions Toolbar */}
+              <div className="flex justify-end gap-2 mt-4">
+                <Button onClick={openCreateModal} className="flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Add User
+                </Button>
+              </div>
+            </div>
+          )}
 
           {loading ? (
             <div className="flex justify-center items-center h-64">

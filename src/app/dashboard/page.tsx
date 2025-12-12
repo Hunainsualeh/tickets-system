@@ -836,7 +836,7 @@ function UserDashboardContent() {
                   label="Total Notes"
                   count={notes.length}
                   icon={MessageSquare}
-                  color="blue"
+                  color="indigo"
                   variant="ticket"
                   asTicket
                 />
@@ -1441,7 +1441,7 @@ function UserDashboardContent() {
                         label={(user as any)?.team ? "Team Tickets" : "My Tickets"}
                         count={stats.total}
                         icon={MessageSquare}
-                        color="orange"
+                        color="navy"
                         variant="ticket"
                         asTicket
                       />
@@ -1449,7 +1449,7 @@ function UserDashboardContent() {
                         label="Pending"
                         count={stats.pending}
                         icon={Clock}
-                        color="green"
+                        color="orange"
                         variant="ticket"
                         asTicket
                       />
@@ -1457,7 +1457,7 @@ function UserDashboardContent() {
                         label="Completed"
                         count={stats.completed}
                         icon={CheckCircle}
-                        color="blue"
+                        color="teal"
                         variant="ticket"
                         asTicket
                       />
@@ -1465,7 +1465,7 @@ function UserDashboardContent() {
                         label="In Progress"
                         count={stats.inProgress}
                         icon={Clock}
-                        color="gray"
+                        color="slate"
                         variant="ticket"
                         asTicket
                       />

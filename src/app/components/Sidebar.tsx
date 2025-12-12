@@ -97,8 +97,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
 
   const MenuContent = () => (
     <>
-      <div className="p-6 mb-4">
-        <div className="flex items-center gap-3 px-2 mb-10">
+      {/* Header Section - Fixed at top */}
+      <div className="p-6 pb-4 shrink-0">
+        <div className="flex items-center gap-3 px-2 mb-6">
           <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center shadow-lg shadow-slate-900/20">
             <Landmark className="w-6 h-6 text-white" />
           </div>
@@ -106,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
         </div>
 
         {username && (
-          <div className="px-2 mb-8">
+          <div className="px-2">
             <div className="flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-100 shadow-sm">
               <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-lg">
                 {username.charAt(0).toUpperCase()}
@@ -118,7 +119,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
             </div>
           </div>
         )}
+      </div>
 
+      {/* Scrollable Navigation Section */}
+      <div className="flex-1 overflow-y-auto px-6 py-4">
         <nav className="space-y-2 px-2">
           {menuItems.map((item) => {
             const Icon = item.icon;
@@ -145,7 +149,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
         </nav>
       </div>
 
-      <div className="mt-auto p-6 border-t border-slate-100">
+      {/* Sign Out Button - Fixed at bottom */}
+      <div className="shrink-0 p-6 border-t border-slate-100">
         <button
           onClick={() => setShowLogoutModal(true)}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200 group"

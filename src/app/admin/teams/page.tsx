@@ -177,7 +177,7 @@ function TeamsPageContent() {
                   title="Total Teams"
                   count={teams.length}
                   icon={Users}
-                  variant="purple"
+                  variant="indigo"
                 />
               </div>
 

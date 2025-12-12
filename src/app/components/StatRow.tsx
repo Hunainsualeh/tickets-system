@@ -5,7 +5,7 @@ interface StatRowProps {
   label: string;
   count: number;
   icon: LucideIcon;
-  color: 'blue' | 'green' | 'orange' | 'red' | 'purple' | 'gray' | 'indigo';
+  color: 'blue' | 'green' | 'orange' | 'red' | 'purple' | 'gray' | 'indigo' | 'teal' | 'navy' | 'slate';
   active?: boolean;
   onClick?: () => void;
   variant?: 'default' | 'ticket';
@@ -20,6 +20,9 @@ const colorStyles = {
   purple: 'bg-purple-50 text-purple-700 border-purple-200',
   gray: 'bg-slate-50 text-slate-700 border-slate-200',
   indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  teal: 'bg-teal-50 text-teal-700 border-teal-200',
+  navy: 'bg-blue-50 text-blue-900 border-blue-300',
+  slate: 'bg-slate-50 text-slate-700 border-slate-200',
 };
 
 const activeStyles = {
@@ -30,6 +33,9 @@ const activeStyles = {
   purple: 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-200',
   gray: 'bg-slate-600 text-white border-slate-600 shadow-md shadow-slate-200',
   indigo: 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200',
+  teal: 'bg-teal-600 text-white border-teal-600 shadow-md shadow-teal-200',
+  navy: 'bg-blue-900 text-white border-blue-900 shadow-md shadow-blue-300',
+  slate: 'bg-slate-600 text-white border-slate-600 shadow-md shadow-slate-200',
 };
 
 const ticketBg = {
@@ -40,6 +46,9 @@ const ticketBg = {
   purple: 'bg-[#A855F7]',
   gray: 'bg-[#64748B]',
   indigo: 'bg-[#6366F1]',
+  teal: 'bg-[#14B8A6]',
+  navy: 'bg-[#1E3A8A]',
+  slate: 'bg-[#475569]',
 };
 
 const ticketText = {
@@ -50,6 +59,9 @@ const ticketText = {
   purple: 'text-white',
   gray: 'text-white',
   indigo: 'text-white',
+  teal: 'text-white',
+  navy: 'text-white',
+  slate: 'text-white',
 };
 
 const ticketSubText = {
@@ -60,6 +72,9 @@ const ticketSubText = {
   purple: 'text-white/80',
   gray: 'text-white/80',
   indigo: 'text-white/80',
+  teal: 'text-white/80',
+  navy: 'text-white/80',
+  slate: 'text-white/80',
 };
 
 const ticketIconBg = {
@@ -70,6 +85,9 @@ const ticketIconBg = {
   purple: 'bg-white/20',
   gray: 'bg-white/20',
   indigo: 'bg-white/20',
+  teal: 'bg-white/20',
+  navy: 'bg-white/20',
+  slate: 'bg-white/20',
 };
 
 export const StatRow: React.FC<StatRowProps> = ({ label, count, icon: Icon, color, active, onClick, variant = 'default', asTicket = false }) => {
