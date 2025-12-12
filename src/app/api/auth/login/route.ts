@@ -77,10 +77,9 @@ export async function POST(request: NextRequest) {
         role: true,
         teamId: true,
         createdAt: true,
-        team: {
-          select: {
-            id: true,
-            name: true,
+        teams: {
+          include: {
+            team: true,
           },
         },
       },
@@ -123,7 +122,7 @@ export async function POST(request: NextRequest) {
         username: user.username,
         role: user.role,
         teamId: user.teamId,
-        team: user.team,
+        teams: user.teams,
       },
       expiresIn: '7d',
     });

@@ -8,6 +8,14 @@ export interface Team {
   };
 }
 
+export interface UserTeam {
+  id: string;
+  userId: string;
+  teamId: string;
+  createdAt: string;
+  team?: Team;
+}
+
 export interface User {
   id: string;
   username: string;
@@ -16,6 +24,7 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   team?: Team;
+  teams?: UserTeam[];
   _count?: {
     tickets: number;
   };
@@ -44,6 +53,7 @@ export interface Ticket {
   id: string;
   userId: string;
   branchId: string;
+  teamId?: string | null;
   incNumber?: string | null;
   priority: 'P1' | 'P2' | 'P3';
   issue: string;
@@ -53,6 +63,7 @@ export interface Ticket {
   updatedAt: string;
   user?: User;
   branch?: Branch;
+  team?: Team;
   statusHistory?: StatusHistory[];
   attachments?: Attachment[];
   notes?: TicketNote[];

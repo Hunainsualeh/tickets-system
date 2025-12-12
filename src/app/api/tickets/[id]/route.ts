@@ -26,15 +26,15 @@ export async function GET(request: NextRequest, context: Params) {
             id: true,
             username: true,
             role: true,
-            team: {
-              select: {
-                id: true,
-                name: true,
+            teams: {
+              include: {
+                team: true,
               },
             },
           },
         },
         branch: true,
+        team: true,
         statusHistory: {
           orderBy: {
             createdAt: 'desc',
@@ -61,26 +61,39 @@ export async function GET(request: NextRequest, context: Params) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
     }
 
-    // Regular users can only view tickets from their team or their own tickets
+    // Regular users can only view tickets from their teams or their own tickets
     if (authResult.user.role === 'USER') {
       const currentUser = await prisma.user.findUnique({
         where: { id: authResult.user.userId },
-        select: { teamId: true },
+        select: { 
+          teams: {
+            select: {
+              teamId: true,
+            },
+          },
+        },
       });
 
       const ticketUser = await prisma.user.findUnique({
         where: { id: ticket.userId },
-        select: { teamId: true },
+        select: { 
+          teams: {
+            select: {
+              teamId: true,
+            },
+          },
+        },
       });
 
-      // Allow access if:
-      // 1. It's the user's own ticket, OR
-      // 2. Both users are in the same team (and team is not null)
-      const hasAccess = 
-        ticket.userId === authResult.user.userId ||
-        (currentUser?.teamId && ticketUser?.teamId && currentUser.teamId === ticketUser.teamId);
+      const currentUserTeamIds = currentUser?.teams.map(ut => ut.teamId) || [];
+      const ticketUserTeamIds = ticketUser?.teams.map(ut => ut.teamId) || [];
 
-      if (!hasAccess) {
+      // Check if there's any team overlap or if it's the user's own ticket
+      const hasCommonTeam = currentUserTeamIds.some(teamId => ticketUserTeamIds.includes(teamId));
+      const isOwnTicket = ticket.userId === authResult.user.userId;
+      const ticketInUserTeam = ticket.teamId && currentUserTeamIds.includes(ticket.teamId);
+
+      if (!isOwnTicket && !hasCommonTeam && !ticketInUserTeam) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }

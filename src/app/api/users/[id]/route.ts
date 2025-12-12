@@ -28,10 +28,9 @@ export async function GET(request: NextRequest, context: Params) {
         teamId: true,
         createdAt: true,
         updatedAt: true,
-        team: {
-          select: {
-            id: true,
-            name: true,
+        teams: {
+          include: {
+            team: true,
           },
         },
         _count: {
@@ -66,17 +65,17 @@ export async function PUT(request: NextRequest, context: Params) {
   }
 
   try {
-    const { username, password, role, teamId } = await request.json();
+    const { username, password, role, teamIds } = await request.json();
 
-    // Validate team if provided
-    if (teamId !== undefined && teamId !== null) {
-      const team = await prisma.team.findUnique({
-        where: { id: teamId },
+    // Validate teams if provided
+    if (teamIds !== undefined && Array.isArray(teamIds) && teamIds.length > 0) {
+      const teams = await prisma.team.findMany({
+        where: { id: { in: teamIds } },
       });
 
-      if (!team) {
+      if (teams.length !== teamIds.length) {
         return NextResponse.json(
-          { error: 'Invalid team selected' },
+          { error: 'One or more invalid teams selected' },
           { status: 400 }
         );
       }
@@ -86,9 +85,25 @@ export async function PUT(request: NextRequest, context: Params) {
     
     if (username) updateData.username = username;
     if (role) updateData.role = role;
-    if (teamId !== undefined) updateData.teamId = teamId;
     if (password) {
       updateData.password = await hashPassword(password);
+    }
+
+    // Handle team assignments
+    if (teamIds !== undefined) {
+      // Delete existing team assignments
+      await prisma.userTeam.deleteMany({
+        where: { userId: params.id },
+      });
+
+      // Create new team assignments
+      if (Array.isArray(teamIds) && teamIds.length > 0) {
+        updateData.teams = {
+          create: teamIds.map((teamId: string) => ({
+            teamId,
+          })),
+        };
+      }
     }
 
     const user = await prisma.user.update({
@@ -101,10 +116,9 @@ export async function PUT(request: NextRequest, context: Params) {
         teamId: true,
         createdAt: true,
         updatedAt: true,
-        team: {
-          select: {
-            id: true,
-            name: true,
+        teams: {
+          include: {
+            team: true,
           },
         },
       },

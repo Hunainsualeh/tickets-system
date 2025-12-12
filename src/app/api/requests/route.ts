@@ -22,24 +22,36 @@ export async function GET(request: NextRequest) {
     const currentUser = await prisma.user.findUnique({
       where: { id: authResult.user.userId },
       select: {
-        teamId: true,
+        teams: {
+          select: {
+            teamId: true,
+          },
+        },
         role: true,
       },
     });
 
-    // Regular users can only see requests from users in their team
+    // Regular users can only see requests from users in their teams
     if (authResult.user.role === 'USER') {
-      if (currentUser?.teamId) {
+      const userTeamIds = currentUser?.teams.map(ut => ut.teamId) || [];
+      
+      if (userTeamIds.length > 0) {
         if (scope === 'me') {
           where.userId = authResult.user.userId;
         } else {
-          // User belongs to a team - show requests from all team members
+          // User belongs to teams - show requests from all team members
           where.user = {
-            teamId: currentUser.teamId,
+            teams: {
+              some: {
+                teamId: {
+                  in: userTeamIds,
+                },
+              },
+            },
           };
         }
       } else {
-        // User not in a team - show only their own requests
+        // User not in any team - show only their own requests
         where.userId = authResult.user.userId;
       }
     }
@@ -67,10 +79,9 @@ export async function GET(request: NextRequest) {
             username: true,
             role: true,
             teamId: true,
-            team: {
-              select: {
-                id: true,
-                name: true,
+            teams: {
+              include: {
+                team: true,
               },
             },
           },
@@ -129,10 +140,9 @@ export async function POST(request: NextRequest) {
             username: true,
             role: true,
             teamId: true,
-            team: {
-              select: {
-                id: true,
-                name: true,
+            teams: {
+              include: {
+                team: true,
               },
             },
           },

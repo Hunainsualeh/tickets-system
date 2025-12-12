@@ -21,28 +21,40 @@ export async function GET(request: NextRequest) {
     const currentUser = await prisma.user.findUnique({
       where: { id: authResult.user.userId },
       select: {
-        teamId: true,
+        teams: {
+          select: {
+            teamId: true,
+          },
+        },
         role: true,
       },
     });
 
-    // Regular users can only see notes from tickets in their team
+    // Regular users can only see notes from tickets in their teams
     if (authResult.user.role === 'USER') {
-      if (currentUser?.teamId) {
+      const userTeamIds = currentUser?.teams.map(ut => ut.teamId) || [];
+      
+      if (userTeamIds.length > 0) {
         if (scope === 'me') {
           where.ticket = {
             userId: authResult.user.userId,
           };
         } else {
-          // User belongs to a team - show notes from all team tickets
+          // User belongs to teams - show notes from all team tickets
           where.ticket = {
             user: {
-              teamId: currentUser.teamId,
+              teams: {
+                some: {
+                  teamId: {
+                    in: userTeamIds,
+                  },
+                },
+              },
             },
           };
         }
       } else {
-        // User not in a team - show only notes from their tickets
+        // User not in any team - show only notes from their tickets
         where.ticket = {
           userId: authResult.user.userId,
         };
@@ -62,10 +74,9 @@ export async function GET(request: NextRequest) {
             username: true,
             role: true,
             teamId: true,
-            team: {
-              select: {
-                id: true,
-                name: true,
+            teams: {
+              include: {
+                team: true,
               },
             },
           },

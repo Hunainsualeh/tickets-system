@@ -78,7 +78,7 @@ class ApiClient {
     return this.request('/api/users');
   }
 
-  async createUser(data: { username: string; password: string; role?: string }) {
+  async createUser(data: { username: string; password: string; role?: string; teamIds?: string[] }) {
     return this.request('/api/users', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -159,12 +159,13 @@ class ApiClient {
   }
 
   // Tickets
-  async getTickets(filters?: { status?: string; priority?: string; search?: string; scope?: string }) {
+  async getTickets(filters?: { status?: string; priority?: string; search?: string; scope?: string; teamId?: string }) {
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
     if (filters?.priority) params.append('priority', filters.priority);
     if (filters?.search) params.append('search', filters.search);
     if (filters?.scope) params.append('scope', filters.scope);
+    if (filters?.teamId) params.append('teamId', filters.teamId);
     
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request(`/api/tickets${query}`);

@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const priority = searchParams.get('priority');
     const search = searchParams.get('search');
     const scope = searchParams.get('scope');
+    const teamId = searchParams.get('teamId');
 
     const where: any = {};
 
@@ -23,24 +24,50 @@ export async function GET(request: NextRequest) {
     const currentUser = await prisma.user.findUnique({
       where: { id: authResult.user.userId },
       select: {
-        teamId: true,
+        teams: {
+          select: {
+            teamId: true,
+          },
+        },
         role: true,
       },
     });
 
-    // Regular users can only see tickets from users in their team
+    // Regular users can only see tickets from users in their teams
     if (authResult.user.role === 'USER') {
-      if (currentUser?.teamId) {
+      const userTeamIds = currentUser?.teams.map(ut => ut.teamId) || [];
+      
+      if (userTeamIds.length > 0) {
         if (scope === 'me') {
           where.userId = authResult.user.userId;
         } else {
-          // User belongs to a team - show tickets from all team members
-          where.user = {
-            teamId: currentUser.teamId,
-          };
+          // Filter by specific team if teamId is provided
+          const teamIdsToFilter = teamId ? [teamId] : userTeamIds;
+          
+          // User belongs to teams - show tickets from all team members
+          where.OR = [
+            // Tickets created by team members
+            {
+              user: {
+                teams: {
+                  some: {
+                    teamId: {
+                      in: teamIdsToFilter,
+                    },
+                  },
+                },
+              },
+            },
+            // Tickets assigned to their teams
+            {
+              teamId: {
+                in: teamIdsToFilter,
+              },
+            },
+          ];
         }
       } else {
-        // User not in a team - show only their own tickets
+        // User not in any team - show only their own tickets
         where.userId = authResult.user.userId;
       }
     }
@@ -72,15 +99,15 @@ export async function GET(request: NextRequest) {
             username: true,
             role: true,
             teamId: true,
-            team: {
-              select: {
-                id: true,
-                name: true,
+            teams: {
+              include: {
+                team: true,
               },
             },
           },
         },
         branch: true,
+        team: true,
         statusHistory: {
           orderBy: {
             createdAt: 'desc',
@@ -111,7 +138,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { branchId, priority, issue, additionalDetails, userId } = await request.json();
+    const { branchId, priority, issue, additionalDetails, userId, teamId } = await request.json();
 
     if (!branchId || !priority || !issue) {
       return NextResponse.json(
@@ -127,6 +154,23 @@ export async function POST(request: NextRequest) {
       ticketUserId = userId;
     }
 
+    // Determine team ID: use provided teamId, or get user's first team
+    let ticketTeamId = teamId || null;
+    if (!ticketTeamId) {
+      const userWithTeams = await prisma.user.findUnique({
+        where: { id: ticketUserId },
+        select: {
+          teams: {
+            take: 1,
+            select: {
+              teamId: true,
+            },
+          },
+        },
+      });
+      ticketTeamId = userWithTeams?.teams[0]?.teamId || null;
+    }
+
     const ticket = await prisma.ticket.create({
       data: {
         userId: ticketUserId,
@@ -135,6 +179,7 @@ export async function POST(request: NextRequest) {
         issue,
         additionalDetails,
         status: 'PENDING',
+        teamId: ticketTeamId,
       },
       include: {
         user: {

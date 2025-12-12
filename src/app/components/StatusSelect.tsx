@@ -61,9 +61,16 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({ value, onChange, opt
       const updatePosition = () => {
         if (containerRef.current) {
           const rect = containerRef.current.getBoundingClientRect();
+          const spaceBelow = window.innerHeight - rect.bottom;
+          const spaceAbove = rect.top;
+          const dropdownHeight = 250; // max-h-60 is approximately 240px
+          
+          // Position above if not enough space below
+          const shouldPositionAbove = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
+          
           setDropdownStyle({
             position: 'fixed',
-            top: `${rect.bottom + 8}px`,
+            top: shouldPositionAbove ? `${rect.top - Math.min(dropdownHeight, spaceAbove) - 8}px` : `${rect.bottom + 8}px`,
             left: `${rect.left}px`,
             width: `${rect.width}px`,
             zIndex: 99999

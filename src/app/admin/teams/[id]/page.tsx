@@ -81,8 +81,8 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
     }
   };
 
-  const admins = team?.users?.filter((u: any) => u.role === 'ADMIN') || [];
-  const users = team?.users?.filter((u: any) => u.role === 'USER') || [];
+  const admins = team?.users?.map((ut: any) => ut.user).filter((u: any) => u.role === 'ADMIN') || [];
+  const users = team?.users?.map((ut: any) => ut.user).filter((u: any) => u.role === 'USER') || [];
 
   return (
     <div className="flex h-screen bg-slate-50">

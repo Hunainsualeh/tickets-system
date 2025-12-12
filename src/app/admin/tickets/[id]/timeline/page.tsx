@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useToast } from '@/app/components/ToastContainer';
 import { apiClient } from '@/lib/api-client';
 import { Ticket, StatusHistory, TicketNote } from '@/types';
 import { Badge } from '@/app/components/Badge';
@@ -42,6 +43,7 @@ interface TimelineEvent {
 export default function TicketTimelinePage() {
   const params = useParams();
   const router = useRouter();
+  const toast = useToast();
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<TimelineEvent[]>([]);
@@ -158,12 +160,13 @@ export default function TicketTimelinePage() {
     setSubmittingNote(true);
     try {
       await apiClient.addNote(params.id as string, newNote);
+      toast.success('Note added successfully');
       setNewNote('');
       setIsAddNoteOpen(false);
       fetchTicket(); // Refresh timeline
     } catch (error) {
       console.error('Error adding note:', error);
-      alert('Failed to add note');
+      toast.error('Failed to add note');
     } finally {
       setSubmittingNote(false);
     }
@@ -254,9 +257,14 @@ export default function TicketTimelinePage() {
             <h1 className="text-lg font-bold text-slate-900 flex flex-wrap items-center gap-2 sm:gap-3">
               <span className="whitespace-nowrap">Ticket #{ticket.incNumber || ticket.id.substring(0, 8)}</span>
               <div className="flex gap-2">
-                <Badge variant={getPriorityColor(ticket.priority)}>
-                  {getPriorityLabel(ticket.priority)}
-                </Badge>
+                <div className={`inline-flex items-center justify-center px-2 sm:px-2.5 py-1 rounded-full text-xs font-semibold border-2 bg-white ${
+                  ticket.priority === 'P1' ? 'text-red-600 border-red-600' :
+                  ticket.priority === 'P2' ? 'text-amber-600 border-amber-600' :
+                  'text-green-600 border-green-600'
+                }`}>
+                  <span className="hidden sm:inline">{getPriorityLabel(ticket.priority)}</span>
+                  <span className="sm:hidden">{ticket.priority}</span>
+                </div>
                 <Badge variant={getStatusColor(ticket.status)}>{ticket.status.replace('_', ' ')}</Badge>
               </div>
             </h1>
@@ -553,9 +561,13 @@ export default function TicketTimelinePage() {
                       <div className="grid grid-cols-2 gap-3">
                         <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
                           <p className="text-xs text-slate-500 mb-1">Priority</p>
-                          <Badge variant={getPriorityColor(ticket.priority)}>
+                          <div className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-semibold border-2 bg-white ${
+                            ticket.priority === 'P1' ? 'text-red-600 border-red-600' :
+                            ticket.priority === 'P2' ? 'text-amber-600 border-amber-600' :
+                            'text-green-600 border-green-600'
+                          }`}>
                             {getPriorityLabel(ticket.priority)}
-                          </Badge>
+                          </div>
                         </div>
                         <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
                           <p className="text-xs text-slate-500 mb-1">Branch</p>

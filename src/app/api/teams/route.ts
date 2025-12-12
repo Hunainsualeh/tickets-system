@@ -14,10 +14,14 @@ export async function GET(request: NextRequest) {
     const teams = await prisma.team.findMany({
       include: {
         users: {
-          select: {
-            id: true,
-            username: true,
-            role: true,
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                role: true,
+              },
+            },
           },
         },
         _count: {
@@ -31,7 +35,18 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ teams });
+    // Transform the data to flatten user information
+    const transformedTeams = teams.map(team => ({
+      ...team,
+      users: team.users.map(ut => ({
+        id: ut.user.id,
+        username: ut.user.username,
+        role: ut.user.role,
+        userId: ut.userId,
+      })),
+    }));
+
+    return NextResponse.json({ teams: transformedTeams });
   } catch (error) {
     console.error('Get teams error:', error);
     return NextResponse.json(

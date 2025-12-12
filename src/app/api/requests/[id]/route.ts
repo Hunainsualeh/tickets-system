@@ -27,10 +27,9 @@ export async function GET(request: NextRequest, context: Params) {
             username: true,
             role: true,
             teamId: true,
-            team: {
-              select: {
-                id: true,
-                name: true,
+            teams: {
+              include: {
+                team: true,
               },
             },
           },
@@ -128,10 +127,9 @@ export async function PUT(request: NextRequest, context: Params) {
             username: true,
             role: true,
             teamId: true,
-            team: {
-              select: {
-                id: true,
-                name: true,
+            teams: {
+              include: {
+                team: true,
               },
             },
           },

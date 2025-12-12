@@ -29,6 +29,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
       setActiveTab(tab);
     } else if (pathname?.startsWith('/admin/teams')) {
       setActiveTab('teams');
+    } else if (pathname?.startsWith('/admin/users')) {
+      setActiveTab('users');
     } else if (pathname === '/dashboard') {
       const view = searchParams.get('view') || 'overview';
       setActiveTab(view);
@@ -76,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
   const menuItems = userRole === 'ADMIN' 
     ? [
         { icon: LayoutGrid, label: 'Dashboard', key: 'overview', href: '/admin' },
-        { icon: Users, label: 'Users', key: 'users', href: '/admin?tab=users' },
+        { icon: Users, label: 'Users', key: 'users', href: '/admin/users' },
         { icon: Briefcase, label: 'Teams', key: 'teams', href: '/admin/teams' },
         { icon: Store, label: 'Branches', key: 'branches', href: '/admin?tab=branches' },
         { icon: ClipboardList, label: 'Tickets', key: 'tickets', href: '/admin?tab=tickets' },

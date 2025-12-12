@@ -19,10 +19,9 @@ export async function GET(request: NextRequest) {
         teamId: true,
         createdAt: true,
         updatedAt: true,
-        team: {
-          select: {
-            id: true,
-            name: true,
+        teams: {
+          include: {
+            team: true,
           },
         },
       },

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useToast } from '@/app/components/ToastContainer';
 import { apiClient } from '@/lib/api-client';
 import { User, Branch, Ticket } from '@/types';
 import { Card, CardBody, CardHeader } from '@/app/components/Card';
@@ -22,7 +23,7 @@ import { AreaChart } from '@/app/components/AreaChart';
 import { SearchBar } from '@/app/components/SearchBar';
 import { Pagination } from '@/app/components/Pagination';
 import { getStatusColor, getPriorityColor, getPriorityLabel, formatDate, formatRelativeTime } from '@/lib/utils';
-import { Users, Building2, Ticket as TicketIcon, Plus, Edit, Trash2, MessageSquare, Clock, CheckCircle, XCircle, Search, Filter, Calendar, AlertTriangle, MoreVertical, Mail, Phone, MapPin, ArrowLeft, Eye, History } from 'lucide-react';
+import { Users, Building2, Ticket as TicketIcon, Plus, Edit, Trash2, MessageSquare, Clock, CheckCircle, XCircle, Search, Filter, AlertTriangle, MoreVertical, Mail, Phone, MapPin, ArrowLeft, Eye, History } from 'lucide-react';
 import { Suspense } from 'react';
 import { NoteDetailModal } from '@/app/components/NoteDetailModal';
 import { RequestDetail } from '@/app/components/RequestDetail';
@@ -33,12 +34,12 @@ import * as XLSX from 'xlsx';
 function AdminDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const toast = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [companyName, setCompanyName] = useState('');
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'tickets' | 'requests' | 'notes' | 'analytics'>('overview');
-  const [dashboardTab, setDashboardTab] = useState<'stats' | 'calendar' | 'reports'>('stats');
+  const [dashboardTab, setDashboardTab] = useState<'stats' | 'reports'>('stats');
   const [overviewTab, setOverviewTab] = useState<'tickets' | 'requests'>('tickets');
-  const [calendarView, setCalendarView] = useState<'month' | 'timeline'>('month');
   const [selectedReportBranch, setSelectedReportBranch] = useState<string>('ALL');
   const [createView, setCreateView] = useState<'user' | 'branch' | 'ticket' | null>(null);
   const [branchCreateTab, setBranchCreateTab] = useState<'manual' | 'upload'>('manual');
@@ -91,7 +92,7 @@ function AdminDashboardContent() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'user' | 'branch' | 'ticket'; name?: string } | null>(null);
 
   // Form states
-  const [userForm, setUserForm] = useState({ username: '', password: '', role: 'USER', teamId: '' });
+  const [userForm, setUserForm] = useState({ username: '', password: '', role: 'USER', teamIds: [] as string[] });
   const [teamForm, setTeamForm] = useState({ name: '' });
   const [branchForm, setBranchForm] = useState({
     name: '',
@@ -238,15 +239,16 @@ function AdminDashboardContent() {
         password: userForm.password,
         role: userForm.role,
       };
-      if (userForm.teamId) {
-        userData.teamId = userForm.teamId;
+      if (userForm.teamIds && userForm.teamIds.length > 0) {
+        userData.teamIds = userForm.teamIds;
       }
       await apiClient.createUser(userData);
+      toast.success('User created successfully');
       setCreateView(null);
-      setUserForm({ username: '', password: '', role: 'USER', teamId: '' });
+      setUserForm({ username: '', password: '', role: 'USER', teamIds: [] });
       fetchData();
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 
@@ -267,11 +269,12 @@ function AdminDashboardContent() {
         throw new Error(error.error || 'Failed to create team');
       }
       
+      toast.success(`Team "${teamForm.name}" created successfully`);
       setShowTeamModal(false);
       setTeamForm({ name: '' });
       fetchData();
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 
@@ -293,9 +296,10 @@ function AdminDashboardContent() {
         throw new Error(error.error || 'Failed to delete team');
       }
       
+      toast.error('Team deleted successfully');
       fetchData();
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 
@@ -310,17 +314,20 @@ function AdminDashboardContent() {
     try {
       if (deleteTarget.type === 'user') {
         await apiClient.deleteUser(deleteTarget.id);
+        toast.error('User deleted successfully');
       } else if (deleteTarget.type === 'branch') {
         await apiClient.deleteBranch(deleteTarget.id);
+        toast.error('Branch deleted successfully');
       } else if (deleteTarget.type === 'ticket') {
         await apiClient.deleteTicket(deleteTarget.id);
+        toast.error('Ticket deleted successfully');
         setSelectedTicket(null);
       }
       setShowDeleteModal(false);
       setDeleteTarget(null);
       fetchData();
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 
@@ -348,7 +355,7 @@ function AdminDashboardContent() {
         setParsedBranches(mappedData);
       } catch (error) {
         console.error('Error parsing file:', error);
-        alert('Failed to parse file. Please check the format.');
+        toast.error('Failed to parse file. Please check the format.');
       } finally {
         setIsAnalyzing(false);
       }
@@ -364,7 +371,7 @@ function AdminDashboardContent() {
       let errorCount = 0;
       
       // Show loading state if needed, or just process
-      // For better UX, we could show a progress bar, but for now simple alert is fine
+      // For better UX, we could show a progress bar, but for now simple toast is fine
       
       for (const branch of parsedBranches) {
         try {
@@ -376,13 +383,17 @@ function AdminDashboardContent() {
         }
       }
       
-      alert(`Process completed.\nCreated: ${successCount}\nFailed: ${errorCount}`);
+      if (errorCount === 0) {
+        toast.success(`Successfully created ${successCount} branch${successCount > 1 ? 'es' : ''}`);
+      } else {
+        toast.warning(`Created ${successCount} branch${successCount > 1 ? 'es' : ''}, ${errorCount} failed`);
+      }
       setCreateView(null);
       setParsedBranches([]);
       setBranchCreateTab('manual');
       fetchData();
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 
@@ -390,6 +401,7 @@ function AdminDashboardContent() {
     e.preventDefault();
     try {
       await apiClient.createBranch(branchForm);
+      toast.success('Branch created successfully');
       setCreateView(null);
       setBranchForm({
         name: '',
@@ -398,7 +410,7 @@ function AdminDashboardContent() {
       });
       fetchData();
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 
@@ -420,6 +432,7 @@ function AdminDashboardContent() {
 
     try {
       await apiClient.updateBranch(editingBranchId, branchForm);
+      toast.success('Branch updated successfully');
       setCreateView(null);
       setBranchForm({
         name: '',
@@ -430,7 +443,7 @@ function AdminDashboardContent() {
       setEditingBranchId(null);
       fetchBranchesData();
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 
@@ -443,6 +456,7 @@ function AdminDashboardContent() {
     e.preventDefault();
     try {
       await apiClient.createTicket(ticketForm);
+      toast.success('Ticket created successfully');
       setCreateView(null);
       setTicketForm({
         userId: '',
@@ -455,7 +469,7 @@ function AdminDashboardContent() {
       });
       fetchData();
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 
@@ -464,7 +478,7 @@ function AdminDashboardContent() {
       const result = await apiClient.getTicket(ticketId);
       setSelectedTicket(result.ticket);
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 
@@ -479,6 +493,7 @@ function AdminDashboardContent() {
         status: statusUpdate.status,
         adminNote: statusUpdate.adminNote || undefined,
       });
+      toast.success('Ticket status updated successfully');
       setShowStatusModal(false);
       setStatusUpdate({ ticketId: '', status: '', adminNote: '' });
       fetchData();
@@ -487,7 +502,7 @@ function AdminDashboardContent() {
         handleViewTicket(statusUpdate.ticketId);
       }
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 
@@ -703,12 +718,13 @@ function AdminDashboardContent() {
                               throw new Error('Failed to add note');
                             }
                             
+                            toast.success('Note added successfully');
                             // Reset form and refresh ticket
                             e.currentTarget.reset();
                             handleViewTicket(selectedTicket.id);
                             fetchData(); // Refresh notes list
                           } catch (error: any) {
-                            alert(error.message);
+                            toast.error(error.message);
                           }
                         }}
                         className="mb-6"
@@ -785,9 +801,13 @@ function AdminDashboardContent() {
                     <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-100">
                       <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3 sm:mb-4">Priority</h3>
                       <div className="flex items-center gap-3">
-                        <Badge variant={getPriorityColor(selectedTicket.priority)} size="lg">
-                          {getPriorityLabel(selectedTicket.priority)}
-                        </Badge>
+                        <div className={`inline-flex items-center justify-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-sm font-semibold border-2 bg-white ${
+                          selectedTicket.priority === 'P1' ? 'text-red-600 border-red-600' :
+                          selectedTicket.priority === 'P2' ? 'text-amber-600 border-amber-600' :
+                          'text-green-600 border-green-600'
+                        }`}>
+                          <span className="whitespace-nowrap">{getPriorityLabel(selectedTicket.priority)}</span>
+                        </div>
                       </div>
                     </div>
 
@@ -798,12 +818,43 @@ function AdminDashboardContent() {
                         <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 font-bold">
                           {selectedTicket.user?.username?.charAt(0).toUpperCase()}
                         </div>
-                        <div>
+                        <div className="flex-1">
                           <p className="font-medium text-slate-900">{selectedTicket.user?.username}</p>
-                          <p className="text-xs text-slate-500">{selectedTicket.user?.team?.name || 'No Team'}</p>
+                          <p className="text-xs text-slate-500">{selectedTicket.user?.role}</p>
                         </div>
                       </div>
+                      {selectedTicket.user?.teams && (selectedTicket.user.teams as any[]).length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-slate-200">
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">User's Teams</p>
+                          <div className="space-y-1.5">
+                            {(selectedTicket.user.teams as any[]).map((userTeam: any) => (
+                              <div key={userTeam.id} className="flex items-center gap-2 text-xs">
+                                <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                                  {userTeam.team?.name.charAt(0).toUpperCase()}
+                                </div>
+                                <span className="text-slate-700 font-medium">{userTeam.team?.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
+
+                    {/* Team Assignment Card */}
+                    {selectedTicket.team && (
+                      <div className="bg-blue-50 p-4 sm:p-6 rounded-2xl border border-blue-200">
+                        <h3 className="text-xs sm:text-sm font-bold text-blue-900 uppercase tracking-wider mb-3 sm:mb-4">Assigned Team</h3>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
+                            {selectedTicket.team.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-bold text-blue-900">{selectedTicket.team.name}</p>
+                            <p className="text-xs text-blue-700">This ticket is assigned to this team</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Branch Info */}
                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
@@ -876,15 +927,40 @@ function AdminDashboardContent() {
                             { value: 'ADMIN', label: 'Admin' },
                           ]}
                         />
-                        <CustomSelect
-                          label="Team (Optional)"
-                          value={userForm.teamId}
-                          onChange={(value) => setUserForm({ ...userForm, teamId: value })}
-                          options={[
-                            { value: '', label: 'No Team' },
-                            ...teams.map(team => ({ value: team.id, label: team.name })),
-                          ]}
-                        />
+                        <div className="lg:col-span-2">
+                          <label className="block text-sm font-bold text-slate-700 mb-3">
+                            Assign Teams (Optional)
+                          </label>
+                          <div className="space-y-2">
+                            {teams.map(team => (
+                              <label key={team.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 cursor-pointer border border-slate-200 transition-colors">
+                                <input
+                                  type="checkbox"
+                                  checked={userForm.teamIds.includes(team.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setUserForm({ ...userForm, teamIds: [...userForm.teamIds, team.id] });
+                                    } else {
+                                      setUserForm({ ...userForm, teamIds: userForm.teamIds.filter(id => id !== team.id) });
+                                    }
+                                  }}
+                                  className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                                />
+                                <div className="flex items-center gap-2 flex-1">
+                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                                    {team.name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="font-medium text-slate-900">{team.name}</span>
+                                </div>
+                              </label>
+                            ))}
+                            {teams.length === 0 && (
+                              <div className="text-center py-4 bg-slate-50 rounded-lg border border-slate-200 border-dashed">
+                                <p className="text-sm text-slate-500">No teams available. Create teams first.</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                       <div className="flex justify-end gap-4 pt-6 border-t border-slate-100">
                         <Button 
@@ -1128,7 +1204,6 @@ function AdminDashboardContent() {
                     {activeTab === 'overview' && (
                       <>
                         {dashboardTab === 'stats' && 'Overview'}
-                        {dashboardTab === 'calendar' && 'Calendar'}
                         {dashboardTab === 'reports' && 'Reports'}
                       </>
                     )}
@@ -1142,7 +1217,6 @@ function AdminDashboardContent() {
                     {activeTab === 'overview' && (
                       <>
                         {dashboardTab === 'stats' && 'System overview and statistics'}
-                        {dashboardTab === 'calendar' && 'Schedule and timeline view'}
                         {dashboardTab === 'reports' && 'Detailed system analytics'}
                       </>
                     )}
@@ -1174,16 +1248,6 @@ function AdminDashboardContent() {
                 }`}
               >
                 Overview
-              </button>
-              <button
-                onClick={() => setDashboardTab('calendar')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  dashboardTab === 'calendar'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                Calendar
               </button>
               <button
                 onClick={() => setDashboardTab('reports')}
@@ -1254,19 +1318,33 @@ function AdminDashboardContent() {
                                         <h3 className="font-bold text-slate-900 truncate">{ticket.user?.username}</h3>
                                         <p className="text-xs text-slate-500">#{ticket.id.substring(0, 8)}</p>
                                       </div>
-                                      <Badge variant={getPriorityColor(ticket.priority)}>
-                                        {getPriorityLabel(ticket.priority)}
-                                      </Badge>
+                                      <div className={`inline-flex items-center justify-center px-2 sm:px-2.5 py-1 rounded-full text-xs font-semibold border-2 bg-white shrink-0 ${
+                                        ticket.priority === 'P1' ? 'text-red-600 border-red-600' :
+                                        ticket.priority === 'P2' ? 'text-amber-600 border-amber-600' :
+                                        'text-green-600 border-green-600'
+                                      }`}>
+                                        <span className="hidden sm:inline whitespace-nowrap">{getPriorityLabel(ticket.priority)}</span>
+                                        <span className="sm:hidden">{ticket.priority}</span>
+                                      </div>
                                     </div>
                                     
                                     <p className="text-sm text-slate-600 mb-4 line-clamp-2">{ticket.issue}</p>
                                     
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-50">
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-3">
                                         <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs text-blue-600 font-bold">
                                           {ticket.branch?.name?.charAt(0)}
                                         </div>
                                         <span className="text-xs text-slate-500">{ticket.branch?.name}</span>
+                                        {ticket.team && (
+                                          <>
+                                            <span className="text-slate-300">•</span>
+                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 border border-blue-200 rounded-lg">
+                                              <Building2 className="w-3 h-3 text-blue-600" />
+                                              <span className="text-xs font-medium text-blue-700">{ticket.team.name}</span>
+                                            </div>
+                                          </>
+                                        )}
                                       </div>
                                       
                                       <div className="flex flex-wrap items-center gap-4 sm:gap-6">
@@ -1526,113 +1604,7 @@ function AdminDashboardContent() {
 
 
 
-            {dashboardTab === 'calendar' && (
-              <div className="bg-white p-4 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                  <div className="flex items-center gap-4">
-                    {calendarView === 'timeline' && (
-                      <button 
-                        onClick={() => setCalendarView('month')}
-                        className="p-2 hover:bg-slate-100 rounded-full transition-colors"
-                        title="Back to Month View"
-                      >
-                        <ArrowLeft size={20} className="text-slate-600" />
-                      </button>
-                    )}
-                    <h2 className="text-xl font-bold text-slate-900">Calendar</h2>
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
-                    <Button variant="outline" size="sm" className="shrink-0">Today</Button>
-                    <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1 shrink-0">
-                      <button className="p-1 hover:bg-white rounded shadow-sm transition-all">
-                        <span className="sr-only">Previous month</span>
-                        ←
-                      </button>
-                      <button 
-                        onClick={() => setCalendarView(calendarView === 'month' ? 'timeline' : 'month')}
-                        className="text-sm font-medium px-2 hover:bg-white rounded py-1 transition-colors flex items-center gap-2 whitespace-nowrap"
-                        title="Click to toggle view"
-                      >
-                        <span>December 2025</span>
-                        <span className="text-xs text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded">
-                          {calendarView === 'month' ? 'View Timeline' : 'View Month'}
-                        </span>
-                      </button>
-                      <button className="p-1 hover:bg-white rounded shadow-sm transition-all">
-                        <span className="sr-only">Next month</span>
-                        →
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                
-                {calendarView === 'month' ? (
-                  <div className="overflow-x-auto pb-4">
-                    <div className="min-w-[600px] grid grid-cols-7 gap-px bg-slate-100 rounded-lg border border-slate-200">
-                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                        <div key={day} className="bg-slate-50 p-4 text-center text-sm font-semibold text-slate-600">
-                          {day}
-                        </div>
-                      ))}
-                      {Array.from({ length: 35 }).map((_, i) => {
-                        const day = i - 2; // Offset for demo
-                        const isToday = day === 9;
-                        const date = new Date(2025, 11, day);
-                        const dayTickets = tickets.filter(t => {
-                          const tDate = new Date(t.createdAt);
-                          return tDate.getDate() === day && tDate.getMonth() === 11 && tDate.getFullYear() === 2025;
-                        });
-
-                        return (
-                          <div 
-                            key={i} 
-                            onClick={() => day > 0 && day <= 31 && setCalendarView('timeline')}
-                            className={`bg-white min-h-[120px] p-3 transition-colors ${
-                              day < 1 || day > 31 
-                                ? 'bg-slate-50/50 text-slate-400' 
-                                : 'hover:bg-slate-50 cursor-pointer'
-                            }`}
-                          >
-                            {day > 0 && day <= 31 && (
-                              <>
-                                <div className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-medium mb-2 ${isToday ? 'bg-blue-600 text-white' : 'text-slate-700'}`}>
-                                  {day}
-                                </div>
-                                <div className="space-y-1">
-                                  {dayTickets.map(ticket => (
-                                    <div 
-                                      key={ticket.id}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleViewTicket(ticket.id);
-                                      }}
-                                      className={`text-xs p-1.5 rounded truncate cursor-pointer hover:opacity-80 ${
-                                        ticket.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                                        ticket.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                        'bg-blue-100 text-blue-700'
-                                      }`}
-                                    >
-                                      {ticket.issue}
-                                    </div>
-                                  ))}
-                                  {dayTickets.length === 0 && day === 9 && (
-                                    <div className="text-xs bg-slate-100 text-slate-600 p-1.5 rounded mb-1 truncate">
-                                      Team Meeting
-                                    </div>
-                                  )}
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <Timeline tickets={tickets} currentDate={new Date(2025, 11, 1)} />
-                )}
-              </div>
-            )}            {dashboardTab === 'reports' && (
+            {dashboardTab === 'reports' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="col-span-1">
                   <AreaChart 
@@ -1743,6 +1715,25 @@ function AdminDashboardContent() {
                         </div>
                       </div>
                     </div>
+
+                    {(selectedUser as any).teams && (selectedUser as any).teams.length > 0 && (
+                      <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-3xl border border-blue-100 shadow-sm">
+                        <h3 className="font-bold text-slate-900 mb-4">Assigned Teams</h3>
+                        <div className="space-y-2">
+                          {(selectedUser as any).teams.map((userTeam: any) => (
+                            <div key={userTeam.id} className="flex items-center gap-3 p-3 bg-white/70 rounded-xl">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
+                                {userTeam.team?.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-medium text-slate-900">{userTeam.team?.name}</p>
+                                <p className="text-xs text-slate-500">Added {formatRelativeTime(userTeam.createdAt)}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Right Column: Activity & Details */}
@@ -1833,10 +1824,21 @@ function AdminDashboardContent() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {user.team ? (
-                          <Badge variant="default">{user.team.name}</Badge>
+                        {user.teams && user.teams.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {user.teams.slice(0, 2).map((userTeam: any) => (
+                              <Badge key={userTeam.id} variant="default" size="sm">
+                                {userTeam.team?.name}
+                              </Badge>
+                            ))}
+                            {user.teams.length > 2 && (
+                              <Badge variant="default" size="sm">
+                                +{user.teams.length - 2}
+                              </Badge>
+                            )}
+                          </div>
                         ) : (
-                          <span className="text-slate-400 text-sm">No team</span>
+                          <span className="text-slate-400 text-sm">No teams</span>
                         )}
                       </TableCell>
                       <TableCell>{user._count?.tickets || 0}</TableCell>
@@ -2175,6 +2177,7 @@ function AdminDashboardContent() {
                     <TableHead>ID</TableHead>
                     <TableHead>User</TableHead>
                     <TableHead>Branch</TableHead>
+                    <TableHead>Team</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Issue</TableHead>
                     <TableHead>Status</TableHead>
@@ -2193,9 +2196,25 @@ function AdminDashboardContent() {
                       <TableCell>{ticket.user?.username}</TableCell>
                       <TableCell>{ticket.branch?.name}</TableCell>
                       <TableCell>
-                        <Badge variant={getPriorityColor(ticket.priority)}>
-                          {getPriorityLabel(ticket.priority)}
-                        </Badge>
+                        {ticket.team ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                              {ticket.team.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-sm text-slate-700">{ticket.team.name}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400">No team</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className={`inline-flex items-center justify-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold border-2 bg-white ${
+                          ticket.priority === 'P1' ? 'text-red-600 border-red-600' :
+                          ticket.priority === 'P2' ? 'text-amber-600 border-amber-600' :
+                          'text-green-600 border-green-600'
+                        }`}>
+                          <span className="whitespace-nowrap">{getPriorityLabel(ticket.priority)}</span>
+                        </div>
                       </TableCell>
                       <TableCell className="max-w-xs truncate">{ticket.issue}</TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>

@@ -1,12 +1,147 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model Team {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  tickets   Ticket[]
+  users     UserTeam[]
+
+  @@map("teams")
+}
+
+model User {
+  id        String       @id @default(cuid())
+  username  String       @unique
+  password  String
+  role      UserRole     @default(USER)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  teamId    String?
+  requests  Request[]
+  notes     TicketNote[]
+  tickets   Ticket[]
+  teams     UserTeam[]
+
+  @@map("users")
+}
+
+model UserTeam {
+  id        String   @id @default(cuid())
+  userId    String
+  teamId    String
+  createdAt DateTime @default(now())
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@map("user_teams")
+}
+
+model Branch {
+  id           String         @id @default(cuid())
+  name         String
+  branchNumber String         @unique
+  category     BranchCategory
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  tickets      Ticket[]
+
+  @@map("branches")
+}
+
+model Ticket {
+  id                String          @id @default(cuid())
+  userId            String
+  branchId          String
+  priority          Priority
+  issue             String
+  additionalDetails String?
+  status            TicketStatus    @default(PENDING)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  incNumber         String?
+  teamId            String?
+  attachments       Attachment[]
+  statusHistory     StatusHistory[]
+  notes             TicketNote[]
+  branch            Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  team              Team?           @relation(fields: [teamId], references: [id])
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("tickets")
+}
+
+model StatusHistory {
+  id        String       @id @default(cuid())
+  ticketId  String
+  status    TicketStatus
+  note      String?
+  adminNote String?
+  createdAt DateTime     @default(now())
+  ticket    Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("status_history")
+}
+
+model Attachment {
+  id         String   @id @default(cuid())
+  ticketId   String
+  fileName   String
+  fileUrl    String
+  fileSize   Int
+  mimeType   String
+  uploadedAt DateTime @default(now())
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("attachments")
+}
+
+model Request {
+  id          String              @id @default(cuid())
+  userId      String
+  title       String
+  description String
+  projectId   String?
+  status      RequestStatus       @default(PENDING)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  attachments RequestAttachment[]
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("requests")
+}
+
+model RequestAttachment {
+  id         String   @id @default(cuid())
+  requestId  String
+  fileName   String
+  fileUrl    String
+  fileSize   Int
+  mimeType   String
+  uploadedAt DateTime @default(now())
+  request    Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("request_attachments")
+}
+
+model TicketNote {
+  id        String   @id @default(cuid())
+  ticketId  String
+  userId    String
+  note      String
+  createdAt DateTime @default(now())
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ticket_notes")
 }
 
 enum UserRole {
@@ -38,139 +173,10 @@ enum TicketStatus {
   PAID
 }
 
-model Team {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  users     User[]
-  
-  @@map("teams")
-}
-
-model User {
-  id        String    @id @default(cuid())
-  username  String    @unique
-  password  String
-  role      UserRole  @default(USER)
-  teamId    String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  team      Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  tickets   Ticket[]
-  requests  Request[]
-  notes     TicketNote[]
-  
-  @@map("users")
-}
-
-model Branch {
-  id            String         @id @default(cuid())
-  name          String
-  branchNumber  String         @unique
-  category      BranchCategory
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  tickets       Ticket[]
-  
-  @@map("branches")
-}
-
-model Ticket {
-  id                String       @id @default(cuid())
-  userId            String
-  branchId          String
-  incNumber         String?
-  priority          Priority
-  issue             String       @db.Text
-  additionalDetails String?      @db.Text
-  status            TicketStatus @default(PENDING)
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  
-  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  branch            Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  statusHistory     StatusHistory[]
-  attachments       Attachment[]
-  notes             TicketNote[]
-  
-  @@map("tickets")
-}
-
-model StatusHistory {
-  id        String       @id @default(cuid())
-  ticketId  String
-  status    TicketStatus
-  note      String?      @db.Text
-  adminNote String?      @db.Text
-  createdAt DateTime     @default(now())
-  
-  ticket    Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  
-  @@map("status_history")
-}
-
-model Attachment {
-  id          String   @id @default(cuid())
-  ticketId    String
-  fileName    String
-  fileUrl     String
-  fileSize    Int
-  mimeType    String
-  uploadedAt  DateTime @default(now())
-  
-  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  
-  @@map("attachments")
-}
-
 enum RequestStatus {
   PENDING
   APPROVED
   REJECTED
   IN_PROGRESS
   COMPLETED
-}
-
-model Request {
-  id          String        @id @default(cuid())
-  userId      String
-  title       String
-  description String        @db.Text
-  projectId   String?
-  status      RequestStatus @default(PENDING)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  attachments RequestAttachment[]
-  
-  @@map("requests")
-}
-
-model RequestAttachment {
-  id          String   @id @default(cuid())
-  requestId   String
-  fileName    String
-  fileUrl     String
-  fileSize    Int
-  mimeType    String
-  uploadedAt  DateTime @default(now())
-  
-  request     Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  
-  @@map("request_attachments")
-}
-
-model TicketNote {
-  id        String   @id @default(cuid())
-  ticketId  String
-  userId    String
-  note      String   @db.Text
-  createdAt DateTime @default(now())
-  
-  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("ticket_notes")
 }

@@ -20,12 +20,16 @@ export async function GET(
       where: { id },
       include: {
         users: {
-          select: {
-            id: true,
-            username: true,
-            role: true,
-            createdAt: true,
-            updatedAt: true,
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                role: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
           },
         },
         _count: {

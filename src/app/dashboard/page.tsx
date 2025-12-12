@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
+import { useToast } from '@/app/components/ToastContainer';
 import { User, Branch, Ticket } from '@/types';
 import { Card, CardBody, CardHeader } from '@/app/components/Card';
 import { Button } from '@/app/components/Button';
@@ -17,7 +18,7 @@ import { StatRow } from '@/app/components/StatRow';
 import { SearchBar } from '@/app/components/SearchBar';
 import { Pagination } from '@/app/components/Pagination';
 import { getStatusColor, getPriorityColor, getPriorityLabel, formatDate, formatRelativeTime } from '@/lib/utils';
-import { Plus, CheckCircle, Clock, AlertCircle, MessageSquare, XCircle, Search, Filter, Calendar, Building2, Copy, User as UserIcon, Shield, Lock, Eye } from 'lucide-react';
+import { Plus, CheckCircle, Clock, AlertCircle, MessageSquare, XCircle, Search, Filter, Building2, Copy, User as UserIcon, Shield, Lock, Eye } from 'lucide-react';
 import { Suspense } from 'react';
 import { SuccessModal } from '@/app/components/SuccessModal';
 import { NoteDetailModal } from '@/app/components/NoteDetailModal';
@@ -28,6 +29,7 @@ import { KanbanBoard } from '@/app/components/KanbanBoard';
 function UserDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const toast = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [companyName, setCompanyName] = useState('');
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -36,13 +38,13 @@ function UserDashboardContent() {
   const [notes, setNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'dashboard' | 'create' | 'tickets' | 'profile' | 'requests' | 'create-request' | 'notes' | 'analytics'>('dashboard');
-  const [dashboardTab, setDashboardTab] = useState<'overview' | 'calendar'>('overview');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedNote, setSelectedNote] = useState<any | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [scope, setScope] = useState<'me' | 'team'>('me');
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [filterPriority, setFilterPriority] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -76,6 +78,7 @@ function UserDashboardContent() {
     priority: 'P2',
     issue: '',
     additionalDetails: '',
+    teamId: '',
   });
 
   const [requestForm, setRequestForm] = useState({
@@ -127,15 +130,22 @@ function UserDashboardContent() {
 
   const fetchData = async () => {
     try {
+      const filters: any = { search: searchQuery, scope };
+      
+      // If team scope and a specific team is selected, add teamId filter
+      if (scope === 'team' && selectedTeamId) {
+        filters.teamId = selectedTeamId;
+      }
+      
       const [branchesRes, ticketsRes, requestsRes, notesRes] = await Promise.all([
         apiClient.getBranches(),
-        apiClient.getTickets({ search: searchQuery, scope }),
-        fetch(`/api/requests?scope=${scope}`, {
+        apiClient.getTickets(filters),
+        fetch(`/api/requests?scope=${scope}${selectedTeamId && scope === 'team' ? `&teamId=${selectedTeamId}` : ''}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
         }).then(res => res.json()),
-        fetch(`/api/notes?scope=${scope}`, {
+        fetch(`/api/notes?scope=${scope}${selectedTeamId && scope === 'team' ? `&teamId=${selectedTeamId}` : ''}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
@@ -159,7 +169,7 @@ function UserDashboardContent() {
       fetchData();
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchQuery, scope]);
+  }, [searchQuery, scope, selectedTeamId]);
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,11 +199,14 @@ function UserDashboardContent() {
         priority: 'P2',
         issue: '',
         additionalDetails: '',
+        teamId: '',
       });
       setUploadFiles([]);
       fetchData();
+      toast.success('Ticket created successfully!');
     } catch (error: any) {
-      alert(error.message);
+      console.error('Create ticket error:', error);
+      toast.error(error.message || 'Failed to create ticket');
     }
   };
 
@@ -239,8 +252,10 @@ function UserDashboardContent() {
       });
       setUploadFiles([]);
       fetchData();
+      toast.success('Request created successfully!');
     } catch (error: any) {
-      alert(error.message);
+      console.error('Create request error:', error);
+      toast.error(error.message || 'Failed to create request');
     }
   };
 
@@ -283,7 +298,7 @@ function UserDashboardContent() {
       fetchData();
     } catch (error) {
       console.error('Error adding note:', error);
-      alert('Failed to add note. Please try again.');
+      toast.error('Failed to add note. Please try again.');
     } finally {
       setIsAddingNote(false);
     }
@@ -495,12 +510,16 @@ function UserDashboardContent() {
                   {/* Sidebar Info */}
                   <div className="space-y-6">
                     {/* Priority Card */}
-                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">Priority</h3>
+                    <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-100">
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3 sm:mb-4">Priority</h3>
                       <div className="flex items-center gap-3">
-                        <Badge variant={getPriorityColor(selectedTicket.priority)} size="lg">
-                          {getPriorityLabel(selectedTicket.priority)}
-                        </Badge>
+                        <div className={`inline-flex items-center justify-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-sm font-semibold border-2 bg-white ${
+                          selectedTicket.priority === 'P1' ? 'text-red-600 border-red-600' :
+                          selectedTicket.priority === 'P2' ? 'text-amber-600 border-amber-600' :
+                          'text-green-600 border-green-600'
+                        }`}>
+                          <span className="whitespace-nowrap">{getPriorityLabel(selectedTicket.priority)}</span>
+                        </div>
                       </div>
                     </div>
 
@@ -518,6 +537,39 @@ function UserDashboardContent() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Team Info */}
+                    {(selectedTicket.team || (selectedTicket.user?.teams && (selectedTicket.user.teams as any[]).length > 0)) && (
+                      <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-2xl border border-blue-100">
+                        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">Associated Team(s)</h3>
+                        <div className="space-y-3">
+                          {selectedTicket.team && (
+                            <div className="flex items-center gap-3 bg-white/70 p-3 rounded-lg">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
+                                {selectedTicket.team.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-xs text-slate-500 uppercase tracking-wider">Assigned Team</p>
+                                <p className="font-bold text-slate-900">{selectedTicket.team.name}</p>
+                              </div>
+                            </div>
+                          )}
+                          {selectedTicket.user?.teams && (selectedTicket.user.teams as any[]).length > 0 && (
+                            <div className="bg-white/70 p-3 rounded-lg space-y-2">
+                              <p className="text-xs text-slate-500 uppercase tracking-wider">Creator's Teams</p>
+                              {(selectedTicket.user.teams as any[]).map((userTeam: any) => (
+                                <div key={userTeam.id} className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                                    {userTeam.team?.name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="text-sm font-medium text-slate-900">{userTeam.team?.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -570,6 +622,19 @@ function UserDashboardContent() {
                         ]}
                         placeholder="Select priority"
                       />
+
+                      {user?.teams && (user as any).teams.length > 0 && (
+                        <CustomSelect
+                          label="Team (Optional)"
+                          value={ticketForm.teamId}
+                          onChange={(value) => setTicketForm({ ...ticketForm, teamId: value })}
+                          options={(user as any).teams.map((userTeam: any) => ({
+                            value: userTeam.team.id,
+                            label: userTeam.team.name,
+                          }))}
+                          placeholder="Select a team"
+                        />
+                      )}
 
                       <div className="lg:col-span-2">
                         <Textarea
@@ -694,35 +759,55 @@ function UserDashboardContent() {
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
-                      <div className="flex gap-2 items-end">
+                      <div className="flex gap-2 items-start">
                         <div className="flex-1">
-                          <Input
-                            label="Team"
-                            value={(user as any)?.team?.name || 'No Team Assigned'}
-                            readOnly
-                            className="bg-slate-50"
-                          />
+                          <label className="block text-sm font-bold text-slate-700 mb-2">
+                            Assigned Teams
+                          </label>
+                          {(user as any)?.teams && (user as any).teams.length > 0 ? (
+                            <div className="space-y-2">
+                              {(user as any).teams.map((userTeam: any, index: number) => (
+                                <div key={userTeam.id} className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                                      {userTeam.team?.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <span className="font-medium text-slate-900">{userTeam.team?.name}</span>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    onClick={() => navigator.clipboard.writeText(userTeam.team?.name || '')}
+                                    className="text-slate-400 hover:text-blue-600 h-8 w-8 p-0"
+                                  >
+                                    <Copy className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
+                              <p className="text-slate-500 text-sm">No teams assigned</p>
+                            </div>
+                          )}
                         </div>
-                        <Button
-                          variant="ghost"
-                          onClick={() => navigator.clipboard.writeText((user as any)?.team?.name || 'No Team')}
-                          className="mb-0.5 text-slate-400 hover:text-blue-600 h-[50px] w-[50px]"
-                        >
-                          <Copy className="w-5 h-5" />
-                        </Button>
                       </div>
                     </div>
                   </div>
 
-                  {(user as any)?.team && (
+                  {(user as any)?.teams && (user as any).teams.length > 0 && (
                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
                       <div className="flex items-start gap-3">
                         <UserIcon className="w-5 h-5 text-blue-600 mt-0.5" />
                         <div>
-                          <h3 className="font-bold text-blue-900 mb-1">Team Access</h3>
-                          <p className="text-sm text-blue-700">
-                            You are part of <strong>{(user as any)?.team?.name}</strong>. You can view and manage tickets from all team members.
+                          <h3 className="font-bold text-blue-900 mb-1">Multi-Team Access</h3>
+                          <p className="text-sm text-blue-700 mb-2">
+                            You are part of <strong>{(user as any).teams.length}</strong> team{(user as any).teams.length !== 1 ? 's' : ''}. You can view and manage tickets from all team members across:
                           </p>
+                          <ul className="text-sm text-blue-700 list-disc list-inside">
+                            {(user as any).teams.map((userTeam: any) => (
+                              <li key={userTeam.id}><strong>{userTeam.team?.name}</strong></li>
+                            ))}
+                          </ul>
                         </div>
                       </div>
                     </div>
@@ -836,7 +921,9 @@ function UserDashboardContent() {
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-900">My Tickets</h1>
+                  <h1 className="text-2xl font-bold text-slate-900">
+                    {scope === 'team' ? 'Team Tickets' : 'My Tickets'}
+                  </h1>
                   <p className="text-sm text-slate-600 mt-1">View and manage all your tickets</p>
                 </div>
                 
@@ -852,6 +939,49 @@ function UserDashboardContent() {
                   </Button>
                 </div>
               </div>
+
+              {/* Team Scope Selector */}
+              {user?.teams && (user as any).teams.length > 0 && (
+                <div className="mb-6 flex flex-wrap items-center gap-3">
+                  <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+                    <button
+                      onClick={() => {
+                        setScope('me');
+                        setSelectedTeamId(null);
+                      }}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        scope === 'me' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      My Tickets
+                    </button>
+                    <button
+                      onClick={() => setScope('team')}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        scope === 'team' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Team Tickets
+                    </button>
+                  </div>
+
+                  {/* Team Selector */}
+                  {scope === 'team' && (
+                    <select
+                      value={selectedTeamId || ''}
+                      onChange={(e) => setSelectedTeamId(e.target.value || null)}
+                      className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">All Teams</option>
+                      {(user as any).teams.map((userTeam: any) => (
+                        <option key={userTeam.team.id} value={userTeam.team.id}>
+                          {userTeam.team.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
 
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
                 <Table>
@@ -888,7 +1018,14 @@ function UserDashboardContent() {
                           </TableCell>
                         )}
                         <TableCell>
-                          <Badge variant={getPriorityColor(ticket.priority)}>{getPriorityLabel(ticket.priority)}</Badge>
+                          <div className={`inline-flex items-center justify-center px-2 sm:px-2.5 py-1 rounded-full text-xs sm:text-sm font-semibold border-2 bg-white whitespace-nowrap ${
+                            ticket.priority === 'P1' ? 'text-red-600 border-red-600' :
+                            ticket.priority === 'P2' ? 'text-amber-600 border-amber-600' :
+                            'text-green-600 border-green-600'
+                          }`}>
+                            <span className="hidden sm:inline">{getPriorityLabel(ticket.priority)}</span>
+                            <span className="sm:hidden">{ticket.priority}</span>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant={getStatusColor(ticket.status)}>{['INVOICE', 'PAID'].includes(ticket.status) ? 'CLOSED' : ticket.status.replace('_', ' ')}</Badge>
@@ -929,7 +1066,7 @@ function UserDashboardContent() {
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  {user?.team && (
+                  {(user?.teams && (user as any).teams.length > 0) && (
                     <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
                       <button
                         onClick={() => setScope('me')}
@@ -1125,8 +1262,22 @@ function UserDashboardContent() {
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-3">
-                  {user?.teamId && (
+                  {user?.teams && (user as any).teams.length > 0 && (
                     <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                      <button
+                        onClick={() => {
+                          setScope('me');
+                          setSelectedTeamId(null);
+                        }}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${
+                          scope === 'me' 
+                            ? 'bg-white text-slate-900 shadow-sm' 
+                            : 'text-slate-500 hover:text-slate-900'
+                        }`}
+                      >
+                        <UserIcon className="w-4 h-4" />
+                        My View
+                      </button>
                       <button
                         onClick={() => setScope('team')}
                         className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${
@@ -1138,18 +1289,21 @@ function UserDashboardContent() {
                         <Building2 className="w-4 h-4" />
                         Team View
                       </button>
-                      <button
-                        onClick={() => setScope('me')}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${
-                          scope === 'me' 
-                            ? 'bg-white text-slate-900 shadow-sm' 
-                            : 'text-slate-500 hover:text-slate-900'
-                        }`}
-                      >
-                        <UserIcon className="w-4 h-4" />
-                        My View
-                      </button>
                     </div>
+                  )}
+                  {scope === 'team' && user?.teams && (user as any).teams.length > 0 && (
+                    <select
+                      value={selectedTeamId || ''}
+                      onChange={(e) => setSelectedTeamId(e.target.value || null)}
+                      className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">{companyName || 'All Teams'}</option>
+                      {(user as any).teams.map((userTeam: any) => (
+                        <option key={userTeam.team.id} value={userTeam.team.id}>
+                          {userTeam.team.name}
+                        </option>
+                      ))}
+                    </select>
                   )}
                   {companyName && (
                     <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
@@ -1165,31 +1319,9 @@ function UserDashboardContent() {
                 </div>
               </div>
 
-              {/* Dashboard Tabs */}
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit mb-6">
-                <button
-                  onClick={() => setDashboardTab('overview')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    dashboardTab === 'overview'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  Overview
-                </button>
-                <button
-                  onClick={() => setDashboardTab('calendar')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    dashboardTab === 'calendar'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  Calendar
-                </button>
-              </div>
+              {/* Dashboard Tabs - Removed calendar tab */}
 
-              {dashboardTab === 'overview' && (
+              {
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                   {/* Left Column: Ticket List */}
                   <div className="xl:col-span-2 space-y-4">
@@ -1232,16 +1364,27 @@ function UserDashboardContent() {
                                     )}
                                   </div>
                                 </div>
-                                <Badge variant={getPriorityColor(ticket.priority)} className="shrink-0">
-                                  {getPriorityLabel(ticket.priority)}
-                                </Badge>
+                                <div className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-semibold border-2 bg-white shrink-0 ${
+                                  ticket.priority === 'P1' ? 'text-red-600 border-red-600' :
+                                  ticket.priority === 'P2' ? 'text-amber-600 border-amber-600' :
+                                  'text-green-600 border-green-600'
+                                }`}>
+                                  <span className="hidden sm:inline whitespace-nowrap">{getPriorityLabel(ticket.priority)}</span>
+                                  <span className="sm:hidden">{ticket.priority}</span>
+                                </div>
                               </div>
                               
                               <p className="text-sm text-slate-600 mb-4 line-clamp-2">{ticket.issue}</p>
                               
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-50">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-4">
                                   <span className="text-xs text-slate-500">Branch #{ticket.branch?.branchNumber}</span>
+                                  {ticket.team && (
+                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 border border-blue-200 rounded-lg">
+                                      <Building2 className="w-3 h-3 text-blue-600" />
+                                      <span className="text-xs font-medium text-blue-700">{ticket.team.name}</span>
+                                    </div>
+                                  )}
                                 </div>
                                 
                                 <div className="flex flex-wrap items-center gap-4 sm:gap-6">
@@ -1331,79 +1474,7 @@ function UserDashboardContent() {
                     {/* Promo Card - REMOVED */}
                   </div>
                 </div>
-              )}
-
-              {dashboardTab === 'calendar' && (
-                <div className="bg-white p-4 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                    <h2 className="text-xl font-bold text-slate-900">December 2025</h2>
-                    <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
-                      <Button variant="ghost" size="sm" className="shrink-0">Today</Button>
-                      <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1 shrink-0">
-                        <button className="p-1 hover:bg-white rounded shadow-sm transition-all">
-                          <span className="sr-only">Previous month</span>
-                          ←
-                        </button>
-                        <span className="text-sm font-medium px-2 whitespace-nowrap">December 2025</span>
-                        <button className="p-1 hover:bg-white rounded shadow-sm transition-all">
-                          <span className="sr-only">Next month</span>
-                          →
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="overflow-x-auto">
-                    <div className="min-w-[600px] grid grid-cols-7 gap-px bg-slate-200 rounded-lg overflow-hidden border border-slate-200">
-                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                        <div key={day} className="bg-slate-50 p-4 text-center text-sm font-semibold text-slate-600">
-                          {day}
-                        </div>
-                      ))}
-                      {Array.from({ length: 35 }).map((_, i) => {
-                        const day = i - 2; // Offset for demo
-                        const isToday = day === 9;
-                        const date = new Date(2025, 11, day);
-                        const dayTickets = tickets.filter(t => {
-                          const tDate = new Date(t.createdAt);
-                          return tDate.getDate() === day && tDate.getMonth() === 11 && tDate.getFullYear() === 2025;
-                        });
-
-                        return (
-                          <div key={i} className={`bg-white min-h-[120px] p-3 hover:bg-slate-50 transition-colors ${day < 1 || day > 31 ? 'bg-slate-50/50 text-slate-400' : ''}`}>
-                            {day > 0 && day <= 31 && (
-                              <>
-                                <div className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-medium mb-2 ${isToday ? 'bg-blue-600 text-white' : 'text-slate-700'}`}>
-                                  {day}
-                                </div>
-                                <div className="space-y-1">
-                                  {dayTickets.map(ticket => (
-                                    <div 
-                                      key={ticket.id}
-                                      onClick={() => {
-                                        setSelectedTicket(ticket);
-                                        setView('tickets');
-                                      }}
-                                      className={`text-xs p-1.5 rounded truncate cursor-pointer hover:opacity-80 ${
-                                        ticket.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                                        ticket.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                        ['CLOSED', 'INVOICE', 'PAID'].includes(ticket.status) ? 'bg-slate-100 text-slate-700' :
-                                        'bg-blue-100 text-blue-700'
-                                      }`}
-                                    >
-                                      {ticket.issue}
-                                    </div>
-                                  ))}
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
+              }
             </>
           )}
         </div>

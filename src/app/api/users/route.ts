@@ -20,10 +20,9 @@ export async function GET(request: NextRequest) {
         teamId: true,
         createdAt: true,
         updatedAt: true,
-        team: {
-          select: {
-            id: true,
-            name: true,
+        teams: {
+          include: {
+            team: true,
           },
         },
         _count: {
@@ -56,7 +55,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { username, password, role, teamId } = await request.json();
+    const { username, password, role, teamIds } = await request.json();
 
     if (!username || !password) {
       return NextResponse.json(
@@ -77,15 +76,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate team if provided
-    if (teamId) {
-      const team = await prisma.team.findUnique({
-        where: { id: teamId },
+    // Validate teams if provided
+    if (teamIds && Array.isArray(teamIds) && teamIds.length > 0) {
+      const teams = await prisma.team.findMany({
+        where: { id: { in: teamIds } },
       });
 
-      if (!team) {
+      if (teams.length !== teamIds.length) {
         return NextResponse.json(
-          { error: 'Invalid team selected' },
+          { error: 'One or more invalid teams selected' },
           { status: 400 }
         );
       }
@@ -98,7 +97,11 @@ export async function POST(request: NextRequest) {
         username,
         password: hashedPassword,
         role: role || 'USER',
-        teamId: teamId || null,
+        teams: teamIds && Array.isArray(teamIds) && teamIds.length > 0 ? {
+          create: teamIds.map((teamId: string) => ({
+            teamId,
+          })),
+        } : undefined,
       },
       select: {
         id: true,
@@ -107,10 +110,9 @@ export async function POST(request: NextRequest) {
         teamId: true,
         createdAt: true,
         updatedAt: true,
-        team: {
-          select: {
-            id: true,
-            name: true,
+        teams: {
+          include: {
+            team: true,
           },
         },
       },
