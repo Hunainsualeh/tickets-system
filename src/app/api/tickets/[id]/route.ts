@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requireAdmin } from '@/lib/middleware';
 import { prisma } from '@/lib/prisma';
+import { notifyUser } from '@/lib/notifications';
 
 interface Params {
   params: Promise<{
@@ -172,6 +173,26 @@ export async function PUT(request: NextRequest, context: Params) {
           },
         });
       }
+
+      // Notify user about status change
+      const statusMessages: Record<string, { title: string; type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR' }> = {
+        ACKNOWLEDGED: { title: 'Ticket Acknowledged', type: 'INFO' },
+        IN_PROGRESS: { title: 'Ticket In Progress', type: 'INFO' },
+        COMPLETED: { title: 'Ticket Completed', type: 'SUCCESS' },
+        ESCALATED: { title: 'Ticket Escalated', type: 'WARNING' },
+        CLOSED: { title: 'Ticket Closed', type: 'SUCCESS' },
+        INVOICE: { title: 'Invoice Generated', type: 'INFO' },
+        PAID: { title: 'Payment Confirmed', type: 'SUCCESS' },
+      };
+
+      const statusConfig = statusMessages[status] || { title: 'Ticket Status Updated', type: 'INFO' };
+      await notifyUser(
+        ticket.userId,
+        statusConfig.title,
+        note || `Your ticket status has been updated to ${status}${adminNote ? ` - ${adminNote}` : ''}`,
+        statusConfig.type,
+        `/dashboard?view=tickets&ticketId=${ticket.id}`
+      );
     }
 
     return NextResponse.json({ ticket });

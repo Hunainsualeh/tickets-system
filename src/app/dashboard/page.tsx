@@ -25,6 +25,8 @@ import { NoteDetailModal } from '@/app/components/NoteDetailModal';
 import { RequestDetail } from '@/app/components/RequestDetail';
 import { AnalyticsSection } from '@/app/components/AnalyticsSection';
 import { KanbanBoard } from '@/app/components/KanbanBoard';
+import NotificationBell from '@/app/components/NotificationBell';
+import { TicketCard } from '@/app/components/TicketCard';
 
 function UserDashboardContent() {
   const router = useRouter();
@@ -128,10 +130,42 @@ function UserDashboardContent() {
     }
   }, [searchParams]);
 
-  // Clear ticket detail view when switching views
+  // Handle deep linking to tickets
   useEffect(() => {
-    setSelectedTicket(null);
-  }, [view]);
+    const ticketId = searchParams.get('ticketId');
+    if (ticketId && tickets.length > 0) {
+      const ticket = tickets.find(t => t.id === ticketId);
+      if (ticket) {
+        setSelectedTicket(ticket);
+        setView('tickets');
+      }
+    }
+  }, [tickets, searchParams]);
+
+  // Handle deep linking to requests
+  useEffect(() => {
+    const requestId = searchParams.get('requestId');
+    if (requestId && requests.length > 0) {
+      const request = requests.find(r => r.id === requestId);
+      if (request) {
+        setSelectedRequest(request);
+        setView('requests');
+      }
+    }
+  }, [requests, searchParams]);
+
+  // Clear detail views when switching views
+  useEffect(() => {
+    const ticketId = searchParams.get('ticketId');
+    if (!ticketId) {
+      setSelectedTicket(null);
+    }
+    
+    const requestId = searchParams.get('requestId');
+    if (!requestId) {
+      setSelectedRequest(null);
+    }
+  }, [view, searchParams]);
 
   const fetchData = async () => {
     try {
@@ -210,6 +244,7 @@ function UserDashboardContent() {
       setUploadFiles([]);
       fetchData();
       toast.success('Ticket created successfully!');
+      window.dispatchEvent(new Event('refresh-notifications'));
     } catch (error: any) {
       console.error('Create ticket error:', error);
       toast.error(error.message || 'Failed to create ticket');
@@ -259,6 +294,7 @@ function UserDashboardContent() {
       setUploadFiles([]);
       fetchData();
       toast.success('Request created successfully!');
+      window.dispatchEvent(new Event('refresh-notifications'));
     } catch (error: any) {
       console.error('Create request error:', error);
       toast.error(error.message || 'Failed to create request');
@@ -299,6 +335,7 @@ function UserDashboardContent() {
       
       setNewNote('');
       setShowSuccessModal(true);
+      window.dispatchEvent(new Event('refresh-notifications'));
       
       // Refresh notes list
       fetchData();
@@ -590,9 +627,12 @@ function UserDashboardContent() {
                   <span className="text-xl">←</span> Back to Dashboard
                 </button>
                 {companyName && (
-                  <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
-                    <Building2 className="w-4 h-4 mr-2 text-slate-500" />
-                    <span className="font-semibold text-slate-700">{companyName}</span>
+                  <div className="flex items-center gap-2 md:gap-4">
+                    <NotificationBell />
+                    <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                      <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                      <span className="font-semibold text-slate-700">{companyName}</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -963,12 +1003,14 @@ function UserDashboardContent() {
                   </h1>
                   <p className="text-sm text-slate-600 mt-1">View and manage all your tickets</p>
                 </div>
-                
                 <div className="flex flex-wrap items-center gap-3">
                   {companyName && (
-                    <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
-                      <Building2 className="w-4 h-4 mr-2 text-slate-500" />
-                      <span className="font-semibold text-slate-700">{companyName}</span>
+                    <div className="flex items-center gap-2 md:gap-4">
+                      <NotificationBell />
+                      <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                        <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                        <span className="font-semibold text-slate-700">{companyName}</span>
+                      </div>
                     </div>
                   )}
                   <SearchBar 
@@ -1035,111 +1077,43 @@ function UserDashboardContent() {
                 </div>
               )}
 
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
-                <Table>
-                  <TableHeader>
-                    <tr>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Issue</TableHead>
-                      <TableHead>Branch</TableHead>
-                      <TableHead>Team</TableHead>
-                      {scope === 'team' && <TableHead>Created By</TableHead>}
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                    </tr>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      // Skeleton Loading State
-                      Array.from({ length: 5 }).map((_, index) => (
-                        <TableRow key={index} className="animate-pulse">
-                          <TableCell>
-                            <div className="h-4 bg-slate-200 rounded w-16"></div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="h-4 bg-slate-200 rounded w-48"></div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-2">
-                              <div className="h-4 bg-slate-200 rounded w-32"></div>
-                              <div className="h-3 bg-slate-200 rounded w-20"></div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="h-4 bg-slate-200 rounded w-24"></div>
-                          </TableCell>
-                          {scope === 'team' && (
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-slate-200"></div>
-                                <div className="h-4 bg-slate-200 rounded w-20"></div>
-                              </div>
-                            </TableCell>
-                          )}
-                          <TableCell>
-                            <div className="h-6 bg-slate-200 rounded-full w-24"></div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="h-6 bg-slate-200 rounded-full w-20"></div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="h-4 bg-slate-200 rounded w-24"></div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : paginatedTickets.length > 0 ? (
-                      paginatedTickets.map((ticket) => (
-                        <TableRow key={ticket.id} onClick={() => setSelectedTicket(ticket)} className="cursor-pointer hover:bg-slate-50">
-                          <TableCell className="font-mono text-xs text-slate-500">#{ticket.id.substring(0, 8)}</TableCell>
-                          <TableCell className="font-medium text-slate-900 max-w-md truncate">{ticket.issue}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="text-sm font-medium text-slate-900">{ticket.branch?.name}</span>
-                              <span className="text-xs text-slate-500">#{ticket.branch?.branchNumber}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm text-slate-700">{ticket.team?.name || '-'}</span>
-                          </TableCell>
-                          {scope === 'team' && (
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
-                                  {ticket.user?.username?.charAt(0).toUpperCase()}
-                                </div>
-                                <span className="text-sm text-slate-700">{ticket.user?.username}</span>
-                              </div>
-                            </TableCell>
-                          )}
-                          <TableCell>
-                            <div className={`inline-flex items-center justify-center px-2 sm:px-2.5 py-1 rounded-full text-xs sm:text-sm font-semibold border-2 bg-white whitespace-nowrap ${
-                              ticket.priority === 'P1' ? 'text-red-600 border-red-600' :
-                              ticket.priority === 'P2' ? 'text-amber-600 border-amber-600' :
-                              'text-green-600 border-green-600'
-                            }`}>
-                              <span className="hidden sm:inline">{getPriorityLabel(ticket.priority)}</span>
-                              <span className="sm:hidden">{ticket.priority}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={getStatusColor(ticket.status)}>{['INVOICE', 'PAID'].includes(ticket.status) ? 'CLOSED' : ticket.status.replace('_', ' ')}</Badge>
-                          </TableCell>
-                          <TableCell className="text-slate-600 text-sm">{formatDate(ticket.createdAt)}</TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={7} className="p-8 text-center text-slate-500">
-                          No tickets found.
-                        </td>
-                      </tr>
-                    )}
-                  </TableBody>
-                </Table>
+              <div className="space-y-4">
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, index) => (
+                    <div key={index} className="bg-white rounded-xl border border-slate-200 p-4 animate-pulse">
+                      <div className="flex justify-between mb-4">
+                        <div className="flex gap-3">
+                          <div className="w-10 h-10 bg-slate-200 rounded-full"></div>
+                          <div className="space-y-2">
+                            <div className="w-32 h-4 bg-slate-200 rounded"></div>
+                            <div className="w-24 h-3 bg-slate-200 rounded"></div>
+                          </div>
+                        </div>
+                        <div className="w-20 h-6 bg-slate-200 rounded-full"></div>
+                      </div>
+                      <div className="w-full h-16 bg-slate-200 rounded-lg mb-4"></div>
+                      <div className="flex justify-between">
+                        <div className="w-24 h-4 bg-slate-200 rounded"></div>
+                        <div className="w-24 h-4 bg-slate-200 rounded"></div>
+                      </div>
+                    </div>
+                  ))
+                ) : paginatedTickets.length > 0 ? (
+                  paginatedTickets.map((ticket) => (
+                    <TicketCard
+                      key={ticket.id}
+                      ticket={ticket}
+                      onClick={() => setSelectedTicket(ticket)}
+                    />
+                  ))
+                ) : (
+                  <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
+                    <p className="text-slate-500">No tickets found.</p>
+                  </div>
+                )}
                 
                 {tickets.length > 0 && (
-                  <div className="p-4 border-t border-slate-100">
+                  <div className="p-4">
                     <Pagination
                       currentPage={currentPage}
                       totalPages={totalPages}
@@ -1418,9 +1392,12 @@ function UserDashboardContent() {
                     </div>
                   )}
                   {companyName && (
-                    <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
-                      <Building2 className="w-4 h-4 mr-2 text-slate-500" />
-                      <span className="font-semibold text-slate-700">{companyName}</span>
+                    <div className="flex items-center gap-2 md:gap-4">
+                      <NotificationBell />
+                      <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                        <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                        <span className="font-semibold text-slate-700">{companyName}</span>
+                      </div>
                     </div>
                   )}
 
@@ -1451,79 +1428,15 @@ function UserDashboardContent() {
                         </Button>
                       </div>
                     ) : (
-                      tickets.slice(0, 5).map((ticket) => (
-                        <div 
-                          key={ticket.id}
-                          onClick={() => setSelectedTicket(ticket)}
-                          className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                        >
-                          <div className="flex flex-col sm:flex-row items-start gap-4">
-                            {/* Branch Icon/Avatar */}
-                            <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-lg shrink-0">
-                              <Building2 className="w-6 h-6" />
-                            </div>
-                            
-                            <div className="flex-1 min-w-0 w-full">
-                              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
-                                <div className="min-w-0 flex-1">
-                                  <h3 className="font-bold text-slate-900 truncate max-w-full">{ticket.branch?.name}</h3>
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-xs text-slate-500">#{ticket.id.substring(0, 8)}</p>
-                                    {scope === 'team' && ticket.user?.username && (
-                                      <span className="text-xs text-blue-600 font-medium">
-                                        • by {ticket.user.username}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-semibold border-2 bg-white shrink-0 ${
-                                  ticket.priority === 'P1' ? 'text-red-600 border-red-600' :
-                                  ticket.priority === 'P2' ? 'text-amber-600 border-amber-600' :
-                                  'text-green-600 border-green-600'
-                                }`}>
-                                  <span className="hidden sm:inline whitespace-nowrap">{getPriorityLabel(ticket.priority)}</span>
-                                  <span className="sm:hidden">{ticket.priority}</span>
-                                </div>
-                              </div>
-                              
-                              <p className="text-sm text-slate-600 mb-4 line-clamp-2">{ticket.issue}</p>
-                              
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-50">
-                                <div className="flex items-center gap-4">
-                                  <span className="text-xs text-slate-500">Branch #{ticket.branch?.branchNumber}</span>
-                                  {ticket.team && (
-                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 border border-blue-200 rounded-lg">
-                                      <Building2 className="w-3 h-3 text-blue-600" />
-                                      <span className="text-xs font-medium text-blue-700">{ticket.team.name}</span>
-                                    </div>
-                                  )}
-                                </div>
-                                
-                                <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-slate-400">Status</span>
-                                    <span className={`text-xs font-medium ${
-                                      ticket.status === 'COMPLETED' ? 'text-green-600' :
-                                      ticket.status === 'IN_PROGRESS' ? 'text-blue-600' :
-                                      ['CLOSED', 'INVOICE', 'PAID'].includes(ticket.status) ? 'text-slate-600' :
-                                      'text-amber-600'
-                                    }`}>
-                                      {['INVOICE', 'PAID'].includes(ticket.status) ? 'CLOSED' : ticket.status.replace('_', ' ')}
-                                    </span>
-                                  </div>
-                                  
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-slate-400">Created</span>
-                                    <span className="text-xs font-medium text-slate-600">
-                                      {formatRelativeTime(ticket.createdAt)}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))
+                      <div className="space-y-4">
+                        {tickets.slice(0, 5).map((ticket) => (
+                          <TicketCard
+                            key={ticket.id}
+                            ticket={ticket}
+                            onClick={() => setSelectedTicket(ticket)}
+                          />
+                        ))}
+                      </div>
                     )}
                   </div>
 

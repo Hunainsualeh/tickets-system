@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/middleware';
 import { prisma } from '@/lib/prisma';
+import { notifyAdmins } from '@/lib/notifications';
 
 // GET all requests
 export async function GET(request: NextRequest) {
@@ -150,6 +151,14 @@ export async function POST(request: NextRequest) {
         attachments: true,
       },
     });
+
+    // Notify admins about new request
+    await notifyAdmins(
+      'New Request Created',
+      `${newRequest.user.username} created a new request: ${title.substring(0, 50)}${title.length > 50 ? '...' : ''}`,
+      'INFO',
+      `/admin/requests/${newRequest.id}`
+    );
 
     return NextResponse.json({ request: newRequest }, { status: 201 });
   } catch (error) {

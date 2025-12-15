@@ -28,8 +28,10 @@ import { Suspense } from 'react';
 import { NoteDetailModal } from '@/app/components/NoteDetailModal';
 import { RequestDetail } from '@/app/components/RequestDetail';
 import { AnalyticsSection } from '@/app/components/AnalyticsSection';
+import { TicketCard } from '@/app/components/TicketCard';
 import { KanbanBoard } from '@/app/components/KanbanBoard';
 import * as XLSX from 'xlsx';
+import NotificationBell from '@/app/components/NotificationBell';
 
 function AdminDashboardContent() {
   const router = useRouter();
@@ -133,6 +135,30 @@ function AdminDashboardContent() {
       setActiveTab(tab as any);
     }
   }, [router, searchParams]);
+
+  // Handle deep linking to tickets
+  useEffect(() => {
+    const ticketId = searchParams.get('ticketId');
+    if (ticketId && tickets.length > 0) {
+      const ticket = tickets.find(t => t.id === ticketId);
+      if (ticket) {
+        setSelectedTicket(ticket);
+        setActiveTab('tickets');
+      }
+    }
+  }, [tickets, searchParams]);
+
+  // Handle deep linking to requests
+  useEffect(() => {
+    const requestId = searchParams.get('requestId');
+    if (requestId && requests.length > 0) {
+      const request = requests.find(r => r.id === requestId);
+      if (request) {
+        setSelectedRequest(request);
+        setActiveTab('requests');
+      }
+    }
+  }, [requests, searchParams]);
 
   // Clear detail views and close modals when switching tabs
   useEffect(() => {
@@ -457,6 +483,7 @@ function AdminDashboardContent() {
     try {
       await apiClient.createTicket(ticketForm);
       toast.success('Ticket created successfully');
+      window.dispatchEvent(new Event('refresh-notifications'));
       setCreateView(null);
       setTicketForm({
         userId: '',
@@ -494,6 +521,7 @@ function AdminDashboardContent() {
         adminNote: statusUpdate.adminNote || undefined,
       });
       toast.success('Ticket status updated successfully');
+      window.dispatchEvent(new Event('refresh-notifications'));
       setShowStatusModal(false);
       setStatusUpdate({ ticketId: '', status: '', adminNote: '' });
       fetchData();
@@ -1236,9 +1264,12 @@ function AdminDashboardContent() {
                   </p>
                 </div>
                 {companyName && (
-                  <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
-                    <Building2 className="w-4 h-4 mr-2 text-slate-500" />
-                    <span className="font-semibold text-slate-700">{companyName}</span>
+                  <div className="flex items-center gap-2 md:gap-4">
+                    <NotificationBell />
+                    <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                      <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                      <span className="font-semibold text-slate-700">{companyName}</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1309,81 +1340,12 @@ function AdminDashboardContent() {
                         ) : (
                           <>
                             {paginatedTickets.map((ticket) => (
-                              <div 
+                              <TicketCard
                                 key={ticket.id}
+                                ticket={ticket}
                                 onClick={() => handleViewTicket(ticket.id)}
-                                className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                              >
-                                <div className="flex flex-col sm:flex-row items-start gap-4">
-                                  {/* User Avatar */}
-                                  <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-lg shrink-0">
-                                    {ticket.user?.username?.charAt(0).toUpperCase()}
-                                  </div>
-                                  
-                                  <div className="flex-1 min-w-0 w-full">
-                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
-                                      <div>
-                                        <h3 className="font-bold text-slate-900 truncate">{ticket.user?.username}</h3>
-                                        <p className="text-xs text-slate-500">#{ticket.id.substring(0, 8)}</p>
-                                      </div>
-                                      <div className={`inline-flex items-center justify-center px-2 sm:px-2.5 py-1 rounded-full text-xs font-semibold border-2 bg-white shrink-0 ${
-                                        ticket.priority === 'P1' ? 'text-red-600 border-red-600' :
-                                        ticket.priority === 'P2' ? 'text-amber-600 border-amber-600' :
-                                        'text-green-600 border-green-600'
-                                      }`}>
-                                        <span className="hidden sm:inline whitespace-nowrap">{getPriorityLabel(ticket.priority)}</span>
-                                        <span className="sm:hidden">{ticket.priority}</span>
-                                      </div>
-                                    </div>
-                                    
-                                    <p className="text-sm text-slate-600 mb-4 line-clamp-2">{ticket.issue}</p>
-                                    
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-50">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs text-blue-600 font-bold">
-                                          {ticket.branch?.name?.charAt(0)}
-                                        </div>
-                                        <span className="text-xs text-slate-500">{ticket.branch?.name}</span>
-                                        {ticket.team && (
-                                          <>
-                                            <span className="text-slate-300">•</span>
-                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 border border-blue-200 rounded-lg">
-                                              <Building2 className="w-3 h-3 text-blue-600" />
-                                              <span className="text-xs font-medium text-blue-700">{ticket.team.name}</span>
-                                            </div>
-                                          </>
-                                        )}
-                                      </div>
-                                      
-                                      <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-xs text-slate-400">Status</span>
-                                          <span className={`text-xs font-medium ${
-                                            ticket.status === 'COMPLETED' ? 'text-green-600' :
-                                            ticket.status === 'IN_PROGRESS' ? 'text-blue-600' :
-                                            'text-amber-600'
-                                          }`}>
-                                            {ticket.status.replace('_', ' ')}
-                                          </span>
-                                        </div>
-                                        
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-xs text-slate-400">Date</span>
-                                          <span className="text-xs font-medium text-slate-600">
-                                            {new Date(ticket.createdAt).toLocaleDateString()}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  
-                                  <button className="hidden sm:block p-2 text-slate-300 hover:text-slate-600">
-                                    <div className="w-1 h-1 bg-current rounded-full mb-1" />
-                                    <div className="w-1 h-1 bg-current rounded-full mb-1" />
-                                    <div className="w-1 h-1 bg-current rounded-full" />
-                                  </button>
-                                </div>
-                              </div>
+                                onDelete={() => handleDeleteTicket(ticket.id)}
+                              />
                             ))}
                             
                             <Pagination
@@ -2212,95 +2174,49 @@ function AdminDashboardContent() {
               </Button>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
-              <Table>
-                <TableHeader>
-                  <tr>
-                    <TableHead>ID</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Branch</TableHead>
-                    <TableHead>Team</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Issue</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </tr>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    Array.from({ length: 5 }).map((_, index) => (
-                      <TableRow key={index} className="animate-pulse">
-                        <TableCell><div className="h-4 bg-slate-200 rounded w-16"></div></TableCell>
-                        <TableCell><div className="h-4 bg-slate-200 rounded w-24"></div></TableCell>
-                        <TableCell><div className="h-4 bg-slate-200 rounded w-32"></div></TableCell>
-                        <TableCell><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
-                        <TableCell><div className="h-6 bg-slate-200 rounded-full w-16"></div></TableCell>
-                        <TableCell><div className="h-4 bg-slate-200 rounded w-48"></div></TableCell>
-                        <TableCell><div className="h-8 bg-slate-200 rounded w-32"></div></TableCell>
-                        <TableCell><div className="h-8 w-8 bg-slate-200 rounded"></div></TableCell>
-                      </TableRow>
-                    ))
-                  ) : tickets
-                    .filter(t => ticketFilterStatus === 'ALL' || t.status === ticketFilterStatus)
-                    .filter(t => ticketFilterPriority === 'ALL' || t.priority === ticketFilterPriority)
-                    .map((ticket) => (
-                    <TableRow key={ticket.id} className="cursor-pointer hover:bg-slate-50" onClick={() => handleViewTicket(ticket.id)}>
-                      <TableCell className="font-mono text-xs">
-                        {ticket.id.substring(0, 8)}
-                      </TableCell>
-                      <TableCell>{ticket.user?.username}</TableCell>
-                      <TableCell>{ticket.branch?.name}</TableCell>
-                      <TableCell>
-                        {ticket.team ? (
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
-                              {ticket.team.name.charAt(0).toUpperCase()}
-                            </div>
-                            <span className="text-sm text-slate-700">{ticket.team.name}</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400">No team</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className={`inline-flex items-center justify-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold border-2 bg-white ${
-                          ticket.priority === 'P1' ? 'text-red-600 border-red-600' :
-                          ticket.priority === 'P2' ? 'text-amber-600 border-amber-600' :
-                          'text-green-600 border-green-600'
-                        }`}>
-                          <span className="whitespace-nowrap">{getPriorityLabel(ticket.priority)}</span>
+            <div className="space-y-4">
+              {loading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="bg-white rounded-xl border border-slate-200 p-4 animate-pulse">
+                    <div className="flex justify-between mb-4">
+                      <div className="flex gap-3">
+                        <div className="w-10 h-10 bg-slate-200 rounded-full"></div>
+                        <div className="space-y-2">
+                          <div className="w-32 h-4 bg-slate-200 rounded"></div>
+                          <div className="w-24 h-3 bg-slate-200 rounded"></div>
                         </div>
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate">{ticket.issue}</TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <StatusSelect
-                          value={ticket.status}
-                          onChange={(value) => handleUpdateTicketStatus(ticket.id, value)}
-                          options={[
-                            { value: 'PENDING', label: 'Pending' },
-                            { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
-                            { value: 'IN_PROGRESS', label: 'In Progress' },
-                            { value: 'COMPLETED', label: 'Completed' },
-                            { value: 'ESCALATED', label: 'Escalated' },
-                            { value: 'CLOSED', label: 'Closed' },
-                            { value: 'INVOICE', label: 'Invoice' },
-                            { value: 'PAID', label: 'Paid' },
-                          ]}
-                        />
-                      </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => handleDeleteTicket(ticket.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </div>
+                      <div className="w-20 h-6 bg-slate-200 rounded-full"></div>
+                    </div>
+                    <div className="w-full h-16 bg-slate-200 rounded-lg mb-4"></div>
+                    <div className="flex justify-between">
+                      <div className="w-24 h-4 bg-slate-200 rounded"></div>
+                      <div className="w-24 h-4 bg-slate-200 rounded"></div>
+                    </div>
+                  </div>
+                ))
+              ) : tickets
+                .filter(t => ticketFilterStatus === 'ALL' || t.status === ticketFilterStatus)
+                .filter(t => ticketFilterPriority === 'ALL' || t.priority === ticketFilterPriority)
+                .map((ticket) => (
+                  <TicketCard
+                    key={ticket.id}
+                    ticket={ticket}
+                    onClick={() => handleViewTicket(ticket.id)}
+                    onDelete={() => handleDeleteTicket(ticket.id)}
+                  />
+                ))}
+              
+              {!loading && tickets
+                .filter(t => ticketFilterStatus === 'ALL' || t.status === ticketFilterStatus)
+                .filter(t => ticketFilterPriority === 'ALL' || t.priority === ticketFilterPriority)
+                .length === 0 && (
+                <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
+                  <TicketIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <h3 className="text-lg font-medium text-slate-900">No tickets found</h3>
+                  <p className="text-slate-500">Try adjusting your filters or create a new ticket.</p>
+                </div>
+              )}
             </div>
           </div>
           )}

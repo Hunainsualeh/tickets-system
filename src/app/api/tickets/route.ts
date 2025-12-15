@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requireAdmin } from '@/lib/middleware';
 import { prisma } from '@/lib/prisma';
+import { notifyAdmins, notifyUser } from '@/lib/notifications';
 
 // GET all tickets
 export async function GET(request: NextRequest) {
@@ -213,6 +214,14 @@ export async function POST(request: NextRequest) {
         note: 'Ticket created',
       },
     });
+
+    // Notify admins about new ticket
+    await notifyAdmins(
+      'New Ticket Created',
+      `${ticket.user.username} created a new ${ticket.priority} ticket: ${ticket.issue.substring(0, 50)}${ticket.issue.length > 50 ? '...' : ''}`,
+      'INFO',
+      `/admin/tickets/${ticket.id}`
+    );
 
     return NextResponse.json({ ticket }, { status: 201 });
   } catch (error) {

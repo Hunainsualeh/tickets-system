@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/middleware';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth';
+import { notifyUser } from '@/lib/notifications';
 
 interface Params {
   params: Promise<{
@@ -91,6 +92,13 @@ export async function PUT(request: NextRequest, context: Params) {
 
     // Handle team assignments
     if (teamIds !== undefined) {
+      // Get current teams before deletion
+      const currentTeams = await prisma.userTeam.findMany({
+        where: { userId: params.id },
+        select: { teamId: true },
+      });
+      const currentTeamIds = currentTeams.map(t => t.teamId);
+
       // Delete existing team assignments
       await prisma.userTeam.deleteMany({
         where: { userId: params.id },
@@ -103,6 +111,26 @@ export async function PUT(request: NextRequest, context: Params) {
             teamId,
           })),
         };
+
+        // Notify user about new team assignments (not user creation)
+        const newTeamIds = teamIds.filter((tid: string) => !currentTeamIds.includes(tid));
+        if (newTeamIds.length > 0) {
+          const newTeams = await prisma.team.findMany({
+            where: { id: { in: newTeamIds } },
+            select: { name: true },
+          });
+          
+          if (newTeams.length > 0) {
+            const teamNames = newTeams.map(t => t.name).join(', ');
+            await notifyUser(
+              params.id,
+              'Added to Team',
+              `You have been added to ${newTeams.length > 1 ? 'teams' : 'team'}: ${teamNames}`,
+              'SUCCESS',
+              '/dashboard'
+            );
+          }
+        }
       }
     }
 

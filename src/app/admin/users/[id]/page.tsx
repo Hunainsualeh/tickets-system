@@ -6,6 +6,7 @@ import { apiClient } from '@/lib/api-client';
 import { Sidebar } from '@/app/components/Sidebar';
 import { Button } from '@/app/components/Button';
 import { Badge } from '@/app/components/Badge';
+import { TicketCard } from '@/app/components/TicketCard';
 import { ArrowLeft, Users, Shield, Ticket, Calendar, Mail } from 'lucide-react';
 import Link from 'next/link';
 
@@ -171,25 +172,11 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                 {tickets.length > 0 ? (
                   <div className="space-y-3">
                     {tickets.slice(0, 10).map((ticket: any) => (
-                      <div key={ticket.id} className="flex items-start gap-3 p-4 border border-slate-200 rounded-lg hover:border-slate-300 transition-colors">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant={ticket.status === 'COMPLETED' ? 'success' : ticket.status === 'PENDING' ? 'warning' : 'info'}>
-                              {ticket.status.replace('_', ' ')}
-                            </Badge>
-                            <span className="text-xs text-slate-500">
-                              {new Date(ticket.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <p className="text-sm text-slate-900 font-medium line-clamp-2">{ticket.issue}</p>
-                          {ticket.branch && (
-                            <p className="text-xs text-slate-500 mt-1">Branch: {ticket.branch.name}</p>
-                          )}
-                        </div>
-                        <Link href={`/admin?tab=tickets`}>
-                          <Button variant="ghost" size="sm">View</Button>
-                        </Link>
-                      </div>
+                      <TicketCard
+                        key={ticket.id}
+                        ticket={ticket}
+                        onClick={() => router.push(`/admin?tab=tickets&ticketId=${ticket.id}`)}
+                      />
                     ))}
                   </div>
                 ) : (

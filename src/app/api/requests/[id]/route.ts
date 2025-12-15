@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requireAdmin } from '@/lib/middleware';
 import { prisma } from '@/lib/prisma';
+import { notifyUser } from '@/lib/notifications';
 
 interface Params {
   params: Promise<{
@@ -137,6 +138,25 @@ export async function PUT(request: NextRequest, context: Params) {
         attachments: true,
       },
     });
+
+    // Notify user about status change if admin updated it
+    if (status && authResult.user.role === 'ADMIN') {
+      const statusMessages: Record<string, { title: string; type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR' }> = {
+        APPROVED: { title: 'Request Approved', type: 'SUCCESS' },
+        REJECTED: { title: 'Request Rejected', type: 'WARNING' },
+        IN_PROGRESS: { title: 'Request In Progress', type: 'INFO' },
+        COMPLETED: { title: 'Request Completed', type: 'SUCCESS' },
+      };
+
+      const statusConfig = statusMessages[status] || { title: 'Request Status Updated', type: 'INFO' };
+      await notifyUser(
+        updatedRequest.userId,
+        statusConfig.title,
+        `Your request "${updatedRequest.title}" status has been updated to ${status}`,
+        statusConfig.type,
+        `/dashboard?view=requests&requestId=${updatedRequest.id}`
+      );
+    }
 
     return NextResponse.json({ request: updatedRequest });
   } catch (error) {

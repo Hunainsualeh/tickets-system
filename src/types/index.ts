@@ -111,6 +111,17 @@ export interface Request {
   attachments?: RequestAttachment[];
 }
 
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
+  read: boolean;
+  link?: string | null;
+  createdAt: string;
+}
+
 export interface AuthResponse {
   token: string;
   user: User;

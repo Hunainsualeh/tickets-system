@@ -161,6 +161,7 @@ export default function TicketTimelinePage() {
     try {
       await apiClient.addNote(params.id as string, newNote);
       toast.success('Note added successfully');
+      window.dispatchEvent(new Event('refresh-notifications'));
       setNewNote('');
       setIsAddNoteOpen(false);
       fetchTicket(); // Refresh timeline

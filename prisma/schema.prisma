@@ -18,17 +18,18 @@ model Team {
 }
 
 model User {
-  id        String       @id @default(cuid())
-  username  String       @unique
-  password  String
-  role      UserRole     @default(USER)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  teamId    String?
-  requests  Request[]
-  notes     TicketNote[]
-  tickets   Ticket[]
-  teams     UserTeam[]
+  id            String         @id @default(cuid())
+  username      String         @unique
+  password      String
+  role          UserRole       @default(USER)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  teamId        String?
+  requests      Request[]
+  notes         TicketNote[]
+  tickets       Ticket[]
+  teams         UserTeam[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -144,9 +145,30 @@ model TicketNote {
   @@map("ticket_notes")
 }
 
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType @default(INFO)
+  read      Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
 enum UserRole {
   ADMIN
   USER
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
 }
 
 enum BranchCategory {

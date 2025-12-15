@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/middleware';
 import { prisma } from '@/lib/prisma';
+import { notifyUser, notifyAdmins } from '@/lib/notifications';
 
 interface Params {
   params: Promise<{
@@ -142,6 +143,26 @@ export async function POST(request: NextRequest, context: Params) {
         },
       },
     });
+
+    // Notify about new note
+    if (authResult.user.role === 'ADMIN') {
+      // Admin added a note - notify the ticket owner
+      await notifyUser(
+        ticket.userId,
+        'New Note on Your Ticket',
+        `Admin added a note: ${note.substring(0, 100)}${note.length > 100 ? '...' : ''}`,
+        'INFO',
+        `/dashboard?view=tickets&ticketId=${ticket.id}`
+      );
+    } else {
+      // User added a note - notify admins
+      await notifyAdmins(
+        'New Note Added',
+        `${newNote.user.username} added a note to ticket: ${note.substring(0, 100)}${note.length > 100 ? '...' : ''}`,
+        'INFO',
+        `/admin/tickets/${ticket.id}`
+      );
+    }
 
     return NextResponse.json({ note: newNote }, { status: 201 });
   } catch (error) {
