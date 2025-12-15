@@ -26,7 +26,9 @@ export function TicketCard({ ticket, onClick, onStatusChange, onDelete }: Ticket
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-900 truncate">{ticket.user?.username}</span>
-              <span className="text-xs text-slate-400 font-mono shrink-0">#{ticket.id.substring(0, 8)}</span>
+              <span className="text-xs text-slate-400 font-mono shrink-0">
+                {new Date(ticket.createdAt).toLocaleDateString()}
+              </span>
             </div>
             <div className="text-sm font-medium text-slate-900 line-clamp-1">{ticket.issue}</div>
           </div>

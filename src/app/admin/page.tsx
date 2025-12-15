@@ -20,15 +20,17 @@ import { StatCard } from '@/app/components/StatCard';
 import { StatRow } from '@/app/components/StatRow';
 import { Timeline } from '@/app/components/Timeline';
 import { AreaChart } from '@/app/components/AreaChart';
+import { PieChart } from '@/app/components/PieChart';
 import { SearchBar } from '@/app/components/SearchBar';
 import { Pagination } from '@/app/components/Pagination';
 import { getStatusColor, getPriorityColor, getPriorityLabel, formatDate, formatRelativeTime } from '@/lib/utils';
-import { Users, Building2, Ticket as TicketIcon, Plus, Edit, Trash2, MessageSquare, Clock, CheckCircle, XCircle, Search, Filter, AlertTriangle, MoreVertical, Mail, Phone, MapPin, ArrowLeft, Eye, History } from 'lucide-react';
+import { Users, Building2, Ticket as TicketIcon, Plus, Edit, Trash2, MessageSquare, Clock, CheckCircle, XCircle, Search, Filter, AlertTriangle, MoreVertical, Mail, Phone, MapPin, ArrowLeft, Eye, History, Calendar, FileText, Briefcase } from 'lucide-react';
 import { Suspense } from 'react';
 import { NoteDetailModal } from '@/app/components/NoteDetailModal';
 import { RequestDetail } from '@/app/components/RequestDetail';
 import { AnalyticsSection } from '@/app/components/AnalyticsSection';
 import { TicketCard } from '@/app/components/TicketCard';
+import { TicketDetail } from '@/app/components/TicketDetail';
 import { KanbanBoard } from '@/app/components/KanbanBoard';
 import * as XLSX from 'xlsx';
 import NotificationBell from '@/app/components/NotificationBell';
@@ -109,6 +111,10 @@ function AdminDashboardContent() {
     issue: '',
     additionalDetails: '',
     status: 'PENDING',
+    localContactName: '',
+    localContactEmail: '',
+    localContactPhone: '',
+    timezone: '',
   });
 
   useEffect(() => {
@@ -493,6 +499,10 @@ function AdminDashboardContent() {
         issue: '',
         additionalDetails: '',
         status: 'PENDING',
+        localContactName: '',
+        localContactEmail: '',
+        localContactPhone: '',
+        timezone: '',
       });
       fetchData();
     } catch (error: any) {
@@ -595,317 +605,35 @@ function AdminDashboardContent() {
       <main className="flex-1 p-4 lg:p-8 overflow-x-hidden">
         <div className="w-full max-w-[1600px] mx-auto">
           {selectedTicket ? (
-            <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <button 
-                onClick={() => setSelectedTicket(null)} 
-                className="mb-6 text-slate-500 hover:text-slate-900 flex items-center gap-2 font-medium transition-colors"
-              >
-                <span className="text-xl">←</span> Back to List
-              </button>
-
-              <div className="bg-white rounded-3xl shadow-sm border border-slate-200">
-                {/* Header */}
-                <div className="px-4 sm:px-8 py-4 sm:py-6 border-b border-slate-100 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 bg-slate-50/50 rounded-t-3xl">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                      <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Ticket Details</h1>
-                      <Badge variant={getStatusColor(selectedTicket.status)}>
-                        {selectedTicket.status.replace('_', ' ')}
-                      </Badge>
-                    </div>
-                    <p className="text-slate-500 flex flex-wrap items-center gap-2 text-sm">
-                      <span className="font-mono">#{selectedTicket.id}</span>
-                      <span className="hidden sm:inline">•</span>
-                      <span>Created {formatDate(selectedTicket.createdAt)}</span>
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="secondary" 
-                      size="sm" 
-                      onClick={() => router.push(`/admin/tickets/${selectedTicket.id}/timeline`)} 
-                      className="w-full sm:w-auto"
-                    >
-                      <History className="w-4 h-4 sm:mr-2" />
-                      <span className="hidden sm:inline">View Full History</span>
-                    </Button>
-                    <Button variant="danger" size="sm" onClick={() => handleDeleteTicket(selectedTicket.id)} className="w-full sm:w-auto">
-                      <Trash2 className="w-4 h-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Delete</span>
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-                  {/* Main Content */}
-                  <div className="lg:col-span-2 space-y-8">
-                    {/* Issue Section */}
-                    <section>
-                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">Issue Description</h3>
-                      <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-100">
-                        <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{selectedTicket.issue}</p>
-                      </div>
-                    </section>
-
-                    {/* Additional Details */}
-                    {selectedTicket.additionalDetails && (
-                      <section>
-                        <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">Additional Details</h3>
-                        <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-100">
-                          <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{selectedTicket.additionalDetails}</p>
-                        </div>
-                      </section>
-                    )}
-
-                    {/* Attachments */}
-                    {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
-                      <section>
-                        <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">Attachments</h3>
-                        <div className="grid grid-cols-1 gap-3 sm:gap-4">
-                          {selectedTicket.attachments.map((attachment) => (
-                            <div key={attachment.id} className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 transition-all group">
-                              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                                </svg>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-slate-900 truncate">{attachment.fileName}</p>
-                                <p className="text-xs text-slate-500">{(attachment.fileSize / 1024).toFixed(2)} KB</p>
-                              </div>
-                              <a
-                                href={attachment.fileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
-                              >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                              </a>
-                            </div>
-                          ))}
-                        </div>
-                      </section>
-                    )}
-
-                    {/* Status History */}
-                    {selectedTicket.statusHistory && selectedTicket.statusHistory.length > 0 && (
-                      <section>
-                        <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">History</h3>
-                        <div className="relative pl-3 sm:pl-4 border-l-2 border-slate-100 space-y-4 sm:space-y-6">
-                          {selectedTicket.statusHistory.map((history) => (
-                            <div key={history.id} className="relative">
-                              <div className="absolute -left-[21px] top-1.5 w-3 h-3 rounded-full bg-white border-2 border-slate-300" />
-                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
-                                <span className="font-medium text-slate-900">Status changed to</span>
-                                <Badge variant={getStatusColor(history.status)} size="sm">
-                                  {history.status.replace('_', ' ')}
-                                </Badge>
-                                <span className="text-sm text-slate-500">{formatDate(history.createdAt)}</span>
-                              </div>
-                              {history.note && (
-                                <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg mt-2">{history.note}</p>
-                              )}
-                              {history.adminNote && (
-                                <div className="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                                  <p className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">Admin Note</p>
-                                  <p className="text-sm text-slate-700">{history.adminNote}</p>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </section>
-                    )}
-
-                    {/* Notes Section */}
-                    <section>
-                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">Notes</h3>
-                      
-                      {/* Add Note Form */}
-                      <form
-                        onSubmit={async (e) => {
-                          e.preventDefault();
-                          const formData = new FormData(e.currentTarget);
-                          const note = formData.get('note') as string;
-                          
-                          if (!note.trim()) return;
-                          
-                          try {
-                            const response = await fetch(`/api/tickets/${selectedTicket.id}/notes`, {
-                              method: 'POST',
-                              headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                              },
-                              body: JSON.stringify({ note }),
-                            });
-                            
-                            if (!response.ok) {
-                              throw new Error('Failed to add note');
-                            }
-                            
-                            toast.success('Note added successfully');
-                            // Reset form and refresh ticket
-                            e.currentTarget.reset();
-                            handleViewTicket(selectedTicket.id);
-                            fetchData(); // Refresh notes list
-                          } catch (error: any) {
-                            toast.error(error.message);
-                          }
-                        }}
-                        className="mb-6"
-                      >
-                        <div className="space-y-3">
-                          <Textarea
-                            name="note"
-                            placeholder="Add a note to this ticket..."
-                            rows={3}
-                            required
-                            className="resize-none"
-                          />
-                          <div className="flex justify-end">
-                            <Button type="submit" size="sm">
-                              <MessageSquare className="w-4 h-4 mr-2" />
-                              Add Note
-                            </Button>
-                          </div>
-                        </div>
-                      </form>
-
-                      {/* Display Notes */}
-                      {selectedTicket.notes && selectedTicket.notes.length > 0 ? (
-                        <div className="space-y-4">
-                          {selectedTicket.notes.map((note: any) => (
-                            <div key={note.id} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                              <div className="flex items-start justify-between gap-3 mb-3">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
-                                    {note.user?.username?.charAt(0).toUpperCase()}
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium text-slate-900">{note.user?.username}</p>
-                                    <p className="text-xs text-slate-500">{formatDate(note.createdAt)}</p>
-                                  </div>
-                                </div>
-                              </div>
-                              <p className="text-sm text-slate-700 whitespace-pre-wrap">{note.note}</p>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 bg-slate-50 rounded-xl border border-slate-100">
-                          <MessageSquare className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                          <p className="text-sm text-slate-500">No notes yet</p>
-                          <p className="text-xs text-slate-400 mt-1">Be the first to add a note</p>
-                        </div>
-                      )}
-                    </section>
-                  </div>
-
-                  {/* Sidebar Info */}
-                  <div className="space-y-4 sm:space-y-6">
-                    {/* Status Card */}
-                    <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-100">
-                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3 sm:mb-4">Current Status</h3>
-                      <StatusSelect
-                        value={selectedTicket.status}
-                        onChange={(value) => handleUpdateTicketStatus(selectedTicket.id, value)}
-                        options={[
-                          { value: 'PENDING', label: 'Pending' },
-                          { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
-                          { value: 'IN_PROGRESS', label: 'In Progress' },
-                          { value: 'COMPLETED', label: 'Completed' },
-                          { value: 'ESCALATED', label: 'Escalated' },
-                          { value: 'CLOSED', label: 'Closed' },
-                          { value: 'INVOICE', label: 'Invoice' },
-                          { value: 'PAID', label: 'Paid' },
-                        ]}
-                      />
-                    </div>
-
-                    {/* Priority Card */}
-                    <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-100">
-                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3 sm:mb-4">Priority</h3>
-                      <div className="flex items-center gap-3">
-                        <div className={`inline-flex items-center justify-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-sm font-semibold border-2 bg-white ${
-                          selectedTicket.priority === 'P1' ? 'text-red-600 border-red-600' :
-                          selectedTicket.priority === 'P2' ? 'text-amber-600 border-amber-600' :
-                          'text-green-600 border-green-600'
-                        }`}>
-                          <span className="whitespace-nowrap">{getPriorityLabel(selectedTicket.priority)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* User Info */}
-                    <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-100">
-                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-3 sm:mb-4">User Information</h3>
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 font-bold">
-                          {selectedTicket.user?.username?.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-slate-900">{selectedTicket.user?.username}</p>
-                          <p className="text-xs text-slate-500">{selectedTicket.user?.role}</p>
-                        </div>
-                      </div>
-                      {selectedTicket.user?.teams && (selectedTicket.user.teams as any[]).length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-slate-200">
-                          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">User's Teams</p>
-                          <div className="space-y-1.5">
-                            {(selectedTicket.user.teams as any[]).map((userTeam: any) => (
-                              <div key={userTeam.id} className="flex items-center gap-2 text-xs">
-                                <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
-                                  {userTeam.team?.name.charAt(0).toUpperCase()}
-                                </div>
-                                <span className="text-slate-700 font-medium">{userTeam.team?.name}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Team Assignment Card */}
-                    {selectedTicket.team && (
-                      <div className="bg-blue-50 p-4 sm:p-6 rounded-2xl border border-blue-200">
-                        <h3 className="text-xs sm:text-sm font-bold text-blue-900 uppercase tracking-wider mb-3 sm:mb-4">Assigned Team</h3>
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
-                            {selectedTicket.team.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-bold text-blue-900">{selectedTicket.team.name}</p>
-                            <p className="text-xs text-blue-700">This ticket is assigned to this team</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Branch Info */}
-                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">Branch Details</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-xs text-slate-500 uppercase tracking-wider">Name</p>
-                          <p className="font-medium text-slate-900">{selectedTicket.branch?.name}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-slate-500 uppercase tracking-wider">Number</p>
-                          <p className="font-medium text-slate-900">{selectedTicket.branch?.branchNumber}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-slate-500 uppercase tracking-wider">Category</p>
-                          <Badge size="sm">{selectedTicket.branch?.category}</Badge>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <TicketDetail 
+              ticket={selectedTicket}
+              currentUser={user}
+              onBack={() => setSelectedTicket(null)}
+              onAddNote={async (note) => {
+                if (!selectedTicket) return;
+                try {
+                  const response = await fetch(`/api/tickets/${selectedTicket.id}/notes`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    },
+                    body: JSON.stringify({ note }),
+                  });
+                  
+                  if (!response.ok) throw new Error('Failed to add note');
+                  
+                  toast.success('Note added successfully');
+                  handleViewTicket(selectedTicket.id);
+                  fetchData();
+                } catch (error: any) {
+                  toast.error(error.message);
+                }
+              }}
+              onUpdateStatus={(status) => handleUpdateTicketStatus(selectedTicket.id, status)}
+              onDelete={() => handleDeleteTicket(selectedTicket.id)}
+              onViewHistory={() => router.push(`/admin/tickets/${selectedTicket.id}/timeline`)}
+            />
           ) : createView ? (
             <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex justify-between items-center mb-6">
@@ -983,7 +711,7 @@ function AdminDashboardContent() {
                                   className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                                 />
                                 <div className="flex items-center gap-2 flex-1">
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                                  <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
                                     {team.name.charAt(0).toUpperCase()}
                                   </div>
                                   <span className="font-medium text-slate-900">{team.name}</span>
@@ -1214,6 +942,40 @@ function AdminDashboardContent() {
                           />
                         </div>
                       </div>
+
+                      {/* Local Contact Information Section */}
+                      <div className="border-t border-slate-200 pt-6">
+                        <h3 className="text-lg font-semibold text-slate-900 mb-4">Local Contact Information (Optional)</h3>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <Input
+                            label="Contact Name"
+                            value={ticketForm.localContactName}
+                            onChange={(e) => setTicketForm({ ...ticketForm, localContactName: e.target.value })}
+                            placeholder="e.g., John Doe"
+                          />
+                          <Input
+                            label="Contact Email"
+                            type="email"
+                            value={ticketForm.localContactEmail}
+                            onChange={(e) => setTicketForm({ ...ticketForm, localContactEmail: e.target.value })}
+                            placeholder="e.g., john.doe@example.com"
+                          />
+                          <Input
+                            label="Contact Phone"
+                            type="tel"
+                            value={ticketForm.localContactPhone}
+                            onChange={(e) => setTicketForm({ ...ticketForm, localContactPhone: e.target.value })}
+                            placeholder="e.g., +1 234 567 8900"
+                          />
+                          <Input
+                            label="Timezone"
+                            value={ticketForm.timezone}
+                            onChange={(e) => setTicketForm({ ...ticketForm, timezone: e.target.value })}
+                            placeholder="e.g., America/New_York, Europe/London"
+                          />
+                        </div>
+                      </div>
+
                       <div className="flex justify-end gap-4 pt-6 border-t border-slate-100">
                         <Button 
                           type="button" 
@@ -1237,12 +999,7 @@ function AdminDashboardContent() {
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 lg:mb-8 mt-12 lg:mt-0">
                 <div>
                   <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">
-                    {activeTab === 'overview' && (
-                      <>
-                        {dashboardTab === 'stats' && 'Overview'}
-                        {dashboardTab === 'reports' && 'Reports'}
-                      </>
-                    )}
+                    {activeTab === 'overview' && 'Admin Dashboard'}
                     {activeTab === 'users' && 'User Management'}
                     {activeTab === 'branches' && 'Branches Management'}
                     {activeTab === 'tickets' && 'Tickets Management'}
@@ -1250,12 +1007,7 @@ function AdminDashboardContent() {
                     {activeTab === 'notes' && 'Notes Management'}
                   </h1>
                   <p className="text-sm text-slate-600 mt-1">
-                    {activeTab === 'overview' && (
-                      <>
-                        {dashboardTab === 'stats' && 'System overview and statistics'}
-                        {dashboardTab === 'reports' && 'Detailed system analytics'}
-                      </>
-                    )}
+                    {activeTab === 'overview' && 'Monitor and manage all tickets, requests, and system activity'}
                     {activeTab === 'users' && 'Manage system users and permissions'}
                     {activeTab === 'branches' && 'Manage branch locations'}
                     {activeTab === 'tickets' && 'View and manage all tickets'}
@@ -1276,8 +1028,9 @@ function AdminDashboardContent() {
 
           {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* Dashboard Tabs */}
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit mb-6">
+
+            {/* Tab Selector */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit">
               <button
                 onClick={() => setDashboardTab('stats')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -1296,93 +1049,158 @@ function AdminDashboardContent() {
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
-                Reports
+                Analytics
               </button>
             </div>
 
             {dashboardTab === 'stats' && (
-              <>
-                {/* Header Section */}
-                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
-                  <div className="flex items-center gap-6">
-                    <h1 
-                      onClick={() => setOverviewTab('tickets')}
-                      className={`text-2xl lg:text-3xl font-bold cursor-pointer transition-colors ${
-                        overviewTab === 'tickets' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
-                      }`}
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                {/* Left Column - Tickets/Requests List (2/3 width) */}
+                <div className="xl:col-span-2 space-y-6">
+                  {/* Stats Cards Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Total Tickets */}
+                    <div 
+                      onClick={() => {
+                        setActiveTab('tickets');
+                        setTicketFilterStatus('ALL');
+                      }}
+                      className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer"
                     >
-                      Tickets
-                    </h1>
-                    <h1 
-                      onClick={() => setOverviewTab('requests')}
-                      className={`text-2xl lg:text-3xl font-bold cursor-pointer transition-colors ${
-                        overviewTab === 'requests' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
-                      }`}
-                    >
-                      Requests
-                    </h1>
-                  </div>
-                  
-                  <div className="flex flex-wrap items-center gap-3">
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                  {/* Left Column: List */}
-                  <div className="xl:col-span-2 space-y-4">
-                    {overviewTab === 'tickets' ? (
-                      <>
-                        {paginatedTickets.length === 0 ? (
-                          <div className="text-center py-12 bg-white rounded-2xl border border-slate-100">
-                            <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                            <p className="text-slate-600">No tickets found</p>
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                          <MessageSquare className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-slate-500 mb-1">Total Tickets</p>
+                          <div className="flex items-baseline gap-2">
+                            <h3 className="text-2xl font-bold text-slate-900">{stats.totalTickets}</h3>
+                            <span className="text-xs font-semibold text-green-600">▲ +12%</span>
                           </div>
-                        ) : (
-                          <>
-                            {paginatedTickets.map((ticket) => (
-                              <TicketCard
-                                key={ticket.id}
-                                ticket={ticket}
-                                onClick={() => handleViewTicket(ticket.id)}
-                                onDelete={() => handleDeleteTicket(ticket.id)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Completed */}
+                    <div 
+                      onClick={() => {
+                        setActiveTab('tickets');
+                        setTicketFilterStatus('COMPLETED');
+                      }}
+                      className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
+                          <CheckCircle className="w-6 h-6 text-green-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-slate-500 mb-1">Completed</p>
+                          <div className="flex items-baseline gap-2">
+                            <h3 className="text-2xl font-bold text-slate-900">{stats.completedTickets}</h3>
+                            <span className="text-xs font-semibold text-green-600">▲ +8%</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pending */}
+                    <div 
+                      onClick={() => {
+                        setActiveTab('tickets');
+                        setTicketFilterStatus('PENDING');
+                      }}
+                      className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                          <Clock className="w-6 h-6 text-amber-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-slate-500 mb-1">Pending</p>
+                          <div className="flex items-baseline gap-2">
+                            <h3 className="text-2xl font-bold text-slate-900">{stats.pendingTickets}</h3>
+                            <span className="text-xs font-semibold text-red-600">▼ -3%</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tickets/Requests Tabs */}
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="flex border-b border-slate-200">
+                      <button
+                        onClick={() => setOverviewTab('tickets')}
+                        className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                          overviewTab === 'tickets'
+                            ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Tickets ({stats.totalTickets})
+                      </button>
+                      <button
+                        onClick={() => setOverviewTab('requests')}
+                        className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                          overviewTab === 'requests'
+                            ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Requests ({stats.totalRequests})
+                      </button>
+                    </div>
+
+                    <div className="p-6">
+                      {overviewTab === 'tickets' ? (
+                        <div className="space-y-3">
+                          {paginatedTickets.length === 0 ? (
+                            <div className="text-center py-12">
+                              <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                              <p className="text-slate-600">No tickets found</p>
+                            </div>
+                          ) : (
+                            <>
+                              {paginatedTickets.map((ticket) => (
+                                <TicketCard
+                                  key={ticket.id}
+                                  ticket={ticket}
+                                  onClick={() => handleViewTicket(ticket.id)}
+                                  onDelete={() => handleDeleteTicket(ticket.id)}
+                                />
+                              ))}
+                              <Pagination
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                onPageChange={setCurrentPage}
                               />
-                            ))}
-                            
-                            <Pagination
-                              currentPage={currentPage}
-                              totalPages={totalPages}
-                              onPageChange={setCurrentPage}
-                            />
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        {requests.length === 0 ? (
-                          <div className="text-center py-12 bg-white rounded-2xl border border-slate-100">
-                            <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">{requests.length === 0 ? (
+                          <div className="text-center py-12">
+                            <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                             <p className="text-slate-600">No requests found</p>
                           </div>
                         ) : (
-                          requests.slice(0, 10).map((request: any) => (
+                          requests.slice(0, 5).map((request: any) => (
                             <div 
                               key={request.id}
                               onClick={() => {
                                 setSelectedRequest(request);
                                 setActiveTab('requests');
                               }}
-                              className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                              className="p-4 hover:bg-slate-50 rounded-xl border border-slate-100 cursor-pointer transition-all group"
                             >
-                              <div className="flex flex-col sm:flex-row items-start gap-4">
-                                {/* User Avatar */}
-                                <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-lg shrink-0">
+                              <div className="flex items-start gap-4">
+                                <div className="w-10 h-10 rounded-full bg-linear-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
                                   {request.user?.username?.charAt(0).toUpperCase()}
                                 </div>
-                                
-                                <div className="flex-1 min-w-0 w-full">
-                                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
-                                    <div className="flex-1">
-                                      <h3 className="font-bold text-slate-900 line-clamp-1">{request.title}</h3>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                      <h4 className="font-bold text-slate-900 line-clamp-1">{request.title}</h4>
                                       <p className="text-xs text-slate-500 mt-1">
                                         by {request.user?.username}
                                         {request.user?.team && <span className="text-slate-400"> • {request.user.team.name}</span>}
@@ -1398,186 +1216,133 @@ function AdminDashboardContent() {
                                       {request.status.replace('_', ' ')}
                                     </Badge>
                                   </div>
-                                  
-                                  <p className="text-sm text-slate-600 mb-4 line-clamp-2">{request.description}</p>
-                                  
-                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-50">
-                                    <div className="flex items-center gap-2">
-                                      {request.projectId && (
-                                        <span className="text-xs text-slate-500">Project: {request.projectId}</span>
-                                      )}
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-xs text-slate-400">Created</span>
-                                      <span className="text-xs font-medium text-slate-600">
-                                        {formatRelativeTime(request.createdAt)}
-                                      </span>
-                                    </div>
+                                  <p className="text-sm text-slate-600 line-clamp-2">{request.description}</p>
+                                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-50">
+                                    <span className="text-xs text-slate-400">
+                                      {formatRelativeTime(request.createdAt)}
+                                    </span>
+                                    <button className="text-slate-400 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <MoreVertical className="w-4 h-4" />
+                                    </button>
                                   </div>
                                 </div>
-                                
-                                <button className="hidden sm:block p-2 text-slate-300 hover:text-slate-600">
-                                  <div className="w-1 h-1 bg-current rounded-full mb-1" />
-                                  <div className="w-1 h-1 bg-current rounded-full mb-1" />
-                                  <div className="w-1 h-1 bg-current rounded-full" />
-                                </button>
                               </div>
                             </div>
                           ))
                         )}
-
-                        {requests.length > 10 && (
-                          <div className="text-center pt-4">
-                            <Button variant="outline" onClick={() => setActiveTab('requests')}>
-                              View All Requests
-                            </Button>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Right Column: Stats & Widgets */}
-                  <div className="space-y-8">
-                    {overviewTab === 'tickets' ? (
-                      /* Stats Grid */
-                      <div className="space-y-6">
-                        {/* Toggle */}
-                        <div className="bg-white p-1 rounded-xl inline-flex border border-slate-200 w-full">
-                          <button 
-                            onClick={() => setStatView('status')}
-                            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${statView === 'status' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
-                          >
-                            Status
-                          </button>
-                          <button 
-                            onClick={() => setStatView('priority')}
-                            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${statView === 'priority' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
-                          >
-                            Priority
-                          </button>
                         </div>
-
-                        {/* Stats List */}
-                        <div className="space-y-3">
-                          {statView === 'status' ? (
-                            <>
-                              <StatRow
-                                label="All Tickets"
-                                count={stats.totalTickets}
-                                icon={MessageSquare}
-                                color="navy"
-                                onClick={() => setFilterStatus(null)}
-                                active={filterStatus === null}
-                                variant="ticket"
-                              />
-                              <StatRow
-                                label="Pending"
-                                count={stats.pendingTickets}
-                                icon={Clock}
-                                color="teal"
-                                onClick={() => setFilterStatus(filterStatus === 'PENDING' ? null : 'PENDING')}
-                                active={filterStatus === 'PENDING'}
-                                variant="ticket"
-                              />
-                              <StatRow
-                                label="Completed"
-                                count={stats.completedTickets}
-                                icon={CheckCircle}
-                                color="indigo"
-                                onClick={() => setFilterStatus(filterStatus === 'COMPLETED' ? null : 'COMPLETED')}
-                                active={filterStatus === 'COMPLETED'}
-                                variant="ticket"
-                              />
-                              <StatRow
-                                label="Cancelled"
-                                count={tickets.filter(t => t.status === 'CLOSED').length}
-                                icon={XCircle}
-                                color="slate"
-                                onClick={() => setFilterStatus(filterStatus === 'CLOSED' ? null : 'CLOSED')}
-                                active={filterStatus === 'CLOSED'}
-                                variant="ticket"
-                              />
-                            </>
-                          ) : (
-                            <>
-                              <StatRow
-                                label="All Priorities"
-                                count={stats.totalTickets}
-                                icon={MessageSquare}
-                                color="indigo"
-                                onClick={() => setFilterPriority(null)}
-                                active={filterPriority === null}
-                              />
-                              <StatRow
-                                label="High Priority"
-                                count={stats.highPriority}
-                                icon={AlertTriangle}
-                                color="red"
-                                onClick={() => setFilterPriority(filterPriority === 'HIGH' ? null : 'HIGH')}
-                                active={filterPriority === 'HIGH'}
-                              />
-                              <StatRow
-                                label="Medium Priority"
-                                count={stats.mediumPriority}
-                                icon={AlertTriangle}
-                                color="orange"
-                                onClick={() => setFilterPriority(filterPriority === 'MEDIUM' ? null : 'MEDIUM')}
-                                active={filterPriority === 'MEDIUM'}
-                              />
-                              <StatRow
-                                label="Low Priority"
-                                count={stats.lowPriority}
-                                icon={AlertTriangle}
-                                color="blue"
-                                onClick={() => setFilterPriority(filterPriority === 'LOW' ? null : 'LOW')}
-                                active={filterPriority === 'LOW'}
-                              />
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      /* Requests Stats */
-                      <div className="space-y-3">
-                        <StatCard
-                          title="Total Requests"
-                          count={stats.totalRequests}
-                          icon={MessageSquare}
-                          variant="indigo"
-                        />
-                        <StatCard
-                          title="Pending"
-                          count={stats.pendingRequests}
-                          icon={Clock}
-                          variant="orange"
-                        />
-                        <StatCard
-                          title="Approved"
-                          count={requests.filter((r: any) => r.status === 'APPROVED').length}
-                          icon={CheckCircle}
-                          variant="green"
-                        />
-                        <StatCard
-                          title="In Progress"
-                          count={requests.filter((r: any) => r.status === 'IN_PROGRESS').length}
-                          icon={Clock}
-                          variant="teal"
-                        />
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
-              </>
+
+                {/* Right Column - Stats & Quick Actions (1/3 width) */}
+                <div className="space-y-6">
+                  {/* Quick Stats */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 className="text-lg font-bold text-slate-900 mb-4">Quick Stats</h3>
+                    <div className="space-y-4">
+                      <div 
+                        className="flex items-center justify-between p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors"
+                        onClick={() => router.push('/admin/users')}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                            <Users className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <span className="text-sm font-medium text-slate-700">Total Users</span>
+                        </div>
+                        <span className="text-lg font-bold text-slate-900">{users.length}</span>
+                      </div>
+                      <div 
+                        className="flex items-center justify-between p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors"
+                        onClick={() => router.push('/admin?tab=branches')}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                            <Building2 className="w-4 h-4 text-green-600" />
+                          </div>
+                          <span className="text-sm font-medium text-slate-700">Branches</span>
+                        </div>
+                        <span className="text-lg font-bold text-slate-900">{branches.length}</span>
+                      </div>
+                      <div 
+                        className="flex items-center justify-between p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors"
+                        onClick={() => router.push('/admin/teams')}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                            <Briefcase className="w-4 h-4 text-purple-600" />
+                          </div>
+                          <span className="text-sm font-medium text-slate-700">Teams</span>
+                        </div>
+                        <span className="text-lg font-bold text-slate-900">{teams.length}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ticket Priority Distribution */}
+                  <PieChart 
+                    title="Priority Distribution"
+                    subtitle="Tickets by priority level"
+                    data={[
+                      tickets.filter(t => t.priority === 'P1').length,
+                      tickets.filter(t => t.priority === 'P2').length,
+                      tickets.filter(t => t.priority === 'P3').length
+                    ]}
+                    labels={['High (P1)', 'Medium (P2)', 'Low (P3)']}
+                    colors={['#EF4444', '#F59E0B', '#10B981']}
+                  />
+
+                  {/* Quick Actions */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 className="font-bold text-lg text-slate-900 mb-2">Quick Actions</h3>
+                    <p className="text-slate-500 text-sm mb-4">Manage system efficiently</p>
+                    <div className="space-y-2">
+                      <button 
+                        onClick={() => setShowUserModal(true)}
+                        className="w-full bg-slate-900 text-white py-2.5 px-4 rounded-xl font-medium hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add User
+                      </button>
+                      <button 
+                        onClick={() => setShowBranchModal(true)}
+                        className="w-full bg-white text-slate-700 py-2.5 px-4 rounded-xl font-medium hover:bg-slate-50 transition-colors border border-slate-200 flex items-center justify-center gap-2"
+                      >
+                        <Building2 className="w-4 h-4" />
+                        Add Branch
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
-
-
             {dashboardTab === 'reports' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="col-span-1">
-                  <AreaChart 
+              <div className="space-y-6">
+                {/* Analytics Header */}
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900 mb-1">Analytics & Reports</h2>
+                    <p className="text-slate-500">Detailed insights and performance metrics</p>
+                  </div>
+                  <div className="w-56">
+                    <CustomSelect
+                      value={selectedReportBranch}
+                      onChange={(value) => setSelectedReportBranch(value)}
+                      options={[
+                        { value: 'ALL', label: 'All Branches' },
+                        ...branches.map(b => ({ value: b.id, label: b.name }))
+                      ]}
+                    />
+                  </div>
+                </div>
+
+                {/* Analytics Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="col-span-1">
+                    <AreaChart 
                     title="Ticket Trends" 
                     subtitle="Weekly ticket volume and completion status"
                     action={
@@ -1612,8 +1377,8 @@ function AdminDashboardContent() {
                   />
                 </div>
 
-                <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-                  <h3 className="font-bold text-slate-900 mb-6">Tickets by Branch</h3>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900 mb-6">Tickets by Branch</h3>
                   <div className="space-y-4">
                     {branches.slice(0, 5).map(branch => {
                       const branchTickets = tickets.filter(t => t.branchId === branch.id);
@@ -1642,6 +1407,7 @@ function AdminDashboardContent() {
                   </div>
                 </div>
               </div>
+            </div>
             )}
           </div>
           )}
@@ -1687,12 +1453,12 @@ function AdminDashboardContent() {
                     </div>
 
                     {(selectedUser as any).teams && (selectedUser as any).teams.length > 0 && (
-                      <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-3xl border border-blue-100 shadow-sm">
+                      <div className="bg-linear-to-br from-blue-50 to-purple-50 p-6 rounded-3xl border border-blue-100 shadow-sm">
                         <h3 className="font-bold text-slate-900 mb-4">Assigned Teams</h3>
                         <div className="space-y-2">
                           {(selectedUser as any).teams.map((userTeam: any) => (
                             <div key={userTeam.id} className="flex items-center gap-3 p-3 bg-white/70 rounded-xl">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
+                              <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
                                 {userTeam.team?.name.charAt(0).toUpperCase()}
                               </div>
                               <div>
@@ -1728,7 +1494,7 @@ function AdminDashboardContent() {
                                   </div>
                                   <div>
                                     <p className="text-sm text-slate-900">
-                                      <span className="font-bold">Created ticket</span> #{ticket.incNumber || ticket.id.substring(0, 8)}
+                                      <span className="font-bold">Created ticket</span>
                                     </p>
                                     <p className="text-sm text-slate-600 mt-1 line-clamp-1">{ticket.issue}</p>
                                     <p className="text-xs text-slate-500 mt-1">{formatRelativeTime(ticket.createdAt)}</p>
@@ -1915,7 +1681,6 @@ function AdminDashboardContent() {
                         <Table>
                           <TableHeader>
                             <tr>
-                              <TableHead>ID</TableHead>
                               <TableHead>Issue</TableHead>
                               <TableHead>Status</TableHead>
                               <TableHead>Date</TableHead>
@@ -1927,7 +1692,6 @@ function AdminDashboardContent() {
                               .slice(0, 5)
                               .map(ticket => (
                                 <TableRow key={ticket.id}>
-                                  <TableCell className="font-mono text-xs">#{ticket.id.substring(0, 6)}</TableCell>
                                   <TableCell className="max-w-xs truncate">{ticket.issue}</TableCell>
                                   <TableCell>
                                     <Badge variant={getStatusColor(ticket.status)} size="sm">
@@ -2081,6 +1845,7 @@ function AdminDashboardContent() {
             ) : (
               <AnalyticsSection 
                 tickets={tickets} 
+                requests={requests}
                 users={users}
                 currentUser={user} 
               />
@@ -2219,8 +1984,6 @@ function AdminDashboardContent() {
               )}
             </div>
           </div>
-          )}
-            </>
           )}
 
           {/* Requests Tab */}
@@ -2382,24 +2145,35 @@ function AdminDashboardContent() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <StatCard
-                  title="Total Notes"
-                  count={notes.length}
-                  icon={MessageSquare}
-                  variant="indigo"
-                />
-                <StatCard
-                  title="User Notes"
-                  count={notes.filter((n: any) => n.user?.role === 'USER').length}
-                  icon={Users}
-                  variant="teal"
-                />
-                <StatCard
-                  title="Admin Notes"
-                  count={notes.filter((n: any) => n.user?.role === 'ADMIN').length}
-                  icon={MessageSquare}
-                  variant="slate"
-                />
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 rounded-lg bg-slate-100">
+                      <MessageSquare className="w-5 h-5 text-slate-600" />
+                    </div>
+                    <span className="font-medium text-slate-600">Total Notes</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-slate-900">{notes.length}</h3>
+                </div>
+                
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 rounded-lg bg-slate-100">
+                      <Users className="w-5 h-5 text-slate-600" />
+                    </div>
+                    <span className="font-medium text-slate-600">User Notes</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-slate-900">{notes.filter((n: any) => n.user?.role === 'USER').length}</h3>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 rounded-lg bg-slate-100">
+                      <MessageSquare className="w-5 h-5 text-slate-600" />
+                    </div>
+                    <span className="font-medium text-slate-600">Admin Notes</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-slate-900">{notes.filter((n: any) => n.user?.role === 'ADMIN').length}</h3>
+                </div>
               </div>
 
               {loading ? (
@@ -2458,9 +2232,9 @@ function AdminDashboardContent() {
                         </p>
 
                         <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2 mt-auto">
-                          <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded-md">
-                            <TicketIcon className="w-3 h-3" />
-                            <span>#{note.ticket?.incNumber || note.ticket?.id.slice(0, 8)}</span>
+                          <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded-md max-w-[150px]">
+                            <TicketIcon className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{note.ticket?.issue}</span>
                           </div>
                           <div className="flex gap-2">
                             <Button
@@ -2503,6 +2277,8 @@ function AdminDashboardContent() {
                 </div>
               )}
             </div>
+          )}
+          </>
           )}
 
       {/* Delete Confirmation Modal */}
@@ -2683,6 +2459,37 @@ function AdminDashboardContent() {
             onChange={(e) => setTicketForm({ ...ticketForm, additionalDetails: e.target.value })}
             rows={3}
           />
+          <div className="border-t border-slate-200 pt-4 mt-4">
+            <h3 className="text-sm font-semibold text-slate-900 mb-3">Local Contact Information (Optional)</h3>
+            <div className="space-y-4">
+              <Input
+                label="Contact Name"
+                value={ticketForm.localContactName}
+                onChange={(e) => setTicketForm({ ...ticketForm, localContactName: e.target.value })}
+                placeholder="e.g., John Doe"
+              />
+              <Input
+                label="Contact Email"
+                type="email"
+                value={ticketForm.localContactEmail}
+                onChange={(e) => setTicketForm({ ...ticketForm, localContactEmail: e.target.value })}
+                placeholder="e.g., john.doe@example.com"
+              />
+              <Input
+                label="Contact Phone"
+                type="tel"
+                value={ticketForm.localContactPhone}
+                onChange={(e) => setTicketForm({ ...ticketForm, localContactPhone: e.target.value })}
+                placeholder="e.g., +1 234 567 8900"
+              />
+              <Input
+                label="Timezone"
+                value={ticketForm.timezone}
+                onChange={(e) => setTicketForm({ ...ticketForm, timezone: e.target.value })}
+                placeholder="e.g., America/New_York, Europe/London"
+              />
+            </div>
+          </div>
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="ghost" onClick={() => setShowTicketModal(false)}>
               Cancel

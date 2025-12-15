@@ -46,47 +46,33 @@ function KanbanCard({ request, onClick, isAdmin, onDragStart }: KanbanCardProps)
       onClick={onClick}
       draggable={isAdmin}
       onDragStart={(e) => onDragStart && onDragStart(e, request)}
-      className={`bg-white rounded-lg sm:rounded-xl border border-slate-200 p-3 sm:p-4 hover:shadow-md transition-all cursor-pointer group ${isAdmin ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      className={`bg-white rounded-lg border border-slate-200 p-4 hover:border-slate-300 transition-all cursor-pointer group ${isAdmin ? 'cursor-grab active:cursor-grabbing' : ''}`}
     >
-      {/* Header with badges */}
-      <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
-        <Badge variant="info" size="sm">
-          {getPlanningStatus(request.status)}
-        </Badge>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-mono text-slate-400">#{request.id.substring(0, 8)}</span>
         <Badge variant={getPriorityVariant(request.status)} size="sm">
-          <span className="hidden sm:inline">Priority: </span>{getPriorityLabel(request.status)}
+          {getPriorityLabel(request.status)}
         </Badge>
       </div>
 
-      {/* Request ID and Date */}
-      <div className="flex items-center justify-between text-xs text-slate-500 mb-1 sm:mb-2">
-        <span className="font-mono">Request ID</span>
-        <span className="hidden sm:inline">Created on</span>
-      </div>
-      <div className="flex items-center justify-between text-xs sm:text-sm mb-2 sm:mb-3">
-        <span className="font-semibold text-slate-900">#{request.id.substring(0, 8)}</span>
-        <span className="text-slate-600 text-xs">{formatDate(request.createdAt)}</span>
-      </div>
-
-      {/* Description */}
-      <p className="text-xs sm:text-sm text-slate-600 line-clamp-2 mb-3 sm:mb-4">
+      {/* Title/Description */}
+      <h4 className="text-sm font-medium text-slate-900 mb-1 line-clamp-1">{request.title || 'No Title'}</h4>
+      <p className="text-xs text-slate-500 line-clamp-2 mb-4">
         {request.description || 'No description provided'}
       </p>
 
-      {/* Footer with user info */}
-      <div className="flex items-center justify-between pt-2 sm:pt-3 border-t border-slate-100">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-linear-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-semibold shrink-0">
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 text-xs font-medium">
             {request.user?.username?.charAt(0).toUpperCase() || 'U'}
           </div>
-          <span className="text-xs sm:text-sm font-medium text-slate-700 truncate">
-            {request.user?.username || 'Unknown User'}
+          <span className="text-xs text-slate-600 truncate max-w-[100px]">
+            {request.user?.username || 'Unknown'}
           </span>
         </div>
-        <div className="flex items-center gap-1 text-slate-400 shrink-0 ml-2">
-          <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4" />
-          <span className="text-xs">1</span>
-        </div>
+        <span className="text-xs text-slate-400">{new Date(request.createdAt).toLocaleDateString()}</span>
       </div>
     </div>
   );

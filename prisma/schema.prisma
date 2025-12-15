@@ -70,6 +70,10 @@ model Ticket {
   updatedAt         DateTime        @updatedAt
   incNumber         String?
   teamId            String?
+  localContactName  String?
+  localContactEmail String?
+  localContactPhone String?
+  timezone          String?
   attachments       Attachment[]
   statusHistory     StatusHistory[]
   notes             TicketNote[]

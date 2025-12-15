@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { branchId, priority, issue, additionalDetails, userId, teamId } = await request.json();
+    const { branchId, priority, issue, additionalDetails, userId, teamId, localContactName, localContactEmail, localContactPhone, timezone } = await request.json();
 
     if (!branchId || !priority || !issue) {
       return NextResponse.json(
@@ -184,8 +184,7 @@ export async function POST(request: NextRequest) {
       ticketTeamId = userWithTeams?.teams[0]?.teamId || null;
     }
 
-    const ticket = await prisma.ticket.create({
-      data: {
+    const ticketData: any = {
         userId: ticketUserId,
         branchId,
         priority,
@@ -193,7 +192,14 @@ export async function POST(request: NextRequest) {
         additionalDetails,
         status: 'PENDING',
         teamId: ticketTeamId,
-      },
+        localContactName,
+        localContactEmail,
+        localContactPhone,
+        timezone,
+    };
+
+    const ticket = await prisma.ticket.create({
+      data: ticketData,
       include: {
         user: {
           select: {
@@ -216,9 +222,10 @@ export async function POST(request: NextRequest) {
     });
 
     // Notify admins about new ticket
+    const ticketWithUser = ticket as any;
     await notifyAdmins(
       'New Ticket Created',
-      `${ticket.user.username} created a new ${ticket.priority} ticket: ${ticket.issue.substring(0, 50)}${ticket.issue.length > 50 ? '...' : ''}`,
+      `${ticketWithUser.user.username} created a new ${ticket.priority} ticket: ${ticket.issue.substring(0, 50)}${ticket.issue.length > 50 ? '...' : ''}`,
       'INFO',
       `/admin/tickets/${ticket.id}`
     );

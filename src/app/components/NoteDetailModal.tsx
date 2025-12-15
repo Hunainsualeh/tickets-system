@@ -102,7 +102,7 @@ export const NoteDetailModal: React.FC<NoteDetailModalProps> = ({
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <p className="font-medium text-slate-900 mb-1">{note.ticket.issue}</p>
-                      <p className="text-xs text-slate-500 font-mono">#{note.ticket.id.slice(0, 8)}</p>
+
                     </div>
                     <div className="flex gap-2">
                       {note.ticket.status && (

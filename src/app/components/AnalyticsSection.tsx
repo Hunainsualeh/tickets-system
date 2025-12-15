@@ -16,52 +16,15 @@ import { getStatusColor, getPriorityColor, getPriorityLabel, formatDate, formatR
 
 interface AnalyticsSectionProps {
   tickets: Ticket[];
+  requests?: any[];
   users?: User[]; // For admin to filter by creator
   currentUser: User;
+  hideHeader?: boolean;
+  defaultTab?: 'tickets' | 'requests' | 'analytics';
 }
 
-const ticketBg: Record<string, string> = {
-  orange: 'bg-[#FFC107]',
-  green: 'bg-[#10B981]',
-  blue: 'bg-[#3B82F6]',
-  red: 'bg-[#EF4444]',
-  purple: 'bg-[#A855F7]',
-  gray: 'bg-[#64748B]',
-  indigo: 'bg-[#6366F1]',
-};
-
-const ticketText: Record<string, string> = {
-  orange: 'text-slate-900',
-  green: 'text-white',
-  blue: 'text-white',
-  red: 'text-white',
-  purple: 'text-white',
-  gray: 'text-white',
-  indigo: 'text-white',
-};
-
-const ticketSubText: Record<string, string> = {
-  orange: 'text-slate-800/80',
-  green: 'text-white/80',
-  blue: 'text-white/80',
-  red: 'text-white/80',
-  purple: 'text-white/80',
-  gray: 'text-white/80',
-  indigo: 'text-white/80',
-};
-
-const ticketIconBg: Record<string, string> = {
-  orange: 'bg-black/10',
-  green: 'bg-white/20',
-  blue: 'bg-white/20',
-  red: 'bg-white/20',
-  purple: 'bg-white/20',
-  gray: 'bg-white/20',
-  indigo: 'bg-white/20',
-};
-
-export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, users, currentUser }) => {
-  const [activeTab, setActiveTab] = useState<'tickets' | 'analytics'>('analytics');
+export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, requests = [], users, currentUser, hideHeader = false, defaultTab = 'tickets' }) => {
+  const [activeTab, setActiveTab] = useState<'tickets' | 'requests' | 'analytics'>(defaultTab);
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,7 +35,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, use
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // Filter Logic
+  // Filter Logic for Tickets
   const filteredTickets = useMemo(() => {
     return tickets.filter(ticket => {
       const matchesSearch = 
@@ -106,7 +69,39 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, use
     });
   }, [tickets, searchQuery, statusFilter, priorityFilter, timeFilter, creatorFilter, startDate, endDate]);
 
-  // Analytics Logic
+  // Filter Logic for Requests
+  const filteredRequests = useMemo(() => {
+    return requests.filter(request => {
+      const matchesSearch = 
+        request.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        request.description.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'ALL' || request.status === statusFilter;
+      const matchesCreator = creatorFilter === 'ALL' || request.userId === creatorFilter;
+      
+      let matchesTime = true;
+      const requestDate = new Date(request.createdAt);
+      const now = new Date();
+      
+      if (timeFilter === 'YEAR') {
+        matchesTime = requestDate.getFullYear() === now.getFullYear();
+      } else if (timeFilter === 'MONTH') {
+        matchesTime = requestDate.getMonth() === now.getMonth() && requestDate.getFullYear() === now.getFullYear();
+      } else if (timeFilter === 'WEEK') {
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        matchesTime = requestDate >= oneWeekAgo;
+      } else if (timeFilter === 'CUSTOM' && startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        matchesTime = requestDate >= start && requestDate <= end;
+      }
+
+      return matchesSearch && matchesStatus && matchesCreator && matchesTime;
+    });
+  }, [requests, searchQuery, statusFilter, timeFilter, creatorFilter, startDate, endDate]);
+
+  // Analytics Logic for Tickets
   const stats = useMemo(() => {
     const total = filteredTickets.length;
     const closed = filteredTickets.filter(t => t.status === 'CLOSED').length;
@@ -128,8 +123,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, use
       }
     });
 
-    // Timeline Data (Last 12 months or days depending on filter)
-    // For simplicity, let's do tickets created per month for the current year
+    // Timeline Data
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const ticketsPerMonth = new Array(12).fill(0);
     const closedPerMonth = new Array(12).fill(0);
@@ -147,58 +141,88 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, use
     return { total, closed, open, statusCounts, priorityCounts, ticketsPerMonth, closedPerMonth, months };
   }, [filteredTickets]);
 
-  const getTicketTheme = (status: string) => {
-    switch (status) {
-      case 'PENDING': return 'orange';
-      case 'IN_PROGRESS': return 'blue';
-      case 'CLOSED': 
-      case 'COMPLETED':
-      case 'PAID':
-      case 'INVOICE': return 'green';
-      case 'ESCALATED': return 'red';
-      default: return 'gray';
-    }
-  };
+  // Analytics Logic for Requests
+  const requestStats = useMemo(() => {
+    const total = filteredRequests.length;
+    const completed = filteredRequests.filter(r => r.status === 'COMPLETED').length;
+    const pending = filteredRequests.filter(r => ['PENDING', 'IN_PROGRESS'].includes(r.status)).length;
+    
+    const statusCounts: Record<string, number> = {};
+    filteredRequests.forEach(r => {
+      statusCounts[r.status] = (statusCounts[r.status] || 0) + 1;
+    });
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const requestsPerMonth = new Array(12).fill(0);
+    const completedPerMonth = new Array(12).fill(0);
+
+    filteredRequests.forEach(r => {
+      const d = new Date(r.createdAt);
+      if (d.getFullYear() === new Date().getFullYear()) {
+        requestsPerMonth[d.getMonth()]++;
+        if (r.status === 'COMPLETED') {
+          completedPerMonth[d.getMonth()]++;
+        }
+      }
+    });
+
+    return { total, completed, pending, statusCounts, requestsPerMonth, completedPerMonth, months };
+  }, [filteredRequests]);
 
   return (
     <div className="space-y-6">
       {/* Header & Tabs */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        {!hideHeader && (
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Analytics & Reports</h1>
-          <p className="text-slate-500">View ticket statistics and detailed reports</p>
+          <p className="text-slate-500">View ticket and request statistics</p>
         </div>
-        <div className="flex bg-slate-100 p-1 rounded-lg">
+        )}
+        <div className={`flex bg-slate-100 p-1 rounded-lg ${hideHeader ? 'w-full sm:w-auto' : ''}`}>
           <button
             onClick={() => setActiveTab('tickets')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex-1 sm:flex-none ${
               activeTab === 'tickets' 
                 ? 'bg-white text-slate-900 shadow-sm' 
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center gap-2">
               <List className="w-4 h-4" />
-              Ticket View
+              Tickets
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('requests')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex-1 sm:flex-none ${
+              activeTab === 'requests' 
+                ? 'bg-white text-slate-900 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <List className="w-4 h-4" />
+              Requests
             </div>
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex-1 sm:flex-none ${
               activeTab === 'analytics' 
                 ? 'bg-white text-slate-900 shadow-sm' 
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center gap-2">
               <BarChart3 className="w-4 h-4" />
-              Analytic View
+              Analytics
             </div>
           </button>
         </div>
       </div>
 
-      {/* Filters Section (Common for both views) */}
+      {/* Filters Section */}
       <Card>
         <CardBody className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -207,7 +231,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, use
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search tickets..."
+                  placeholder={activeTab === 'requests' ? "Search requests..." : "Search tickets..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900 placeholder:text-slate-400"
@@ -218,7 +242,14 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, use
             <CustomSelect
               value={statusFilter}
               onChange={setStatusFilter}
-              options={[
+              options={activeTab === 'requests' ? [
+                { value: 'ALL', label: 'All Statuses' },
+                { value: 'PENDING', label: 'Pending' },
+                { value: 'APPROVED', label: 'Approved' },
+                { value: 'IN_PROGRESS', label: 'In Progress' },
+                { value: 'COMPLETED', label: 'Completed' },
+                { value: 'REJECTED', label: 'Rejected' },
+              ] : [
                 { value: 'ALL', label: 'All Statuses' },
                 { value: 'PENDING', label: 'Pending' },
                 { value: 'IN_PROGRESS', label: 'In Progress' },
@@ -281,19 +312,23 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, use
       </Card>
 
       {/* Total Count Display */}
-      <div className="bg-linear-to-br from-slate-50 to-blue-50 p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow duration-300">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-linear-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-            <List className="w-7 h-7 text-white" />
+          <div className="w-14 h-14 bg-slate-100 rounded-xl flex items-center justify-center">
+            <List className="w-7 h-7 text-slate-600" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Total Tickets Found</p>
-            <h3 className="text-3xl font-bold text-slate-900">{stats.total}</h3>
+            <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">
+              Total {activeTab === 'requests' ? 'Requests' : 'Tickets'} Found
+            </p>
+            <h3 className="text-3xl font-bold text-slate-900">
+              {activeTab === 'requests' ? requestStats.total : stats.total}
+            </h3>
           </div>
         </div>
         <div className="text-right">
           <p className="text-sm font-medium text-slate-600">
-            {statusFilter !== 'ALL' ? `Showing ${statusFilter.toLowerCase().replace('_', ' ')} tickets` : 'Showing all tickets'}
+            {statusFilter !== 'ALL' ? `Showing ${statusFilter.toLowerCase().replace('_', ' ')} items` : 'Showing all items'}
           </p>
           <p className="text-xs text-slate-500 mt-1">
             {timeFilter === 'YEAR' ? 'This year' : timeFilter === 'MONTH' ? 'This month' : timeFilter === 'WEEK' ? 'This week' : 'All time'}
@@ -301,117 +336,188 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, use
         </div>
       </div>
 
-      {activeTab === 'tickets' ? (
+      {activeTab === 'tickets' && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredTickets.length > 0 ? (
-            filteredTickets.map((ticket) => {
-              const theme = getTicketTheme(ticket.status);
-              const bgColor = ticketBg[theme];
-              const textColor = ticketText[theme];
-              const subTextColor = ticketSubText[theme];
-              const iconBg = ticketIconBg[theme];
-
-              return (
-                <div 
-                  key={ticket.id}
-                  className={`relative w-full ${bgColor} rounded-2xl p-5 text-left transition-all duration-300 shadow-sm hover:shadow-md hover:scale-[1.02] cursor-pointer group`}
-                >
-                  {/* Ticket Stub Notches */}
-                  <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#F8FAFC] rounded-full" />
-                  <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#F8FAFC] rounded-full" />
-                  
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`${iconBg} p-2 rounded-xl backdrop-blur-sm`}>
-                      <Building2 className={`w-6 h-6 ${textColor}`} />
-                    </div>
-                    <div className="bg-white/90 px-2 py-1 rounded-md shadow-sm">
-                      <span className="text-xs font-bold text-slate-900">#{ticket.incNumber || ticket.id.substring(0, 6)}</span>
-                    </div>
+            filteredTickets.map((ticket) => (
+              <div 
+                key={ticket.id}
+                className="relative w-full bg-white border border-slate-200 rounded-2xl p-5 text-left transition-all duration-300 hover:shadow-md hover:border-blue-300 cursor-pointer group"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="bg-slate-50 p-2 rounded-xl">
+                    <Building2 className="w-6 h-6 text-slate-600" />
                   </div>
-                  
-                  <h3 className={`${textColor} font-bold text-lg leading-tight mb-2 line-clamp-2`}>
-                    {ticket.branch?.name}
-                  </h3>
-                  <p className={`${subTextColor} text-sm mb-4 line-clamp-2 font-medium`}>
-                    {ticket.issue}
-                  </p>
-                  
-                  <div className={`flex items-center justify-between ${subTextColor} text-xs font-medium border-t border-black/5 pt-3`}>
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-3 h-3" />
-                      <span>{formatRelativeTime(ticket.createdAt)}</span>
-                    </div>
-                    <div className={`px-2 py-0.5 rounded-full ${iconBg} ${textColor}`}>
-                      {ticket.status.replace('_', ' ')}
-                    </div>
+
+                </div>
+                
+                <h3 className="text-slate-900 font-bold text-lg leading-tight mb-2 line-clamp-2">
+                  {ticket.branch?.name}
+                </h3>
+                <p className="text-slate-500 text-sm mb-4 line-clamp-2 font-medium">
+                  {ticket.issue}
+                </p>
+                
+                <div className="flex items-center justify-between text-slate-400 text-xs font-medium border-t border-slate-100 pt-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-3 h-3" />
+                    <span>{formatRelativeTime(ticket.createdAt)}</span>
+                  </div>
+                  <div className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    ticket.status === 'CLOSED' ? 'bg-green-100 text-green-700' :
+                    ticket.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                    'bg-slate-100 text-slate-700'
+                  }`}>
+                    {ticket.status.replace('_', ' ')}
                   </div>
                 </div>
-              );
-            })
+              </div>
+            ))
           ) : (
             <div className="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-100">
               <p className="text-slate-600">No tickets found matching your filters</p>
             </div>
           )}
         </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatRow
-              label="Total Tickets"
-              count={stats.total}
-              icon={List}
-              color="orange"
-              variant="ticket"
-              asTicket={true}
-            />
-            <StatRow
-              label="Closed Tickets"
-              count={stats.closed}
-              icon={CheckCircle}
-              color="green"
-              variant="ticket"
-              asTicket={true}
-            />
-            <StatRow
-              label="Open Tickets"
-              count={stats.open}
-              icon={Clock}
-              color="blue"
-              variant="ticket"
-              asTicket={true}
-            />
-          </div>
+      )}
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="lg:col-span-2">
-              <AreaChart
-                data={stats.ticketsPerMonth}
-                data2={stats.closedPerMonth}
-                labels={stats.months}
-                title="Ticket Trends (This Year)"
-                subtitle="Track ticket creation and resolution over time"
-                legend1="Created"
-                legend2="Resolved"
-              />
+      {activeTab === 'requests' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filteredRequests.length > 0 ? (
+            filteredRequests.map((request) => (
+              <div 
+                key={request.id}
+                className="relative w-full bg-white border border-slate-200 rounded-2xl p-5 text-left transition-all duration-300 hover:shadow-md hover:border-blue-300 cursor-pointer group"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="bg-slate-50 p-2 rounded-xl">
+                    <List className="w-6 h-6 text-slate-600" />
+                  </div>
+                  <div className="bg-slate-100 px-2 py-1 rounded-md">
+                    <span className="text-xs font-bold text-slate-700">REQ</span>
+                  </div>
+                </div>
+                
+                <h3 className="text-slate-900 font-bold text-lg leading-tight mb-2 line-clamp-2">
+                  {request.title}
+                </h3>
+                <p className="text-slate-500 text-sm mb-4 line-clamp-2 font-medium">
+                  {request.description}
+                </p>
+                
+                <div className="flex items-center justify-between text-slate-400 text-xs font-medium border-t border-slate-100 pt-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-3 h-3" />
+                    <span>{formatRelativeTime(request.createdAt)}</span>
+                  </div>
+                  <div className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    request.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                    request.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                    'bg-slate-100 text-slate-700'
+                  }`}>
+                    {request.status.replace('_', ' ')}
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-100">
+              <p className="text-slate-600">No requests found matching your filters</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'analytics' && (
+        <div className="space-y-8">
+          {/* Ticket Analytics */}
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold text-slate-900">Ticket Analytics</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-sm text-slate-500 mb-1">Total Tickets</p>
+                <h3 className="text-2xl font-bold text-slate-900">{stats.total}</h3>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-sm text-slate-500 mb-1">Closed Tickets</p>
+                <h3 className="text-2xl font-bold text-green-600">{stats.closed}</h3>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-sm text-slate-500 mb-1">Open Tickets</p>
+                <h3 className="text-2xl font-bold text-blue-600">{stats.open}</h3>
+              </div>
             </div>
 
-            <PieChart
-              title="Status Distribution"
-              subtitle="Current status breakdown of all tickets"
-              data={Object.values(stats.statusCounts)}
-              labels={Object.keys(stats.statusCounts)}
-            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="lg:col-span-2">
+                <AreaChart
+                  data={stats.ticketsPerMonth}
+                  data2={stats.closedPerMonth}
+                  labels={stats.months}
+                  title="Ticket Trends (This Year)"
+                  subtitle="Track ticket creation and resolution over time"
+                  legend1="Created"
+                  legend2="Resolved"
+                />
+              </div>
 
-            <BarChart
-              title="Priority Distribution"
-              subtitle="Tickets categorized by urgency level"
-              data={[stats.priorityCounts.P1, stats.priorityCounts.P2, stats.priorityCounts.P3]}
-              labels={['P1 (High)', 'P2 (Medium)', 'P3 (Low)']}
-              color="#6366F1"
-            />
+              <PieChart
+                title="Ticket Status Distribution"
+                subtitle="Current status breakdown of all tickets"
+                data={Object.values(stats.statusCounts)}
+                labels={Object.keys(stats.statusCounts)}
+              />
+
+              <BarChart
+                title="Ticket Priority Distribution"
+                subtitle="Tickets categorized by urgency level"
+                data={[stats.priorityCounts.P1, stats.priorityCounts.P2, stats.priorityCounts.P3]}
+                labels={['P1 (High)', 'P2 (Medium)', 'P3 (Low)']}
+                color="#6366F1"
+              />
+            </div>
+          </div>
+
+          {/* Request Analytics */}
+          <div className="space-y-6 pt-8 border-t border-slate-200">
+            <h2 className="text-xl font-bold text-slate-900">Request Analytics</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-sm text-slate-500 mb-1">Total Requests</p>
+                <h3 className="text-2xl font-bold text-slate-900">{requestStats.total}</h3>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-sm text-slate-500 mb-1">Completed Requests</p>
+                <h3 className="text-2xl font-bold text-green-600">{requestStats.completed}</h3>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-sm text-slate-500 mb-1">Pending Requests</p>
+                <h3 className="text-2xl font-bold text-blue-600">{requestStats.pending}</h3>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="lg:col-span-2">
+                <AreaChart
+                  data={requestStats.requestsPerMonth}
+                  data2={requestStats.completedPerMonth}
+                  labels={requestStats.months}
+                  title="Request Trends (This Year)"
+                  subtitle="Track request creation and completion over time"
+                  legend1="Created"
+                  legend2="Completed"
+                />
+              </div>
+
+              <PieChart
+                title="Request Status Distribution"
+                subtitle="Current status breakdown of all requests"
+                data={Object.values(requestStats.statusCounts)}
+                labels={Object.keys(requestStats.statusCounts)}
+              />
+            </div>
           </div>
         </div>
       )}

@@ -109,7 +109,6 @@ export const Timeline: React.FC<TimelineProps> = ({ tickets, currentDate }) => {
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm font-medium text-slate-900 truncate">{ticket.issue}</div>
-                    <div className="text-xs text-slate-500 truncate">#{ticket.id.substring(0, 8)}</div>
                   </div>
                 </div>
                 

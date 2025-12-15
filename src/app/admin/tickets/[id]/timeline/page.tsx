@@ -256,7 +256,7 @@ export default function TicketTimelinePage() {
           </button>
           <div className="flex-1 sm:flex-none">
             <h1 className="text-lg font-bold text-slate-900 flex flex-wrap items-center gap-2 sm:gap-3">
-              <span className="whitespace-nowrap">Ticket #{ticket.incNumber || ticket.id.substring(0, 8)}</span>
+              <span className="whitespace-nowrap">Ticket Details</span>
               <div className="flex gap-2">
                 <div className={`inline-flex items-center justify-center px-2 sm:px-2.5 py-1 rounded-full text-xs font-semibold border-2 bg-white ${
                   ticket.priority === 'P1' ? 'text-red-600 border-red-600' :
@@ -398,9 +398,6 @@ export default function TicketTimelinePage() {
                       <div className="flex items-start justify-between mb-4">
                         <div className="bg-black/10 p-2 rounded-xl backdrop-blur-sm">
                           <TicketIcon className="w-6 h-6 text-slate-900" />
-                        </div>
-                        <div className="bg-white/90 px-2 py-1 rounded-md shadow-sm">
-                          <span className="text-xs font-bold text-slate-900">#{ticket.incNumber}</span>
                         </div>
                       </div>
                       
