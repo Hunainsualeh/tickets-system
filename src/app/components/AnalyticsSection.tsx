@@ -14,6 +14,9 @@ import { BarChart } from './BarChart';
 import { Search, Filter, BarChart3, List, PieChart as PieChartIcon, Calendar, Building2, User as UserIcon, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { getStatusColor, getPriorityColor, getPriorityLabel, formatDate, formatRelativeTime } from '@/lib/utils';
 
+import { TicketCard } from './TicketCard';
+import { SearchBar } from './SearchBar';
+
 interface AnalyticsSectionProps {
   tickets: Ticket[];
   requests?: any[];
@@ -21,9 +24,10 @@ interface AnalyticsSectionProps {
   currentUser: User;
   hideHeader?: boolean;
   defaultTab?: 'tickets' | 'requests' | 'analytics';
+  companyName?: string;
 }
 
-export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, requests = [], users, currentUser, hideHeader = false, defaultTab = 'tickets' }) => {
+export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, requests = [], users, currentUser, hideHeader = false, defaultTab = 'tickets', companyName }) => {
   const [activeTab, setActiveTab] = useState<'tickets' | 'requests' | 'analytics'>(defaultTab);
   
   // Filters
@@ -34,6 +38,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, req
   const [creatorFilter, setCreatorFilter] = useState('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   // Filter Logic for Tickets
   const filteredTickets = useMemo(() => {
@@ -172,11 +177,21 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, req
   return (
     <div className="space-y-6">
       {/* Header & Tabs */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className={`flex flex-col sm:flex-row ${hideHeader ? 'justify-end' : 'justify-between'} items-start gap-4`}>
         {!hideHeader && (
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Analytics & Reports</h1>
-          <p className="text-slate-500">View ticket and request statistics</p>
+        <div className="flex-1">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Analytics & Reports</h1>
+              <p className="text-slate-500 mt-1">View ticket and request statistics</p>
+            </div>
+            {companyName && (
+              <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                <Building2 className="w-4 h-4 mr-2 text-slate-500" />
+                <span className="font-semibold text-slate-700">{companyName}</span>
+              </div>
+            )}
+          </div>
         </div>
         )}
         <div className={`flex bg-slate-100 p-1 rounded-lg ${hideHeader ? 'w-full sm:w-auto' : ''}`}>
@@ -222,57 +237,83 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, req
         </div>
       </div>
 
-      {/* Filters Section */}
-      <Card>
-        <CardBody className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div className="lg:col-span-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder={activeTab === 'requests' ? "Search requests..." : "Search tickets..."}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900 placeholder:text-slate-400"
-                />
-              </div>
+      {/* Search, Filter & Stats Section */}
+      <Card className="overflow-visible">
+        <CardBody className="p-4 space-y-4">
+          {/* Top Row: Search & Filter Toggle */}
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <SearchBar
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder={activeTab === 'requests' ? "Search requests..." : "Search tickets..."}
+              />
             </div>
-            
-            <CustomSelect
-              value={statusFilter}
-              onChange={setStatusFilter}
-              options={activeTab === 'requests' ? [
-                { value: 'ALL', label: 'All Statuses' },
-                { value: 'PENDING', label: 'Pending' },
-                { value: 'APPROVED', label: 'Approved' },
-                { value: 'IN_PROGRESS', label: 'In Progress' },
-                { value: 'COMPLETED', label: 'Completed' },
-                { value: 'REJECTED', label: 'Rejected' },
-              ] : [
-                { value: 'ALL', label: 'All Statuses' },
-                { value: 'PENDING', label: 'Pending' },
-                { value: 'IN_PROGRESS', label: 'In Progress' },
-                { value: 'CLOSED', label: 'Closed' },
-                { value: 'COMPLETED', label: 'Completed' },
-              ]}
-            />
-
-            <CustomSelect
-              value={timeFilter}
-              onChange={setTimeFilter}
-              options={[
-                { value: 'ALL', label: 'All Time' },
-                { value: 'YEAR', label: 'This Year' },
-                { value: 'MONTH', label: 'This Month' },
-                { value: 'WEEK', label: 'This Week' },
-                { value: 'CUSTOM', label: 'Custom Range' },
-              ]}
-            />
+            <Button 
+              variant={showFilters ? "primary" : "outline"}
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 whitespace-nowrap"
+            >
+              <Filter className="w-4 h-4" />
+              Filters
+              {(statusFilter !== 'ALL' || priorityFilter !== 'ALL' || timeFilter !== 'ALL' || creatorFilter !== 'ALL') && (
+                <span className="flex h-2 w-2 rounded-full bg-blue-600" />
+              )}
+            </Button>
           </div>
 
-          {timeFilter === 'CUSTOM' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 animate-in fade-in slide-in-from-top-2">
+          {/* Expandable Filters */}
+          {showFilters && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-2">
+              <CustomSelect
+                label="Status"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={activeTab === 'requests' ? [
+                  { value: 'ALL', label: 'All Statuses' },
+                  { value: 'PENDING', label: 'Pending' },
+                  { value: 'APPROVED', label: 'Approved' },
+                  { value: 'IN_PROGRESS', label: 'In Progress' },
+                  { value: 'COMPLETED', label: 'Completed' },
+                  { value: 'REJECTED', label: 'Rejected' },
+                ] : [
+                  { value: 'ALL', label: 'All Statuses' },
+                  { value: 'PENDING', label: 'Pending' },
+                  { value: 'IN_PROGRESS', label: 'In Progress' },
+                  { value: 'CLOSED', label: 'Closed' },
+                  { value: 'COMPLETED', label: 'Completed' },
+                ]}
+              />
+
+              <CustomSelect
+                label="Time Period"
+                value={timeFilter}
+                onChange={setTimeFilter}
+                options={[
+                  { value: 'ALL', label: 'All Time' },
+                  { value: 'YEAR', label: 'This Year' },
+                  { value: 'MONTH', label: 'This Month' },
+                  { value: 'WEEK', label: 'This Week' },
+                  { value: 'CUSTOM', label: 'Custom Range' },
+                ]}
+              />
+
+              {users && (
+                <CustomSelect
+                  label="Created By"
+                  value={creatorFilter}
+                  onChange={setCreatorFilter}
+                  options={[
+                    { value: 'ALL', label: 'All Users' },
+                    ...users.map(u => ({ value: u.id, label: u.username }))
+                  ]}
+                />
+              )}
+            </div>
+          )}
+
+          {timeFilter === 'CUSTOM' && showFilters && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Start Date</label>
                 <input
@@ -293,85 +334,42 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, req
               </div>
             </div>
           )}
-
-          {users && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="md:col-span-1">
-                <CustomSelect
-                  value={creatorFilter}
-                  onChange={setCreatorFilter}
-                  options={[
-                    { value: 'ALL', label: 'All Users' },
-                    ...users.map(u => ({ value: u.id, label: u.username }))
-                  ]}
-                />
-              </div>
-            </div>
-          )}
+          
+          {/* Stats Summary Row */}
+          <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+             <div className="flex items-center gap-3">
+                <div className="bg-slate-100 p-2 rounded-lg">
+                  <List className="w-5 h-5 text-slate-600" />
+                </div>
+                <div>
+                  <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Found</span>
+                  <div className="text-2xl font-bold text-slate-900 leading-none mt-1">
+                    {activeTab === 'requests' ? requestStats.total : stats.total}
+                  </div>
+                </div>
+             </div>
+             
+             <div className="text-right">
+                <div className="text-sm font-medium text-slate-900">
+                  {statusFilter !== 'ALL' ? `Showing ${statusFilter.toLowerCase().replace('_', ' ')} items` : 'Showing all items'}
+                </div>
+                <div className="text-xs text-slate-500 mt-0.5">
+                  {timeFilter === 'YEAR' ? 'This year' : timeFilter === 'MONTH' ? 'This month' : timeFilter === 'WEEK' ? 'This week' : 'All time'}
+                </div>
+             </div>
+          </div>
         </CardBody>
       </Card>
-
-      {/* Total Count Display */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-slate-100 rounded-xl flex items-center justify-center">
-            <List className="w-7 h-7 text-slate-600" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">
-              Total {activeTab === 'requests' ? 'Requests' : 'Tickets'} Found
-            </p>
-            <h3 className="text-3xl font-bold text-slate-900">
-              {activeTab === 'requests' ? requestStats.total : stats.total}
-            </h3>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-sm font-medium text-slate-600">
-            {statusFilter !== 'ALL' ? `Showing ${statusFilter.toLowerCase().replace('_', ' ')} items` : 'Showing all items'}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            {timeFilter === 'YEAR' ? 'This year' : timeFilter === 'MONTH' ? 'This month' : timeFilter === 'WEEK' ? 'This week' : 'All time'}
-          </p>
-        </div>
-      </div>
 
       {activeTab === 'tickets' && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredTickets.length > 0 ? (
             filteredTickets.map((ticket) => (
-              <div 
+              <TicketCard
                 key={ticket.id}
-                className="relative w-full bg-white border border-slate-200 rounded-2xl p-5 text-left transition-all duration-300 hover:shadow-md hover:border-blue-300 cursor-pointer group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="bg-slate-50 p-2 rounded-xl">
-                    <Building2 className="w-6 h-6 text-slate-600" />
-                  </div>
-
-                </div>
-                
-                <h3 className="text-slate-900 font-bold text-lg leading-tight mb-2 line-clamp-2">
-                  {ticket.branch?.name}
-                </h3>
-                <p className="text-slate-500 text-sm mb-4 line-clamp-2 font-medium">
-                  {ticket.issue}
-                </p>
-                
-                <div className="flex items-center justify-between text-slate-400 text-xs font-medium border-t border-slate-100 pt-3">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-3 h-3" />
-                    <span>{formatRelativeTime(ticket.createdAt)}</span>
-                  </div>
-                  <div className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                    ticket.status === 'CLOSED' ? 'bg-green-100 text-green-700' :
-                    ticket.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                    'bg-slate-100 text-slate-700'
-                  }`}>
-                    {ticket.status.replace('_', ' ')}
-                  </div>
-                </div>
-              </div>
+                ticket={ticket}
+                onClick={() => window.location.href = `/dashboard?ticketId=${ticket.id}&view=tickets`}
+              />
             ))
           ) : (
             <div className="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-100">

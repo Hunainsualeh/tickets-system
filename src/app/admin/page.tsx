@@ -1005,6 +1005,7 @@ function AdminDashboardContent() {
                     {activeTab === 'tickets' && 'Tickets Management'}
                     {activeTab === 'requests' && 'Requests Management'}
                     {activeTab === 'notes' && 'Notes Management'}
+                    {activeTab === 'analytics' && 'Analytics & Reports'}
                   </h1>
                   <p className="text-sm text-slate-600 mt-1">
                     {activeTab === 'overview' && 'Monitor and manage all tickets, requests, and system activity'}
@@ -1013,6 +1014,7 @@ function AdminDashboardContent() {
                     {activeTab === 'tickets' && 'View and manage all tickets'}
                     {activeTab === 'requests' && 'View and manage all user requests'}
                     {activeTab === 'notes' && 'View all ticket notes and communications'}
+                    {activeTab === 'analytics' && 'View ticket and request statistics'}
                   </p>
                 </div>
                 {companyName && (
@@ -1167,6 +1169,7 @@ function AdminDashboardContent() {
                                   ticket={ticket}
                                   onClick={() => handleViewTicket(ticket.id)}
                                   onDelete={() => handleDeleteTicket(ticket.id)}
+                                  isAdmin={true}
                                 />
                               ))}
                               <Pagination
@@ -1847,7 +1850,8 @@ function AdminDashboardContent() {
                 tickets={tickets} 
                 requests={requests}
                 users={users}
-                currentUser={user} 
+                currentUser={user}
+                hideHeader={true}
               />
             )
           )}
@@ -1969,6 +1973,7 @@ function AdminDashboardContent() {
                     ticket={ticket}
                     onClick={() => handleViewTicket(ticket.id)}
                     onDelete={() => handleDeleteTicket(ticket.id)}
+                    isAdmin={true}
                   />
                 ))}
               

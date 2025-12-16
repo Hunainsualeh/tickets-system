@@ -26,6 +26,7 @@ import { RequestDetail } from '@/app/components/RequestDetail';
 import { AnalyticsSection } from '@/app/components/AnalyticsSection';
 import { AreaChart } from '@/app/components/AreaChart';
 import { KanbanBoard } from '@/app/components/KanbanBoard';
+import { RequestListCard } from '@/app/components/RequestListCard';
 import NotificationBell from '@/app/components/NotificationBell';
 import { TicketCard } from '@/app/components/TicketCard';
 import { TicketDetail } from '@/app/components/TicketDetail';
@@ -34,13 +35,7 @@ function UserDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('user');
-      return stored ? JSON.parse(stored) : null;
-    }
-    return null;
-  });
+  const [user, setUser] = useState<User | null>(null);
   const [companyName, setCompanyName] = useState('');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -652,124 +647,106 @@ function UserDashboardContent() {
             </div>
           ) : view === 'profile' ? (
             <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h1 className="text-2xl font-bold text-slate-900">My Profile</h1>
-                  <p className="text-sm text-slate-600 mt-1">View your account details</p>
-                </div>
-                {companyName && (
-                  <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
-                    <Building2 className="w-4 h-4 mr-2 text-slate-500" />
-                    <span className="font-semibold text-slate-700">{companyName}</span>
-                  </div>
-                )}
+              <div className="mb-8">
+                <h1 className="text-2xl font-bold text-slate-900">Account Overview</h1>
+                <p className="text-sm text-slate-600 mt-1">Manage your personal information and team access</p>
               </div>
 
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex items-center gap-6">
-                  <div className="w-24 h-24 rounded-full bg-white border-4 border-white shadow-md flex items-center justify-center text-3xl font-bold text-slate-700">
-                    {user?.username?.charAt(0).toUpperCase()}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left Column - User Info */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Identity Card */}
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                      <h3 className="font-semibold text-slate-900">Personal Information</h3>
+                      <Badge variant="info">{user?.role}</Badge>
+                    </div>
+                    <div className="p-6">
+                      <div className="flex items-center gap-6 mb-8">
+                        <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center text-2xl font-bold text-slate-600 border border-slate-200">
+                          {user?.username?.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold text-slate-900">{user?.username}</h2>
+                          <p className="text-slate-500 text-sm">User ID: {user?.id}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Username</label>
+                          <div className="text-slate-900 font-medium bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                            {user?.username}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Role</label>
+                          <div className="text-slate-900 font-medium bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                            {user?.role}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900">{user?.username}</h2>
-                    <Badge variant="info" className="mt-2">{user?.role}</Badge>
+
+                  {/* Teams Card */}
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                      <h3 className="font-semibold text-slate-900">Team Access</h3>
+                    </div>
+                    <div className="p-6">
+                      {(user as any)?.teams && (user as any).teams.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {(user as any).teams.map((userTeam: any) => (
+                            <div key={userTeam.id} className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 transition-all">
+                              <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
+                                {userTeam.team?.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="font-semibold text-slate-900">{userTeam.team?.name}</div>
+                                <div className="text-xs text-slate-500">Member</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-slate-500">
+                          No teams assigned
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="p-8 space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-2">
-                      <div className="flex gap-2 items-end">
-                        <div className="flex-1">
-                          <Input
-                            label="Username"
-                            value={user?.username || ''}
-                            readOnly
-                            className="bg-slate-50"
-                          />
-                        </div>
-                        <Button
-                          variant="ghost"
-                          onClick={() => navigator.clipboard.writeText(user?.username || '')}
-                          className="mb-0.5 text-slate-400 hover:text-blue-600 h-[50px] w-[50px]"
-                        >
-                          <Copy className="w-5 h-5" />
-                        </Button>
-                      </div>
+                {/* Right Column - Stats or Quick Actions */}
+                <div className="space-y-6">
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                      <h3 className="font-semibold text-slate-900">Account Statistics</h3>
                     </div>
-
-                    <div className="space-y-2">
-                      <div className="flex gap-2 items-end">
-                        <div className="flex-1">
-                          <Input
-                            label="Role"
-                            value={user?.role || ''}
-                            readOnly
-                            className="bg-slate-50"
-                          />
-                        </div>
-                        <Button
-                          variant="ghost"
-                          onClick={() => navigator.clipboard.writeText(user?.role || '')}
-                          className="mb-0.5 text-slate-400 hover:text-blue-600 h-[50px] w-[50px]"
-                        >
-                          <Copy className="w-5 h-5" />
-                        </Button>
+                    <div className="p-6 space-y-4">
+                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                        <span className="text-slate-600 text-sm">Total Tickets</span>
+                        <span className="font-bold text-slate-900">{stats.total}</span>
                       </div>
-                    </div>
-
-                    <div className="space-y-2 md:col-span-2">
-                      <div className="flex gap-2 items-start">
-                        <div className="flex-1">
-                          <label className="block text-sm font-bold text-slate-700 mb-2">
-                            Assigned Teams
-                          </label>
-                          {(user as any)?.teams && (user as any).teams.length > 0 ? (
-                            <div className="space-y-2">
-                              {(user as any).teams.map((userTeam: any, index: number) => (
-                                <div key={userTeam.id} className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 text-xs font-bold">
-                                      {userTeam.team?.name.charAt(0).toUpperCase()}
-                                    </div>
-                                    <span className="font-medium text-slate-900">{userTeam.team?.name}</span>
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    onClick={() => navigator.clipboard.writeText(userTeam.team?.name || '')}
-                                    className="text-slate-400 hover:text-blue-600 h-8 w-8 p-0"
-                                  >
-                                    <Copy className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
-                              <p className="text-slate-500 text-sm">No teams assigned</p>
-                            </div>
-                          )}
-                        </div>
+                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                        <span className="text-slate-600 text-sm">Open Requests</span>
+                        <span className="font-bold text-slate-900">{requests.filter(r => r.status !== 'COMPLETED' && r.status !== 'REJECTED').length}</span>
                       </div>
                     </div>
                   </div>
-
-                  {(user as any)?.teams && (user as any).teams.length > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-                      <div className="flex items-start gap-3">
-                        <UserIcon className="w-5 h-5 text-blue-600 mt-0.5" />
-                        <div>
-                          <h3 className="font-bold text-blue-900 mb-1">Multi-Team Access</h3>
-                          <p className="text-sm text-blue-700 mb-2">
-                            You are part of <strong>{(user as any).teams.length}</strong> team{(user as any).teams.length !== 1 ? 's' : ''}. You can view and manage tickets from all team members across:
-                          </p>
-                          <ul className="text-sm text-blue-700 list-disc list-inside">
-                            {(user as any).teams.map((userTeam: any) => (
-                              <li key={userTeam.id}><strong>{userTeam.team?.name}</strong></li>
-                            ))}
-                          </ul>
+                  
+                  {companyName && (
+                    <div className="bg-blue-900 rounded-xl shadow-sm overflow-hidden text-white p-6 relative">
+                      <div className="relative z-10">
+                        <h3 className="font-bold text-lg mb-1">{companyName}</h3>
+                        <p className="text-blue-200 text-sm mb-4">Organization</p>
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-800 rounded-full text-xs font-medium">
+                          <Shield className="w-3 h-3" />
+                          Verified Account
                         </div>
                       </div>
+                      <Building2 className="absolute -right-5 -bottom-5 w-32 h-32 text-blue-800/50" />
                     </div>
                   )}
                 </div>
@@ -777,19 +754,11 @@ function UserDashboardContent() {
             </div>
           ) : view === 'analytics' && user ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-slate-900">Analytics</h1>
-                {companyName && (
-                  <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
-                    <Building2 className="w-4 h-4 mr-2 text-slate-500" />
-                    <span className="font-semibold text-slate-700">{companyName}</span>
-                  </div>
-                )}
-              </div>
               <AnalyticsSection 
                 tickets={tickets} 
                 requests={requests}
-                currentUser={user} 
+                currentUser={user}
+                companyName={companyName}
               />
             </div>
           ) : view === 'tickets' ? (
@@ -1037,20 +1006,41 @@ function UserDashboardContent() {
                 </div>
               </div>
 
-              {/* Kanban Board */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-6 overflow-x-auto">
-                <KanbanBoard
-                  requests={requests.filter(r => 
+              {/* Request List */}
+              <div className="space-y-4">
+                {requests.filter(r => 
                     (!searchQuery || 
                     r.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     r.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     r.user?.username?.toLowerCase().includes(searchQuery.toLowerCase())) &&
                     (!filterPriority || r.priority === filterPriority) &&
                     (!filterStatus || r.status === filterStatus)
+                  ).length > 0 ? (
+                    <div className="grid grid-cols-1 gap-4">
+                      {requests.filter(r => 
+                        (!searchQuery || 
+                        r.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        r.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        r.user?.username?.toLowerCase().includes(searchQuery.toLowerCase())) &&
+                        (!filterPriority || r.priority === filterPriority) &&
+                        (!filterStatus || r.status === filterStatus)
+                      ).map((request) => (
+                        <RequestListCard
+                          key={request.id}
+                          request={request}
+                          onClick={() => setSelectedRequest(request)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
+                      <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Search className="w-8 h-8 text-slate-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-slate-900">No requests found</h3>
+                      <p className="text-slate-500 mt-1">Try adjusting your search or filters</p>
+                    </div>
                   )}
-                  onRequestClick={setSelectedRequest}
-                  isAdmin={false}
-                />
               </div>
 
               {/* Request Detail Modal */}
@@ -1312,8 +1302,12 @@ function UserDashboardContent() {
                         </div>
                         <div className="flex items-center gap-4 shrink-0 ml-4">
                           <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${getStatusColor(ticket.status)}`} />
-                            <span className="text-xs font-medium text-slate-700 whitespace-nowrap">{ticket.status.replace('_', ' ')}</span>
+                            <div className={`w-2 h-2 rounded-full ${getStatusColor(
+                              ['INVOICE', 'PAID'].includes(ticket.status) ? 'CLOSED' : ticket.status
+                            )}`} />
+                            <span className="text-xs font-medium text-slate-700 whitespace-nowrap">
+                              {(['INVOICE', 'PAID'].includes(ticket.status) ? 'CLOSED' : ticket.status).replace('_', ' ')}
+                            </span>
                           </div>
                         </div>
                       </div>

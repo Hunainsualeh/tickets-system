@@ -168,7 +168,7 @@ function TeamsPageContent() {
           <div className="mb-6">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
               <div>
-                <h1 className="text-3xl font-bold text-slate-900 mb-2">Teams</h1>
+                <h1 className="text-3xl font-bold text-slate-900 mb-2">Teams Management</h1>
                 <p className="text-slate-600">Manage your teams, view hierarchy, and team members</p>
               </div>
               {companyName && (

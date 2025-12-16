@@ -9,9 +9,17 @@ interface TicketCardProps {
   onClick: () => void;
   onStatusChange?: (status: string) => void;
   onDelete?: () => void;
+  isAdmin?: boolean;
 }
 
-export function TicketCard({ ticket, onClick, onStatusChange, onDelete }: TicketCardProps) {
+export function TicketCard({ ticket, onClick, onStatusChange, onDelete, isAdmin = false }: TicketCardProps) {
+  let displayStatus = ticket.status;
+  if (!isAdmin) {
+     if (['INVOICE', 'PAID'].includes(ticket.status)) {
+         displayStatus = 'CLOSED';
+     }
+  }
+
   return (
     <div 
       onClick={onClick}
@@ -65,8 +73,8 @@ export function TicketCard({ ticket, onClick, onStatusChange, onDelete }: Ticket
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs text-slate-500 w-full sm:w-auto">
           <div className="flex items-center gap-1.5">
             <span className="font-medium text-slate-400">Status:</span>
-            <Badge variant={getStatusColor(ticket.status)} size="sm">
-              {ticket.status.replace('_', ' ')}
+            <Badge variant={getStatusColor(displayStatus)} size="sm">
+              {displayStatus.replace('_', ' ')}
             </Badge>
           </div>
           <div className="flex items-center gap-1.5">

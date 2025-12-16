@@ -176,6 +176,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                         key={ticket.id}
                         ticket={ticket}
                         onClick={() => router.push(`/admin?tab=tickets&ticketId=${ticket.id}`)}
+                        isAdmin={true}
                       />
                     ))}
                   </div>
