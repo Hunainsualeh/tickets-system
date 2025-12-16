@@ -25,6 +25,7 @@ import { NoteDetailModal } from '@/app/components/NoteDetailModal';
 import { RequestDetail } from '@/app/components/RequestDetail';
 import { AnalyticsSection } from '@/app/components/AnalyticsSection';
 import { AreaChart } from '@/app/components/AreaChart';
+import { PieChart } from '@/app/components/PieChart';
 import { KanbanBoard } from '@/app/components/KanbanBoard';
 import { RequestListCard } from '@/app/components/RequestListCard';
 import NotificationBell from '@/app/components/NotificationBell';
@@ -60,6 +61,7 @@ function UserDashboardContent() {
   const [showNoteDetailModal, setShowNoteDetailModal] = useState(false);
   const [branchSearch, setBranchSearch] = useState('');
   const [showBranchSuggestions, setShowBranchSuggestions] = useState(false);
+  const [overviewTab, setOverviewTab] = useState<'tickets' | 'requests'>('tickets');
 
   // Reset page on search
   useEffect(() => {
@@ -377,6 +379,12 @@ function UserDashboardContent() {
     inProgress: tickets.filter((t) => ['ACKNOWLEDGED', 'IN_PROGRESS'].includes(t.status)).length,
     completed: tickets.filter((t) => t.status === 'COMPLETED').length,
     closed: tickets.filter((t) => ['COMPLETED', 'CLOSED', 'INVOICE', 'PAID'].includes(t.status)).length,
+    // Request Stats
+    totalRequests: requests.length,
+    pendingRequests: requests.filter((r) => r.status === 'PENDING').length,
+    approvedRequests: requests.filter((r) => r.status === 'APPROVED').length,
+    rejectedRequests: requests.filter((r) => r.status === 'REJECTED').length,
+    completedRequests: requests.filter((r) => r.status === 'COMPLETED').length,
   };
 
   const handleNavigation = () => {
@@ -792,85 +800,94 @@ function UserDashboardContent() {
                 </div>
               </div>
 
-              {/* Team Scope Selector */}
-              {user?.teams && (user as any).teams.length > 0 && (
-                <div className="mb-6 flex flex-wrap items-center gap-3">
-                  <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-lg p-1">
-                    <button
-                      onClick={() => {
-                        setScope('me');
-                        setSelectedTeamId(null);
-                      }}
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                        scope === 'me' 
-                          ? 'bg-slate-100 text-slate-900' 
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                      }`}
-                    >
-                      <UserIcon className="w-4 h-4" />
-                      My View
-                    </button>
-                    <button
-                      onClick={() => setScope('team')}
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                        scope === 'team' 
-                          ? 'bg-slate-100 text-slate-900' 
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Building2 className="w-4 h-4" />
-                      Team View
-                    </button>
+              {/* Filters Card */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
+                <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+                  {/* Left Side: View Toggle & Team Selector */}
+                  <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+                    {user?.teams && (user as any).teams.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="inline-flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+                          <button
+                            onClick={() => {
+                              setScope('me');
+                              setSelectedTeamId(null);
+                            }}
+                            className={`inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                              scope === 'me' 
+                                ? 'bg-white text-slate-900 shadow-sm' 
+                                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'
+                            }`}
+                          >
+                            <UserIcon className="w-4 h-4" />
+                            My View
+                          </button>
+                          <button
+                            onClick={() => setScope('team')}
+                            className={`inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                              scope === 'team' 
+                                ? 'bg-white text-slate-900 shadow-sm' 
+                                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'
+                            }`}
+                          >
+                            <Building2 className="w-4 h-4" />
+                            Team View
+                          </button>
+                        </div>
+
+                        {/* Team Selector */}
+                        {scope === 'team' && (
+                          <div className="w-full sm:w-48">
+                            <CustomSelect
+                              value={selectedTeamId || ''}
+                              onChange={(value) => setSelectedTeamId(value || null)}
+                              options={[
+                                { value: '', label: 'All Teams' },
+                                ...(user as any).teams.map((userTeam: any) => ({
+                                  value: userTeam.team.id,
+                                  label: userTeam.team.name
+                                }))
+                              ]}
+                              placeholder="Select a team"
+                              searchable
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Team Selector */}
-                  {scope === 'team' && (
-                    <div style={{ minWidth: '200px' }}>
+                  {/* Right Side: Filters */}
+                  <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                    <div className="w-full sm:w-40">
                       <CustomSelect
-                        value={selectedTeamId || ''}
-                        onChange={(value) => setSelectedTeamId(value || null)}
+                        value={filterPriority || 'ALL'}
+                        onChange={(value) => setFilterPriority(value === 'ALL' ? null : value)}
                         options={[
-                          { value: '', label: 'All Teams' },
-                          ...(user as any).teams.map((userTeam: any) => ({
-                            value: userTeam.team.id,
-                            label: userTeam.team.name
-                          }))
+                          { value: 'ALL', label: 'All Priorities' },
+                          { value: 'P1', label: 'P1 - High' },
+                          { value: 'P2', label: 'P2 - Medium' },
+                          { value: 'P3', label: 'P3 - Low' }
                         ]}
-                        placeholder="Select a team"
-                        searchable
+                        placeholder="Priority"
                       />
                     </div>
-                  )}
+                    <div className="w-full sm:w-40">
+                      <CustomSelect
+                        value={filterStatus || 'ALL'}
+                        onChange={(value) => setFilterStatus(value === 'ALL' ? null : value)}
+                        options={[
+                          { value: 'ALL', label: 'All Status' },
+                          { value: 'PENDING', label: 'Pending' },
+                          { value: 'IN_PROGRESS', label: 'In Progress' },
+                          { value: 'COMPLETED', label: 'Completed' },
+                          { value: 'CLOSED', label: 'Closed' }
+                        ]}
+                        placeholder="Status"
+                      />
+                    </div>
+                  </div>
                 </div>
-              )}
-
-              {/* Filters */}
-              <div className="flex flex-wrap items-center gap-3 mb-6">
-                  <CustomSelect
-                    value={filterPriority || 'ALL'}
-                    onChange={(value) => setFilterPriority(value === 'ALL' ? null : value)}
-                    options={[
-                      { value: 'ALL', label: 'All Priorities' },
-                      { value: 'P1', label: 'P1 - High' },
-                      { value: 'P2', label: 'P2 - Medium' },
-                      { value: 'P3', label: 'P3 - Low' }
-                    ]}
-                    placeholder="Filter by Priority"
-                    className="w-full sm:w-48"
-                  />
-                  <CustomSelect
-                    value={filterStatus || 'ALL'}
-                    onChange={(value) => setFilterStatus(value === 'ALL' ? null : value)}
-                    options={[
-                      { value: 'ALL', label: 'All Status' },
-                      { value: 'PENDING', label: 'Pending' },
-                      { value: 'IN_PROGRESS', label: 'In Progress' },
-                      { value: 'COMPLETED', label: 'Completed' },
-                      { value: 'CLOSED', label: 'Closed' }
-                    ]}
-                    placeholder="Filter by Status"
-                    className="w-full sm:w-48"
-                  />
               </div>
 
               <div className="space-y-4">
@@ -1166,117 +1183,249 @@ function UserDashboardContent() {
                 </div>
               </div>
 
-              {/* Stats Row - 4 Cards in 2x2 Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Stat 1: Total Tickets */}
-                <div 
-                  onClick={() => {
-                    setView('tickets');
-                    setFilterStatus('ALL');
-                  }}
-                  className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+              {/* Dashboard Tabs */}
+              <div className="flex items-center gap-4 border-b border-slate-200 mb-6">
+                <button
+                  onClick={() => setOverviewTab('tickets')}
+                  className={`pb-3 px-1 text-sm font-medium transition-colors relative ${
+                    overviewTab === 'tickets' 
+                      ? 'text-blue-600' 
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
                 >
-                  <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
-                    <MessageSquare className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Tickets</p>
-                    <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.total}</h3>
-                  </div>
-                </div>
-
-                {/* Stat 2: Pending */}
-                <div 
-                  onClick={() => {
-                    setView('tickets');
-                    setFilterStatus('PENDING');
-                  }}
-                  className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+                  Tickets Overview
+                  {overviewTab === 'tickets' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setOverviewTab('requests')}
+                  className={`pb-3 px-1 text-sm font-medium transition-colors relative ${
+                    overviewTab === 'requests' 
+                      ? 'text-blue-600' 
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
                 >
-                  <div className="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600">
-                    <Clock className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Pending</p>
-                    <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.pending}</h3>
-                  </div>
-                </div>
-
-                {/* Stat 3: In Progress */}
-                <div 
-                  onClick={() => {
-                    setView('tickets');
-                    setFilterStatus('IN_PROGRESS');
-                  }}
-                  className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
-                >
-                  <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
-                    <AlertCircle className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">In Progress</p>
-                    <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.inProgress}</h3>
-                  </div>
-                </div>
-
-                {/* Stat 4: Completed */}
-                <div 
-                  onClick={() => {
-                    setView('tickets');
-                    setFilterStatus('COMPLETED');
-                  }}
-                  className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
-                >
-                  <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
-                    <CheckCircle className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Completed</p>
-                    <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.completed}</h3>
-                  </div>
-                </div>
+                  Requests Overview
+                  {overviewTab === 'requests' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />
+                  )}
+                </button>
               </div>
 
-              {/* Charts Row - Side by Side */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Ticket Trends Chart */}
-                <div className="bg-white p-6 rounded-2xl border border-slate-200">
-                  <AreaChart 
-                    title="Ticket Trends" 
-                    subtitle="Weekly ticket activity and completion status"
-                    labels={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']}
-                    data={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((_, i) => {
-                      const dayIndex = i === 6 ? 0 : i + 1;
-                      return tickets.filter(t => new Date(t.createdAt).getDay() === dayIndex).length;
-                    })}
-                    data2={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((_, i) => {
-                      const dayIndex = i === 6 ? 0 : i + 1;
-                      return tickets.filter(t => new Date(t.createdAt).getDay() === dayIndex && t.status === 'COMPLETED').length;
-                    })}
-                    legend1="Created"
-                    legend2="Completed"
-                  />
-                </div>
+              {overviewTab === 'tickets' ? (
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  {/* Stats Row - 4 Cards in 2x2 Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Stat 1: Total Tickets */}
+                    <div 
+                      onClick={() => {
+                        setView('tickets');
+                        setFilterStatus('ALL');
+                      }}
+                      className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+                        <MessageSquare className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Tickets</p>
+                        <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.total}</h3>
+                      </div>
+                    </div>
 
-                {/* Request Trends Chart */}
-                <div className="bg-white p-6 rounded-2xl border border-slate-200">
-                  <AreaChart 
-                    title="Request Trends" 
-                    subtitle="Weekly request activity and completion status"
-                    labels={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']}
-                    data={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((_, i) => {
-                      const dayIndex = i === 6 ? 0 : i + 1;
-                      return requests.filter(r => new Date(r.createdAt).getDay() === dayIndex).length;
-                    })}
-                    data2={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((_, i) => {
-                      const dayIndex = i === 6 ? 0 : i + 1;
-                      return requests.filter(r => new Date(r.createdAt).getDay() === dayIndex && r.status === 'COMPLETED').length;
-                    })}
-                    legend1="Created"
-                    legend2="Completed"
-                  />
+                    {/* Stat 2: Pending */}
+                    <div 
+                      onClick={() => {
+                        setView('tickets');
+                        setFilterStatus('PENDING');
+                      }}
+                      className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600">
+                        <Clock className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Pending</p>
+                        <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.pending}</h3>
+                      </div>
+                    </div>
+
+                    {/* Stat 3: In Progress */}
+                    <div 
+                      onClick={() => {
+                        setView('tickets');
+                        setFilterStatus('IN_PROGRESS');
+                      }}
+                      className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
+                        <AlertCircle className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">In Progress</p>
+                        <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.inProgress}</h3>
+                      </div>
+                    </div>
+
+                    {/* Stat 4: Completed */}
+                    <div 
+                      onClick={() => {
+                        setView('tickets');
+                        setFilterStatus('COMPLETED');
+                      }}
+                      className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
+                        <CheckCircle className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Completed</p>
+                        <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.completed}</h3>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Charts Row - Side by Side */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Ticket Trends Chart */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200">
+                      <AreaChart 
+                        title="Ticket Trends" 
+                        subtitle="Weekly ticket activity and completion status"
+                        labels={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']}
+                        data={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((_, i) => {
+                          const dayIndex = i === 6 ? 0 : i + 1;
+                          return tickets.filter(t => new Date(t.createdAt).getDay() === dayIndex).length;
+                        })}
+                        data2={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((_, i) => {
+                          const dayIndex = i === 6 ? 0 : i + 1;
+                          return tickets.filter(t => new Date(t.createdAt).getDay() === dayIndex && t.status === 'COMPLETED').length;
+                        })}
+                        legend1="Created"
+                        legend2="Completed"
+                      />
+                    </div>
+
+                    {/* Ticket Status Distribution */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200">
+                      <PieChart 
+                        title="Ticket Status" 
+                        subtitle="Distribution of tickets by status"
+                        labels={['Pending', 'In Progress', 'Completed', 'Closed']}
+                        data={[stats.pending, stats.inProgress, stats.completed, stats.closed]}
+                        colors={['#F59E0B', '#8B5CF6', '#10B981', '#64748B']}
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  {/* Request Stats Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Stat 1: Total Requests */}
+                    <div 
+                      onClick={() => {
+                        setView('requests');
+                        setFilterStatus('ALL');
+                      }}
+                      className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
+                        <FileText className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Requests</p>
+                        <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.totalRequests}</h3>
+                      </div>
+                    </div>
+
+                    {/* Stat 2: Pending Requests */}
+                    <div 
+                      onClick={() => {
+                        setView('requests');
+                        setFilterStatus('PENDING');
+                      }}
+                      className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600">
+                        <Clock className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Pending Requests</p>
+                        <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.pendingRequests}</h3>
+                      </div>
+                    </div>
+
+                    {/* Stat 3: Approved Requests */}
+                    <div 
+                      onClick={() => {
+                        setView('requests');
+                        setFilterStatus('APPROVED');
+                      }}
+                      className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
+                        <CheckCircle className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Approved Requests</p>
+                        <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.approvedRequests}</h3>
+                      </div>
+                    </div>
+
+                    {/* Stat 4: Rejected Requests */}
+                    <div 
+                      onClick={() => {
+                        setView('requests');
+                        setFilterStatus('REJECTED');
+                      }}
+                      className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center text-red-600">
+                        <XCircle className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Rejected Requests</p>
+                        <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.rejectedRequests}</h3>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Request Charts Row */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Request Trends Chart */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200">
+                      <AreaChart 
+                        title="Request Trends" 
+                        subtitle="Weekly request activity"
+                        labels={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']}
+                        data={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((_, i) => {
+                          const dayIndex = i === 6 ? 0 : i + 1;
+                          return requests.filter(r => new Date(r.createdAt).getDay() === dayIndex).length;
+                        })}
+                        data2={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((_, i) => {
+                          const dayIndex = i === 6 ? 0 : i + 1;
+                          return requests.filter(r => new Date(r.createdAt).getDay() === dayIndex && r.status === 'APPROVED').length;
+                        })}
+                        legend1="Created"
+                        legend2="Approved"
+                      />
+                    </div>
+
+                    {/* Request Status Distribution */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200">
+                      <PieChart 
+                        title="Request Status" 
+                        subtitle="Distribution of requests by status"
+                        labels={['Pending', 'Approved', 'Rejected', 'Completed']}
+                        data={[stats.pendingRequests, stats.approvedRequests, stats.rejectedRequests, stats.completedRequests]}
+                        colors={['#F59E0B', '#10B981', '#EF4444', '#3B82F6']}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Recent Tickets & Requests Row */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
