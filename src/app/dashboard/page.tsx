@@ -1160,79 +1160,95 @@ function UserDashboardContent() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              {/* Left Column (2/3 width) */}
-              <div className="xl:col-span-2 space-y-8">
-                {/* Header */}
-                <div className="flex justify-between items-center">
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {/* Header */}
+              <div className="flex justify-between items-center">
+                <div>
+                  <h1 className="text-3xl font-bold text-slate-900">Hello, {user?.username}</h1>
+                  <p className="text-slate-500 mt-1">Track team progress and manage your workflow</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <NotificationBell />
+                  <div className="flex items-center gap-2 text-slate-600 bg-white px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold">
+                    <Building2 className="w-4 h-4" />
+                    <span>Valley National Bank</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats Row - 4 Cards in 2x2 Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Stat 1: Total Tickets */}
+                <div 
+                  onClick={() => {
+                    setView('tickets');
+                    setFilterStatus('ALL');
+                  }}
+                  className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+                >
+                  <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+                    <MessageSquare className="w-6 h-6" />
+                  </div>
                   <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Hello, {user?.username}</h1>
-                    <p className="text-slate-500">Track team progress here. You almost reach a goal!</p>
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-sm">
-                    <Calendar className="w-4 h-4" />
-                    <span>{new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Tickets</p>
+                    <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.total}</h3>
                   </div>
                 </div>
 
-                {/* Stats Row */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Stat 1: Total Tickets */}
-                  <div 
-                    onClick={() => {
-                      setView('tickets');
-                      setFilterStatus('ALL');
-                    }}
-                    className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center gap-4 cursor-pointer hover:shadow-md transition-all"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-900">
-                      <MessageSquare className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-500">Total Tickets</p>
-                      <div className="flex items-baseline gap-2">
-                        <h3 className="text-2xl font-bold text-slate-900">{stats.total}</h3>
-                      </div>
-                    </div>
+                {/* Stat 2: Pending */}
+                <div 
+                  onClick={() => {
+                    setView('tickets');
+                    setFilterStatus('PENDING');
+                  }}
+                  className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+                >
+                  <div className="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600">
+                    <Clock className="w-6 h-6" />
                   </div>
-                  {/* Stat 2: Pending */}
-                  <div 
-                    onClick={() => {
-                      setView('tickets');
-                      setFilterStatus('PENDING');
-                    }}
-                    className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center gap-4 cursor-pointer hover:shadow-md transition-all"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-900">
-                      <Clock className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-500">Pending</p>
-                      <div className="flex items-baseline gap-2">
-                        <h3 className="text-2xl font-bold text-slate-900">{stats.open}</h3>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Stat 3: Completed */}
-                  <div 
-                    onClick={() => {
-                      setView('tickets');
-                      setFilterStatus('COMPLETED');
-                    }}
-                    className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center gap-4 cursor-pointer hover:shadow-md transition-all"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-900">
-                      <CheckCircle className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-500">Completed</p>
-                      <div className="flex items-baseline gap-2">
-                        <h3 className="text-2xl font-bold text-slate-900">{stats.closed}</h3>
-                      </div>
-                    </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Pending</p>
+                    <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.pending}</h3>
                   </div>
                 </div>
 
+                {/* Stat 3: In Progress */}
+                <div 
+                  onClick={() => {
+                    setView('tickets');
+                    setFilterStatus('IN_PROGRESS');
+                  }}
+                  className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+                >
+                  <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
+                    <AlertCircle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">In Progress</p>
+                    <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.inProgress}</h3>
+                  </div>
+                </div>
+
+                {/* Stat 4: Completed */}
+                <div 
+                  onClick={() => {
+                    setView('tickets');
+                    setFilterStatus('COMPLETED');
+                  }}
+                  className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col items-start gap-3 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+                >
+                  <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
+                    <CheckCircle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Completed</p>
+                    <h3 className="text-3xl font-bold text-slate-900 mt-1">{stats.completed}</h3>
+                  </div>
+                </div>
+              </div>
+
+              {/* Charts Row - Side by Side */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Ticket Trends Chart */}
                 <div className="bg-white p-6 rounded-2xl border border-slate-200">
                   <AreaChart 
@@ -1270,39 +1286,35 @@ function UserDashboardContent() {
                     legend2="Completed"
                   />
                 </div>
+              </div>
 
+              {/* Recent Tickets & Requests Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recent Tickets (Current Tasks) */}
                 <div className="bg-white p-6 rounded-2xl border border-slate-200">
                   <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-bold text-slate-900">Recent Tickets</h3>
-                    <select className="text-sm border-none bg-slate-50 rounded-lg px-3 py-1 text-slate-600 focus:ring-0 outline-none">
-                      <option>Week</option>
-                    </select>
+                    <h3 className="text-lg font-bold text-slate-900">Recent Tickets</h3>
+                    <button onClick={() => setView('tickets')} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                      View All →
+                    </button>
                   </div>
-                  <div className="space-y-4">
-                    {tickets.slice(0, 3).map(ticket => (
-                      <div key={ticket.id} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer" onClick={() => setSelectedTicket(ticket)}>
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
-                            <CheckCircle className="w-5 h-5" />
+                  <div className="space-y-3">
+                    {tickets.slice(0, 5).map(ticket => (
+                      <div key={ticket.id} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer border border-slate-100" onClick={() => setSelectedTicket(ticket)}>
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                            <MessageSquare className="w-5 h-5" />
                           </div>
-                          <div>
-                            <h4 className="font-semibold text-slate-900">{ticket.issue}</h4>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-slate-900 text-sm truncate">{ticket.issue}</h4>
                             <p className="text-xs text-slate-500">{ticket.branch?.name}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-8">
+                        <div className="flex items-center gap-4 shrink-0 ml-4">
                           <div className="flex items-center gap-2">
                             <div className={`w-2 h-2 rounded-full ${getStatusColor(ticket.status)}`} />
-                            <span className="text-sm font-medium text-slate-700">{ticket.status.replace('_', ' ')}</span>
+                            <span className="text-xs font-medium text-slate-700 whitespace-nowrap">{ticket.status.replace('_', ' ')}</span>
                           </div>
-                          <div className="flex items-center gap-2 text-slate-500">
-                            <Clock className="w-4 h-4" />
-                            <span className="text-sm">{formatRelativeTime(ticket.createdAt)}</span>
-                          </div>
-                          <button className="text-slate-400 hover:text-slate-600">
-                            <MoreVertical className="w-5 h-5" />
-                          </button>
                         </div>
                       </div>
                     ))}
@@ -1311,65 +1323,29 @@ function UserDashboardContent() {
                     )}
                   </div>
                 </div>
-              </div>
 
-              {/* Right Column (1/3 width) */}
-              <div className="space-y-8">
-                {/* Profile Card */}
-<div className="relative bg-white/70 backdrop-blur-md p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all text-center">
-  
-  {/* Avatar */}
-  <div className="relative w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-2xl font-semibold text-white shadow-inner">
-    {user?.username?.charAt(0).toUpperCase()}
-  </div>
-
-  {/* User Info */}
-  <h3 className="font-semibold text-slate-900 text-lg leading-tight">
-    {user?.username}
-  </h3>
-
-  <p className="text-slate-500 text-sm mb-5">
-    @{user?.username?.toLowerCase().replace(/\s+/g, "")}
-  </p>
-
-  {/* Divider */}
-  <div className="h-px bg-slate-200/70 mb-5" />
-
-  {/* Meta / Actions */}
-  <div className="flex justify-center gap-3">
-    <span className="px-3 py-1 text-xs rounded-full bg-slate-100 text-slate-600">
-      Active User
-    </span>
-  </div>
-</div>
-
-
-                {/* Requests (Activity) */}
+                {/* Recent Requests Activity */}
                 <div className="bg-white p-6 rounded-2xl border border-slate-200">
-                  <h3 className="font-bold text-slate-900 mb-6">Requests</h3>
-                  <div className="space-y-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-bold text-slate-900">Recent Requests</h3>
+                    <button onClick={() => setView('requests')} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                      View All →
+                    </button>
+                  </div>
+                  <div className="space-y-3">
                     {requests.slice(0, 5).map(request => (
-                      <div key={request.id} className="flex gap-4 cursor-pointer" onClick={() => setSelectedRequest(request)}>
-                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
-                          {request.user?.username?.charAt(0).toUpperCase()}
+                      <div key={request.id} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer border border-slate-100" onClick={() => setSelectedRequest(request)}>
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600 shrink-0 text-sm font-semibold">
+                            {request.user?.username?.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-slate-900 text-sm truncate">{request.title}</h4>
+                            <p className="text-xs text-slate-500">{request.user?.username}</p>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start mb-1">
-                            <h4 className="font-bold text-slate-900 text-sm">{request.user?.username}</h4>
-                            <span className="text-xs text-slate-400 whitespace-nowrap ml-2">{formatRelativeTime(request.createdAt)}</span>
-                          </div>
-                          <p className="text-xs text-slate-500 mb-2">Submitted a new request</p>
-                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white shrink-0">
-                                <FileText className="w-4 h-4" />
-                              </div>
-                              <div className="overflow-hidden">
-                                <h5 className="font-semibold text-slate-900 text-sm truncate">{request.title}</h5>
-                                <p className="text-xs text-slate-500 truncate">{request.description}</p>
-                              </div>
-                            </div>
-                          </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-4">
+                          <span className="text-xs text-slate-400 whitespace-nowrap">{formatRelativeTime(request.createdAt)}</span>
                         </div>
                       </div>
                     ))}
@@ -1377,20 +1353,6 @@ function UserDashboardContent() {
                       <div className="text-center py-8 text-slate-500">No recent requests</div>
                     )}
                   </div>
-                  
-                  {/* Message Input
-                  <div className="mt-6 relative">
-                    <input 
-                      type="text" 
-                      placeholder="Write a message..." 
-                      className="w-full bg-slate-50 border-none rounded-xl py-3 pl-10 pr-4 text-sm focus:ring-0 outline-none"
-                    />
-                    <Paperclip className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-2">
-                      <Smile className="w-4 h-4 text-slate-400" />
-                      <Mic className="w-4 h-4 text-slate-400" />
-                    </div>
-                  </div> */}
                 </div>
               </div>
             </div>
