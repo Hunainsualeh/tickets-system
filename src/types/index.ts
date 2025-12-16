@@ -67,6 +67,10 @@ export interface Ticket {
   statusHistory?: StatusHistory[];
   attachments?: Attachment[];
   notes?: TicketNote[];
+  localContactName?: string | null;
+  localContactEmail?: string | null;
+  localContactPhone?: string | null;
+  timezone?: string | null;
 }
 
 export interface StatusHistory {

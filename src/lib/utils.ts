@@ -44,6 +44,40 @@ export const formatDate = (dateString: string) => {
   }).format(date);
 };
 
+export const formatDateInTimezone = (dateString: string, timezone: string) => {
+  try {
+    const date = new Date(dateString);
+    // Map common abbreviations to IANA timezones if needed, or assume valid IANA strings
+    // For this specific app, the dropdown values are abbreviations like 'EST', 'CST', etc.
+    // These are not valid IANA timezones for Intl.DateTimeFormat in all browsers.
+    // We should map them.
+    
+    const timezoneMap: Record<string, string> = {
+      'EST': 'America/New_York',
+      'CST': 'America/Chicago',
+      'MST': 'America/Denver',
+      'PST': 'America/Los_Angeles',
+      'AST': 'America/Anchorage',
+      'HST': 'Pacific/Honolulu',
+    };
+
+    const ianaTimezone = timezoneMap[timezone] || timezone;
+
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: ianaTimezone,
+      timeZoneName: 'short'
+    }).format(date);
+  } catch (error) {
+    console.error('Error formatting date in timezone:', error);
+    return formatDate(dateString); // Fallback to local time
+  }
+};
+
 export const formatRelativeTime = (dateString: string) => {
   const date = new Date(dateString);
   const now = new Date();

@@ -126,6 +126,21 @@ export async function GET(request: NextRequest) {
             createdAt: 'desc',
           },
         },
+        attachments: true,
+        notes: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                role: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',

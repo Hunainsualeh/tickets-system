@@ -490,10 +490,11 @@ function UserDashboardContent() {
                           placeholder="Type to search branch..."
                           className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                         />
-                        {showBranchSuggestions && branchSearch && (
+                        {showBranchSuggestions && (
                           <div className="absolute z-20 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto mt-1">
                             {branches
                               .filter(b => 
+                                !branchSearch ||
                                 b.name.toLowerCase().includes(branchSearch.toLowerCase()) || 
                                 b.branchNumber.includes(branchSearch)
                               )
@@ -511,6 +512,7 @@ function UserDashboardContent() {
                                 </div>
                               ))}
                             {branches.filter(b => 
+                                !branchSearch ||
                                 b.name.toLowerCase().includes(branchSearch.toLowerCase()) || 
                                 b.branchNumber.includes(branchSearch)
                               ).length === 0 && (
@@ -562,6 +564,7 @@ function UserDashboardContent() {
                               { value: 'HST', label: 'Hawaii-Aleutian Standard Time (HST)' },
                             ]}
                             placeholder="Select Time Zone"
+                            searchable
                           />
                         </div>
                       </div>
