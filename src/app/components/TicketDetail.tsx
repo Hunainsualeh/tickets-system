@@ -95,7 +95,7 @@ export function TicketDetail({
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-24 animate-in fade-in duration-500 font-sans">
+    <div className="w-full pb-24 animate-in fade-in duration-500 font-sans px-4 sm:px-6 lg:px-8">
       
       {/* --- Top Bar --- */}
       <div className="flex items-center justify-between py-6 px-4 sm:px-0">
