@@ -51,11 +51,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Sanitize username (prevent injection)
-    const sanitizedUsername = username.trim().toLowerCase();
+    const sanitizedUsername = username.trim();
 
     // Check rate limiting
     const clientIp = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitKey = `${clientIp}:${sanitizedUsername}`;
+    const rateLimitKey = `${clientIp}:${sanitizedUsername.toLowerCase()}`;
 
     if (!checkRateLimit(rateLimitKey)) {
       return NextResponse.json(
@@ -67,14 +67,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user in database
-    const user = await prisma.user.findUnique({
-      where: { username: sanitizedUsername },
+    // Find user in database (case-insensitive)
+    const user = await prisma.user.findFirst({
+      where: { 
+        username: {
+          equals: sanitizedUsername,
+          mode: 'insensitive'
+        }
+      },
       select: {
         id: true,
         username: true,
         password: true,
         role: true,
+        isActive: true,
         teamId: true,
         createdAt: true,
         teams: {
@@ -90,6 +96,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Invalid username or password' },
         { status: 401 }
+      );
+    }
+
+    if (user.isActive === false) {
+      return NextResponse.json(
+        { error: 'User is inactive. Contact admin for reactivation.' },
+        { status: 403 }
       );
     }
 

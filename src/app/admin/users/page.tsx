@@ -9,7 +9,7 @@ import { Button } from '@/app/components/Button';
 import { Modal } from '@/app/components/Modal';
 import { Input } from '@/app/components/Input';
 import { StatCard } from '@/app/components/StatCard';
-import { Users, Plus, Edit, Trash2, UserPlus, Shield, UserCheck, Building2, Eye, EyeOff } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, UserPlus, Shield, UserCheck, Building2, Eye, EyeOff, Key } from 'lucide-react';
 
 function UsersManagementContent() {
   const router = useRouter();
@@ -32,6 +32,15 @@ function UsersManagementContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<{ id: string; username: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Password Update State
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordUpdateUser, setPasswordUpdateUser] = useState<{ id: string; username: string } | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+
+  // Status Update State
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusUpdateUser, setStatusUpdateUser] = useState<{ id: string; username: string; isActive: boolean } | null>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -161,6 +170,51 @@ function UsersManagementContent() {
     }));
   };
 
+  const openPasswordModal = (user: any) => {
+    setPasswordUpdateUser({ id: user.id, username: user.username });
+    setNewPassword('');
+    setShowPasswordModal(true);
+  };
+
+  const handlePasswordUpdate = async () => {
+    if (!passwordUpdateUser || !newPassword.trim()) {
+      toast.warning('Please enter a new password');
+      return;
+    }
+
+    try {
+      await apiClient.updateUser(passwordUpdateUser.id, { password: newPassword });
+      toast.success(`Password updated for user "${passwordUpdateUser.username}"`);
+      setShowPasswordModal(false);
+      setPasswordUpdateUser(null);
+      setNewPassword('');
+    } catch (error) {
+      console.error('Error updating password:', error);
+      toast.error('Failed to update password');
+    }
+  };
+
+  const openStatusModal = (user: any) => {
+    setStatusUpdateUser({ id: user.id, username: user.username, isActive: user.isActive ?? true });
+    setShowStatusModal(true);
+  };
+
+  const handleStatusUpdate = async () => {
+    if (!statusUpdateUser) return;
+
+    try {
+      const newStatus = !statusUpdateUser.isActive;
+      await apiClient.updateUser(statusUpdateUser.id, { isActive: newStatus });
+      toast.success(`User "${statusUpdateUser.username}" ${newStatus ? 'activated' : 'deactivated'} successfully`);
+      setShowStatusModal(false);
+      setStatusUpdateUser(null);
+      fetchData();
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      toast.error('Failed to update user status');
+    }
+  };
+
   return (
     <div className="flex h-screen bg-slate-50">
       <Sidebar userRole="ADMIN" username={user?.username} />
@@ -236,6 +290,9 @@ function UsersManagementContent() {
                         Teams
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                         Tickets
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
@@ -288,12 +345,35 @@ function UsersManagementContent() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
+                          <div 
+                            onClick={() => openStatusModal(user)}
+                            className="relative w-32 h-8 bg-slate-200 rounded-full p-1 cursor-pointer select-none transition-colors hover:bg-slate-300"
+                          >
+                            <div className="flex justify-between items-center h-full px-2 text-[10px] font-bold">
+                              <span className={`z-10 w-1/2 text-center ${user.isActive !== false ? 'text-slate-900' : 'text-slate-500'}`}>ACTIVE</span>
+                              <span className={`z-10 w-1/2 text-center ${user.isActive === false ? 'text-slate-900' : 'text-slate-500'}`}>INACTIVE</span>
+                            </div>
+                            <div 
+                              className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-full shadow-sm transition-all duration-300 ease-in-out ${
+                                user.isActive !== false ? 'left-1' : 'left-[calc(50%+2px)]'
+                              }`}
+                            ></div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
                           <span className="text-sm text-slate-600">
                             {user._count?.tickets || 0} tickets
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => openPasswordModal(user)}
+                              className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              title="Change Password"
+                            >
+                              <Key className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={() => openEditModal(user)}
                               className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -586,6 +666,96 @@ function UsersManagementContent() {
               className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-500"
             >
               Delete User
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Password Update Modal */}
+      <Modal
+        isOpen={showPasswordModal}
+        onClose={() => {
+          setShowPasswordModal(false);
+          setPasswordUpdateUser(null);
+          setNewPassword('');
+        }}
+        title="Change Password"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Enter a new password for user <span className="font-semibold text-slate-900">{passwordUpdateUser?.username}</span>.
+          </p>
+          <Input
+            label="New Password"
+            type={showPassword ? 'text' : 'password'}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Enter new password"
+            required
+            rightElement={
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="hover:text-slate-700 transition-colors focus:outline-none"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            }
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button 
+              variant="ghost" 
+              onClick={() => {
+                setShowPasswordModal(false);
+                setPasswordUpdateUser(null);
+                setNewPassword('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handlePasswordUpdate}>
+              Update Password
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Status Update Modal */}
+      <Modal
+        isOpen={showStatusModal}
+        onClose={() => {
+          setShowStatusModal(false);
+          setStatusUpdateUser(null);
+        }}
+        title={statusUpdateUser?.isActive ? 'Deactivate User' : 'Activate User'}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-slate-600">
+            Are you sure you want to {statusUpdateUser?.isActive ? 'deactivate' : 'activate'} user <span className="font-semibold text-slate-900">{statusUpdateUser?.username}</span>?
+          </p>
+          {statusUpdateUser?.isActive && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+              Deactivated users will not be able to log in or perform any actions.
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button 
+              variant="ghost" 
+              onClick={() => {
+                setShowStatusModal(false);
+                setStatusUpdateUser(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleStatusUpdate}
+              className={statusUpdateUser?.isActive ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}
+            >
+              {statusUpdateUser?.isActive ? 'Deactivate User' : 'Activate User'}
             </Button>
           </div>
         </div>

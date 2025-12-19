@@ -26,6 +26,7 @@ export async function GET(request: NextRequest, context: Params) {
         id: true,
         username: true,
         role: true,
+        isActive: true,
         teamId: true,
         createdAt: true,
         updatedAt: true,
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest, context: Params) {
   } catch (error) {
     console.error('Get user error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: String(error) },
       { status: 500 }
     );
   }
@@ -66,7 +67,7 @@ export async function PUT(request: NextRequest, context: Params) {
   }
 
   try {
-    const { username, password, role, teamIds } = await request.json();
+    const { username, password, role, teamIds, isActive } = await request.json();
 
     // Validate teams if provided
     if (teamIds !== undefined && Array.isArray(teamIds) && teamIds.length > 0) {
@@ -84,8 +85,34 @@ export async function PUT(request: NextRequest, context: Params) {
 
     const updateData: any = {};
     
-    if (username) updateData.username = username;
+    if (username) {
+      const sanitizedUsername = username.trim().toLowerCase();
+      
+      // Check if username exists (excluding current user)
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          username: {
+            equals: sanitizedUsername,
+            mode: 'insensitive'
+          },
+          NOT: {
+            id: params.id
+          }
+        }
+      });
+
+      if (existingUser) {
+        return NextResponse.json(
+          { error: 'Username already exists' },
+          { status: 409 }
+        );
+      }
+
+      updateData.username = sanitizedUsername;
+    }
+    
     if (role) updateData.role = role;
+    if (isActive !== undefined) updateData.isActive = isActive;
     if (password) {
       updateData.password = await hashPassword(password);
     }

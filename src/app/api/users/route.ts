@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
         id: true,
         username: true,
         role: true,
+        isActive: true,
         teamId: true,
         createdAt: true,
         updatedAt: true,
@@ -38,9 +39,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ users });
   } catch (error) {
-    console.error('Get users error:', error);
+    console.error('Get users error details:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: String(error) },
       { status: 500 }
     );
   }
@@ -64,9 +65,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if username already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { username },
+    // Sanitize username
+    const sanitizedUsername = username.trim().toLowerCase();
+
+    // Check if username already exists (case-insensitive)
+    const existingUser = await prisma.user.findFirst({
+      where: { 
+        username: {
+          equals: sanitizedUsername,
+          mode: 'insensitive'
+        }
+      },
     });
 
     if (existingUser) {
@@ -94,7 +103,7 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.create({
       data: {
-        username,
+        username: sanitizedUsername,
         password: hashedPassword,
         role: role || 'USER',
         teams: teamIds && Array.isArray(teamIds) && teamIds.length > 0 ? {
