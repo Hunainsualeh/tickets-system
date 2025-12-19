@@ -9,7 +9,7 @@ import { Button } from '@/app/components/Button';
 import { Modal } from '@/app/components/Modal';
 import { Input } from '@/app/components/Input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/Table';
-import { Edit2, Trash2, ArrowLeft, Users, UserMinus, Search, Shield } from 'lucide-react';
+import { Edit2, Trash2, ArrowLeft, Users, UserMinus, Search, Shield, UserPlus } from 'lucide-react';
 
 function TeamsListPageContent() {
   const router = useRouter();
@@ -24,6 +24,15 @@ function TeamsListPageContent() {
   const [editingTeam, setEditingTeam] = useState<any>(null);
   const [editForm, setEditForm] = useState({ name: '' });
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
+
+  // Add Member Modal State
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [selectedUsersToAdd, setSelectedUsersToAdd] = useState<string[]>([]);
+  const [addMemberSearchQuery, setAddMemberSearchQuery] = useState('');
+
+  // Remove Member Modal State
+  const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<{ id: string; username: string } | null>(null);
 
   // Delete Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -97,35 +106,92 @@ function TeamsListPageContent() {
     }
   };
 
-  const handleRemoveMember = async (userId: string) => {
-    if (!confirm('Are you sure you want to remove this member from the team?')) {
-      return;
-    }
+  const handleRemoveMember = (userId: string, username: string) => {
+    setMemberToRemove({ id: userId, username });
+    setShowRemoveMemberModal(true);
+  };
+
+  const confirmRemoveMember = async () => {
+    if (!memberToRemove || !editingTeam) return;
 
     try {
-      const userToUpdate = allUsers.find((u) => u.id === userId);
+      const userToUpdate = allUsers.find((u) => u.id === memberToRemove.id);
       if (!userToUpdate) return;
 
       const currentTeamIds = userToUpdate.teams?.map((ut: any) => ut.team.id) || [];
       const newTeamIds = currentTeamIds.filter((id: string) => id !== editingTeam.id);
 
-      await apiClient.updateUser(userId, {
+      await apiClient.updateUser(memberToRemove.id, {
         teamIds: newTeamIds,
       });
 
       toast.success(`Member removed from team successfully`);
       
-      // Refresh data
-      await fetchTeams();
-      
-      // Update the editing team state
-      const updatedTeam = teams.find(t => t.id === editingTeam.id);
-      if (updatedTeam) {
-        setEditingTeam(updatedTeam);
-      }
+      // Update local state immediately
+      setEditingTeam((prev: any) => ({
+        ...prev,
+        users: prev.users.filter((u: any) => u.id !== memberToRemove.id)
+      }));
+
+      // Refresh data in background
+      fetchTeams();
     } catch (error) {
       console.error('Error removing member:', error);
       toast.error('Failed to remove member from team');
+    } finally {
+      setShowRemoveMemberModal(false);
+      setMemberToRemove(null);
+    }
+  };
+
+  const handleAddMemberClick = () => {
+    setSelectedUsersToAdd([]);
+    setAddMemberSearchQuery('');
+    setShowAddMemberModal(true);
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsersToAdd((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const confirmAddMembers = async () => {
+    if (selectedUsersToAdd.length === 0 || !editingTeam) return;
+
+    try {
+      await Promise.all(
+        selectedUsersToAdd.map((userId) => {
+          const user = allUsers.find((u) => u.id === userId);
+          const currentTeamIds = user?.teams?.map((ut: any) => ut.team.id) || [];
+          if (!currentTeamIds.includes(editingTeam.id)) {
+            return apiClient.updateUser(userId, {
+              teamIds: [...currentTeamIds, editingTeam.id],
+            });
+          }
+          return Promise.resolve();
+        })
+      );
+
+      toast.success(`${selectedUsersToAdd.length} member(s) added successfully`);
+      
+      // Update local state immediately
+      const addedUsers = allUsers.filter(u => selectedUsersToAdd.includes(u.id));
+      setEditingTeam((prev: any) => ({
+        ...prev,
+        users: [...(prev.users || []), ...addedUsers]
+      }));
+
+      // Refresh data in background
+      fetchTeams();
+
+      setShowAddMemberModal(false);
+      setSelectedUsersToAdd([]);
+    } catch (error) {
+      console.error('Error adding members:', error);
+      toast.error('Failed to add members');
     }
   };
 
@@ -239,7 +305,13 @@ function TeamsListPageContent() {
 
           {/* Members Management Section */}
           <div className="border-t border-slate-200 pt-6">
-            <h3 className="text-sm font-semibold text-slate-900 mb-4">Team Members</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-slate-900">Team Members</h3>
+              <Button size="sm" onClick={handleAddMemberClick} className="flex items-center gap-1">
+                <UserPlus className="w-3 h-3" />
+                Add Member
+              </Button>
+            </div>
             
             {/* Search Box */}
             <div className="relative mb-4">
@@ -283,7 +355,7 @@ function TeamsListPageContent() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleRemoveMember(member.id)}
+                            onClick={() => handleRemoveMember(member.id, member.username)}
                             className="text-red-600 hover:text-red-700 hover:bg-red-50 shrink-0"
                           >
                             <UserMinus className="w-4 h-4 mr-1" />
@@ -322,6 +394,123 @@ function TeamsListPageContent() {
             </Button>
             <Button onClick={handleUpdateTeam}>
               Update Team
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Remove Member Confirmation Modal */}
+      <Modal
+        isOpen={showRemoveMemberModal}
+        onClose={() => setShowRemoveMemberModal(false)}
+        title="Remove Team Member"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-slate-600">
+            Are you sure you want to remove <span className="font-bold text-slate-900">{memberToRemove?.username}</span> from this team?
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setShowRemoveMemberModal(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmRemoveMember}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Remove Member
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Add Member Modal */}
+      <Modal
+        isOpen={showAddMemberModal}
+        onClose={() => {
+          setShowAddMemberModal(false);
+          setSelectedUsersToAdd([]);
+        }}
+        title="Add Members to Team"
+      >
+        <div className="space-y-4">
+          <div className="relative">
+            <input
+              type="text"
+              value={addMemberSearchQuery}
+              onChange={(e) => setAddMemberSearchQuery(e.target.value)}
+              placeholder="Search users to add..."
+              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          </div>
+
+          <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+            <div className="max-h-64 overflow-y-auto">
+              {(() => {
+                const currentMemberIds = editingTeam?.users?.map((u: any) => u.id) || [];
+                const availableUsers = allUsers.filter(u => !currentMemberIds.includes(u.id));
+                const filteredUsers = availableUsers.filter(u => 
+                  u.username.toLowerCase().includes(addMemberSearchQuery.toLowerCase())
+                );
+
+                if (availableUsers.length === 0) {
+                  return (
+                    <div className="p-6 text-center">
+                      <p className="text-sm text-slate-500">All users are already in this team</p>
+                    </div>
+                  );
+                }
+
+                if (filteredUsers.length === 0) {
+                  return (
+                    <div className="p-6 text-center">
+                      <p className="text-sm text-slate-500">No users found</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="divide-y divide-slate-100">
+                    {filteredUsers.map((user) => (
+                      <label
+                        key={user.id}
+                        className={`flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer transition-colors ${
+                          selectedUsersToAdd.includes(user.id) ? 'bg-blue-50' : ''
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedUsersToAdd.includes(user.id)}
+                          onChange={() => toggleUserSelection(user.id)}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                          {user.username.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-slate-900 truncate">{user.username}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowAddMemberModal(false);
+                setSelectedUsersToAdd([]);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={confirmAddMembers} disabled={selectedUsersToAdd.length === 0}>
+              Add Selected ({selectedUsersToAdd.length})
             </Button>
           </div>
         </div>

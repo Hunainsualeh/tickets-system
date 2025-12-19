@@ -9,7 +9,7 @@ import { Button } from '@/app/components/Button';
 import { Modal } from '@/app/components/Modal';
 import { Input } from '@/app/components/Input';
 import { StatCard } from '@/app/components/StatCard';
-import { Users, Plus, Edit, Trash2, UserPlus, Shield, UserCheck, Building2 } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, UserPlus, Shield, UserCheck, Building2, Eye, EyeOff } from 'lucide-react';
 
 function UsersManagementContent() {
   const router = useRouter();
@@ -29,6 +29,9 @@ function UsersManagementContent() {
     teamIds: [] as string[],
   });
   const [teamSearchQuery, setTeamSearchQuery] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<{ id: string; username: string } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -73,6 +76,7 @@ function UsersManagementContent() {
       role: 'USER',
       teamIds: [],
     });
+    setShowPassword(false);
     setShowModal(true);
   };
 
@@ -85,6 +89,7 @@ function UsersManagementContent() {
       role: user.role,
       teamIds: user.teams?.map((ut: any) => ut.team.id) || [],
     });
+    setShowPassword(false);
     setShowModal(true);
   };
 
@@ -126,18 +131,24 @@ function UsersManagementContent() {
     }
   };
 
-  const handleDelete = async (userId: string, username: string) => {
-    if (!window.confirm(`Are you sure you want to delete user "${username}"?`)) {
-      return;
-    }
+  const handleDelete = (userId: string, username: string) => {
+    setUserToDelete({ id: userId, username });
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
 
     try {
-      await apiClient.deleteUser(userId);
-      toast.error(`User "${username}" deleted successfully`);
+      await apiClient.deleteUser(userToDelete.id);
+      toast.success(`User "${userToDelete.username}" deleted successfully`);
       fetchData();
     } catch (error) {
       console.error('Error deleting user:', error);
       toast.error('Failed to delete user');
+    } finally {
+      setShowDeleteModal(false);
+      setUserToDelete(null);
     }
   };
 
@@ -329,11 +340,21 @@ function UsersManagementContent() {
 
           <Input
             label={modalMode === 'create' ? 'Password' : 'Password (leave empty to keep current)'}
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             value={userForm.password}
             onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
             placeholder="Enter password"
             required={modalMode === 'create'}
+            rightElement={
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="hover:text-slate-700 transition-colors focus:outline-none"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            }
           />
 
           {/* Improved Role Selector */}
@@ -540,6 +561,31 @@ function UsersManagementContent() {
             </Button>
             <Button onClick={handleSubmit}>
               {modalMode === 'create' ? 'Create User' : 'Update User'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete User"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-slate-600">
+            Are you sure you want to delete user <span className="font-semibold text-slate-900">{userToDelete?.username}</span>? This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-500"
+            >
+              Delete User
             </Button>
           </div>
         </div>
