@@ -9,7 +9,7 @@ import { Button } from '@/app/components/Button';
 import { Modal } from '@/app/components/Modal';
 import { Input } from '@/app/components/Input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/Table';
-import { Edit2, Trash2, ArrowLeft, Users, UserMinus, Search, Shield, UserPlus } from 'lucide-react';
+import { Edit2, Trash2, ArrowLeft, Users, UserMinus, Search, Shield, UserPlus, Plus } from 'lucide-react';
 
 function TeamsListPageContent() {
   const router = useRouter();
@@ -37,6 +37,7 @@ function TeamsListPageContent() {
   // Delete Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingTeam, setDeletingTeam] = useState<any>(null);
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -93,7 +94,26 @@ function TeamsListPageContent() {
     setShowDeleteModal(true);
   };
 
+  const handleBulkDeleteTeams = () => {
+    setShowDeleteModal(true);
+  };
+
   const handleDeleteTeam = async () => {
+    if (selectedTeamIds.length > 0) {
+      try {
+        await Promise.all(selectedTeamIds.map(id => apiClient.deleteTeam(id)));
+        toast.success(`${selectedTeamIds.length} teams deleted successfully`);
+        setSelectedTeamIds([]);
+        fetchTeams();
+      } catch (error) {
+        console.error('Error deleting teams:', error);
+        toast.error('Failed to delete teams');
+      } finally {
+        setShowDeleteModal(false);
+      }
+      return;
+    }
+
     try {
       await apiClient.deleteTeam(deletingTeam.id);
       toast.error(`Team "${deletingTeam.name}" deleted successfully`);
@@ -103,6 +123,22 @@ function TeamsListPageContent() {
     } catch (error: any) {
       console.error('Error deleting team:', error);
       toast.error(error.message || 'Failed to delete team');
+    }
+  };
+
+  const toggleTeamSelection = (teamId: string) => {
+    setSelectedTeamIds((prev) =>
+      prev.includes(teamId)
+        ? prev.filter((id) => id !== teamId)
+        : [...prev, teamId]
+    );
+  };
+
+  const toggleAllTeams = () => {
+    if (selectedTeamIds.length === teams.length) {
+      setSelectedTeamIds([]);
+    } else {
+      setSelectedTeamIds(teams.map((t) => t.id));
     }
   };
 
@@ -216,6 +252,17 @@ function TeamsListPageContent() {
                 <h1 className="text-3xl font-bold text-slate-900 mb-2">All Teams</h1>
                 <p className="text-slate-600">Manage all teams in the system</p>
               </div>
+              {selectedTeamIds.length > 0 ? (
+                <Button variant="danger" onClick={handleBulkDeleteTeams}>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Selected ({selectedTeamIds.length})
+                </Button>
+              ) : (
+                <Button onClick={() => router.push('/admin/teams')}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Team
+                </Button>
+              )}
             </div>
           </div>
 
@@ -234,6 +281,14 @@ function TeamsListPageContent() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-4">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        checked={teams.length > 0 && selectedTeamIds.length === teams.length}
+                        onChange={toggleAllTeams}
+                      />
+                    </TableHead>
                     <TableHead>Team Name</TableHead>
                     <TableHead>Members</TableHead>
                     <TableHead>Created At</TableHead>
@@ -243,6 +298,14 @@ function TeamsListPageContent() {
                 <TableBody>
                   {teams.map((team) => (
                     <TableRow key={team.id}>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          checked={selectedTeamIds.includes(team.id)}
+                          onChange={() => toggleTeamSelection(team.id)}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="font-medium text-slate-900">{team.name}</div>
                       </TableCell>
@@ -523,12 +586,14 @@ function TeamsListPageContent() {
           setShowDeleteModal(false);
           setDeletingTeam(null);
         }}
-        title="Delete Team"
+        title={selectedTeamIds.length > 0 ? "Delete Teams" : "Delete Team"}
       >
         <div className="space-y-4">
           <p className="text-slate-600">
-            Are you sure you want to delete the team <span className="font-bold text-slate-900">{deletingTeam?.name}</span>?
-            This action cannot be undone.
+            {selectedTeamIds.length > 0
+              ? `Are you sure you want to delete ${selectedTeamIds.length} teams? This action cannot be undone.`
+              : <>Are you sure you want to delete the team <span className="font-bold text-slate-900">{deletingTeam?.name}</span>? This action cannot be undone.</>
+            }
           </p>
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
             Note: You cannot delete a team that has members. Please remove or reassign members first.
@@ -548,7 +613,7 @@ function TeamsListPageContent() {
               onClick={handleDeleteTeam}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
-              Delete Team
+              {selectedTeamIds.length > 0 ? "Delete Teams" : "Delete Team"}
             </Button>
           </div>
         </div>

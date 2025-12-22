@@ -3,7 +3,9 @@ import { Ticket, User } from '@/types'; // Adjust imports as needed
 import { Button } from './Button';
 import { Textarea } from './Textarea';
 import { StatusSelect } from './StatusSelect';
+import { CustomSelect } from './CustomSelect';
 import { Badge } from './Badge';
+import { Modal } from './Modal';
 import { 
   ArrowLeft, 
   History, 
@@ -31,6 +33,8 @@ interface TicketDetailProps {
   onUpdateStatus?: (status: string) => void;
   onDelete?: () => void;
   onViewHistory?: () => void;
+  availableUsers?: User[];
+  onAssignUser?: (userId: string | null) => void;
 }
 
 export function TicketDetail({ 
@@ -41,10 +45,14 @@ export function TicketDetail({
   isAddingNote = false,
   onUpdateStatus,
   onDelete,
-  onViewHistory
+  onViewHistory,
+  availableUsers = [],
+  onAssignUser
 }: TicketDetailProps) {
   const [newNote, setNewNote] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'notes' | 'attachments'>('details');
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [pendingAssignmentUserId, setPendingAssignmentUserId] = useState<string | null>(null);
 
   const isAdmin = currentUser?.role === 'ADMIN';
 
@@ -92,6 +100,29 @@ export function TicketDetail({
     if (!newNote.trim()) return;
     await onAddNote(newNote);
     setNewNote('');
+  };
+
+  const handleAssignmentChange = (userId: string) => {
+    setPendingAssignmentUserId(userId || null);
+    setShowAssignModal(true);
+  };
+
+  const confirmAssignment = () => {
+    if (onAssignUser) {
+      onAssignUser(pendingAssignmentUserId);
+    }
+    setShowAssignModal(false);
+    setPendingAssignmentUserId(null);
+  };
+
+  const cancelAssignment = () => {
+    setShowAssignModal(false);
+    setPendingAssignmentUserId(null);
+  };
+
+  const getPendingAssignedUser = () => {
+    if (!pendingAssignmentUserId) return null;
+    return availableUsers.find(u => u.id === pendingAssignmentUserId);
   };
 
   return (
@@ -243,7 +274,7 @@ export function TicketDetail({
                         `}
                     >
                         <MessageSquare className={`w-4 h-4 ${activeTab === 'notes' ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                        Work Notes
+                        Comments
                         {ticket.notes && ticket.notes.length > 0 && (
                             <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] ${activeTab === 'notes' ? 'bg-blue-200 text-blue-800' : 'bg-slate-200 text-slate-600'}`}>
                                 {ticket.notes.length}
@@ -312,100 +343,171 @@ export function TicketDetail({
 
                         {/* Sidebar Info */}
                         <div className="space-y-6">
+                            {/* Admin Actions */}
+                            {(onUpdateStatus || onAssignUser) && (
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Admin Actions</h3>
+                                    <div className="space-y-4">
+                                        {onAssignUser && availableUsers.length > 0 && (
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-700 block mb-2">Assign To</label>
+                                                <CustomSelect
+                                                    value={ticket.assignedToUserId || ''}
+                                                    onChange={handleAssignmentChange}
+                                                    options={[
+                                                        { value: '', label: 'Unassigned' },
+                                                        ...availableUsers
+                                                            .filter(u => ['ADMIN', 'DEVELOPER', 'TECHNICAL'].includes(u.role))
+                                                            .map(user => ({
+                                                                value: user.id,
+                                                                label: `${user.username} (${user.role})`
+                                                            }))
+                                                    ]}
+                                                    placeholder="Select user to assign"
+                                                    searchable={true}
+                                                />
+                                                {ticket.assignedToUserId && (
+                                                    <p className="mt-2 text-xs text-slate-600 font-medium">
+                                                        Assigned to: {(ticket.assignedToUser || ticket.assignedTo)?.username}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+                                        {onUpdateStatus && (
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-700 block mb-2">Change Status</label>
+                                                <StatusSelect 
+                                                    value={ticket.status} 
+                                                    onChange={onUpdateStatus} 
+                                                    options={allStatusStages.map(s => ({ value: s.key, label: s.label }))}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Ticket Info</h3>
                                 <div className="space-y-4">
                                     <InfoCard label="Branch" value={ticket.branch?.name} icon={<Briefcase className="w-4 h-4" />} />
                                     <InfoCard label="Team" value={ticket.team?.name} icon={<Shield className="w-4 h-4" />} />
                                     <InfoCard label="Contact" value={ticket.user?.username} icon={<UserIcon className="w-4 h-4" />} />
+                                    {(ticket.assignedToUser || ticket.assignedTo) && (
+                                        <InfoCard 
+                                            label="Assigned To" 
+                                            value={`${(ticket.assignedToUser || ticket.assignedTo)?.username} (${(ticket.assignedToUser || ticket.assignedTo)?.role})`} 
+                                            icon={<Shield className="w-4 h-4" />} 
+                                        />
+                                    )}
                                 </div>
                             </div>
-                            
-                            {/* Admin Actions */}
-                            {onUpdateStatus && (
-                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                                    <div className="bg-slate-50 px-6 py-4 border-b border-slate-100">
-                                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Admin Actions</h3>
-                                    </div>
-                                    <div className="p-6">
-                                        <label className="text-xs font-bold text-slate-700 block mb-2">Change Status</label>
-                                        <StatusSelect 
-                                            value={ticket.status} 
-                                            onChange={onUpdateStatus} 
-                                            options={allStatusStages.map(s => ({ value: s.key, label: s.label }))}
-                                        />
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                 )}
 
                 {/* 2. Notes Tab */}
                 {activeTab === 'notes' && (
-                    <div className="max-w-3xl mx-auto animate-in slide-in-from-bottom-2 duration-300 flex flex-col h-full">
-                        <div className="flex-1 space-y-8 mb-8">
-                            {/* Input Top */}
-                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-1">
-                                <Textarea 
-                                    value={newNote}
-                                    onChange={(e) => setNewNote(e.target.value)}
-                                    placeholder="Type a response..."
-                                    className="w-full border-0 focus:ring-0 bg-transparent resize-none min-h-[100px] text-sm text-slate-700 placeholder:text-slate-400 p-4"
-                                />
-                                <div className="flex items-center justify-end px-4 pb-3 pt-2">
-                                    <Button 
-                                        size="sm" 
-                                        onClick={handleSubmitNote}
-                                        disabled={!newNote.trim() || isAddingNote}
-                                        className="rounded-xl px-6 py-2 font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200"
-                                    >
-                                        {isAddingNote ? 'Sending...' : 'Reply'}
-                                    </Button>
+                    <div className="max-w-4xl mx-auto animate-in slide-in-from-bottom-2 duration-300">
+                        <div className="space-y-6">
+                            {/* Comments List */}
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+                                <div className="px-6 py-4 border-b border-slate-100">
+                                    <h3 className="text-lg font-bold text-slate-900">
+                                        Comments {ticket.notes && ticket.notes.length > 0 && (
+                                            <span className="text-slate-500 font-normal text-base ml-2">({ticket.notes.length})</span>
+                                        )}
+                                    </h3>
+                                    <p className="text-sm text-slate-500 mt-1">Activity and updates on this ticket</p>
+                                </div>
+                                
+                                <div className="divide-y divide-slate-100">
+                                    {ticket.notes && ticket.notes.length > 0 ? (
+                                        ticket.notes.map((note) => (
+                                            <div key={note.id} className="px-6 py-5 hover:bg-slate-50/50 transition-colors">
+                                                <div className="flex gap-4">
+                                                    {/* Avatar */}
+                                                    <div className="shrink-0">
+                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ring-2 ring-offset-2
+                                                            ${note.user?.role === 'ADMIN' ? 'bg-blue-600 text-white ring-blue-100' : 
+                                                              note.user?.role === 'DEVELOPER' ? 'bg-amber-600 text-white ring-amber-100' :
+                                                              note.user?.role === 'TECHNICAL' ? 'bg-cyan-600 text-white ring-cyan-100' :
+                                                              'bg-slate-600 text-white ring-slate-100'}
+                                                        `}>
+                                                            {note.user?.username?.[0]?.toUpperCase() || 'U'}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {/* Comment Content */}
+                                                    <div className="flex-1 min-w-0">
+                                                        {/* Header */}
+                                                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                                            <span className="font-bold text-slate-900">{note.user?.username}</span>
+                                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold
+                                                                ${note.user?.role === 'ADMIN' ? 'bg-blue-100 text-blue-700' :
+                                                                  note.user?.role === 'DEVELOPER' ? 'bg-amber-100 text-amber-700' :
+                                                                  note.user?.role === 'TECHNICAL' ? 'bg-cyan-100 text-cyan-700' :
+                                                                  'bg-slate-100 text-slate-700'}
+                                                            `}>
+                                                                {note.user?.role || 'USER'}
+                                                            </span>
+                                                            <span className="text-xs text-slate-400">• {formatRelativeTime(note.createdAt)}</span>
+                                                        </div>
+                                                        
+                                                        {/* Comment Body */}
+                                                        <div className="bg-slate-50 rounded-lg px-4 py-3 text-sm text-slate-700 leading-relaxed border border-slate-100">
+                                                            {note.note}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="px-6 py-16 text-center">
+                                            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                                <MessageSquare className="w-8 h-8 text-slate-400" />
+                                            </div>
+                                            <h3 className="text-slate-900 font-semibold mb-1">No comments yet</h3>
+                                            <p className="text-slate-500 text-sm">Be the first to comment on this ticket</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            {/* Chat History */}
-                            <div className="space-y-6">
-                                {ticket.notes?.map((note) => (
-                                    <div key={note.id} className="flex gap-4 group">
-                                        <div className="flex-shrink-0">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-sm
-                                                ${note.user?.role === 'ADMIN' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}
-                                            `}>
-                                                {note.user?.username?.[0]?.toUpperCase() || 'U'}
-                                            </div>
-                                        </div>
-                                        <div className="flex-1 max-w-2xl">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <span className="font-bold text-sm text-slate-900">{note.user?.username}</span>
-                                                <span className="text-xs text-slate-400">• {formatRelativeTime(note.createdAt)}</span>
-                                                {note.user?.role === 'ADMIN' && (
-                                                    <Badge variant="info" size="sm" className="text-[10px] px-1.5 py-0.5 h-auto">ADMIN</Badge>
-                                                )}
-                                            </div>
-                                            <div className={`p-5 rounded-2xl text-sm leading-relaxed shadow-sm border
-                                                ${note.user?.role === 'ADMIN' 
-                                                    ? 'bg-blue-50/50 border-blue-100 text-slate-800 rounded-tl-none' 
-                                                    : 'bg-white border-slate-200 text-slate-700 rounded-tl-none'
-                                                }
-                                            `}>
-                                                {note.note}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            
-                            {(!ticket.notes || ticket.notes.length === 0) && (
-                                <div className="text-center py-16">
-                                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-                                        <MessageSquare className="w-8 h-8" />
-                                    </div>
-                                    <h3 className="text-slate-900 font-medium mb-1">No discussion yet</h3>
-                                    <p className="text-slate-500 text-sm">Be the first to start the conversation.</p>
+                            {/* Add Comment Form */}
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                <div className="px-6 py-4 bg-slate-50 border-b border-slate-100">
+                                    <h3 className="text-sm font-bold text-slate-900">Add a Comment</h3>
                                 </div>
-                            )}
+                                <div className="p-6">
+                                    <div className="flex gap-3 items-start">
+                                        <Textarea 
+                                            value={newNote}
+                                            onChange={(e) => setNewNote(e.target.value)}
+                                            placeholder="Share updates, ask questions, or provide additional information..."
+                                            className="flex-1 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent rounded-lg resize-none min-h-20 text-sm text-slate-700 placeholder:text-slate-400 p-3"
+                                        />
+                                        <Button 
+                                            size="sm" 
+                                            onClick={handleSubmitNote}
+                                            disabled={!newNote.trim() || isAddingNote}
+                                            className="px-5 py-2.5 font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm shrink-0 h-fit"
+                                        >
+                                            {isAddingNote ? (
+                                                <span className="flex items-center gap-2">
+                                                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                                    Posting...
+                                                </span>
+                                            ) : (
+                                                'Add Comment'
+                                            )}
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-3">
+                                        <span className="font-medium">Tip:</span> Use comments to keep everyone updated
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -456,6 +558,48 @@ export function TicketDetail({
             </div>
         </div>
       </div>
+
+      {/* Assignment Confirmation Modal */}
+      <Modal
+        isOpen={showAssignModal}
+        onClose={cancelAssignment}
+        title="Confirm Assignment"
+      >
+        <div className="space-y-4">
+          <p className="text-slate-700">
+            {pendingAssignmentUserId ? (
+              <>
+                Are you sure you want to assign this ticket to <span className="font-bold text-slate-900">{getPendingAssignedUser()?.username}</span>?
+              </>
+            ) : (
+              <>
+                Are you sure you want to <span className="font-bold text-slate-900">unassign</span> this ticket?
+              </>
+            )}
+          </p>
+          {pendingAssignmentUserId && getPendingAssignedUser() && (
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
+                  {getPendingAssignedUser()?.username[0].toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900">{getPendingAssignedUser()?.username}</p>
+                  <p className="text-sm text-slate-600">{getPendingAssignedUser()?.role}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="ghost" onClick={cancelAssignment}>
+              Cancel
+            </Button>
+            <Button onClick={confirmAssignment}>
+              Confirm
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/middleware';
 import { prisma } from '@/lib/prisma';
 import { notifyUser, notifyAdmins } from '@/lib/notifications';
-
+import { sendAdminNotification, sendEmail } from '@/lib/email';import { generateTicketEmailHtml } from '@/lib/email-templates';
 interface Params {
   params: Promise<{
     id: string;
@@ -45,6 +45,7 @@ export async function GET(request: NextRequest, context: Params) {
 
       const hasAccess = 
         ticket.userId === authResult.user.userId ||
+        ticket.assignedToUserId === authResult.user.userId ||
         (currentUser?.teamId && ticket.user.teamId && currentUser.teamId === ticket.user.teamId);
 
       if (!hasAccess) {
@@ -104,6 +105,12 @@ export async function POST(request: NextRequest, context: Params) {
             teamId: true,
           },
         },
+        branch: true,
+        assignedTo: {
+          select: {
+            username: true,
+          }
+        }
       },
     });
 
@@ -120,6 +127,7 @@ export async function POST(request: NextRequest, context: Params) {
 
       const hasAccess = 
         ticket.userId === authResult.user.userId ||
+        ticket.assignedToUserId === authResult.user.userId ||
         (currentUser?.teamId && ticket.user.teamId && currentUser.teamId === ticket.user.teamId);
 
       if (!hasAccess) {
@@ -154,6 +162,43 @@ export async function POST(request: NextRequest, context: Params) {
         'INFO',
         `/dashboard?view=tickets&ticketId=${ticket.id}`
       );
+
+      // Send email to ticket owner
+      const ticketUser = await prisma.user.findUnique({
+        where: { id: ticket.userId },
+        select: { email: true, username: true }
+      });
+
+      if (ticketUser?.email) {
+        const emailHtml = generateTicketEmailHtml({
+          headline: 'New Note on Ticket',
+          recipientName: ticketUser.username || 'User',
+          message: 'An admin has added a note to your ticket.',
+          ticket: {
+            id: ticket.id,
+            issue: ticket.issue,
+            status: ticket.status,
+            priority: ticket.priority,
+            createdAt: ticket.createdAt,
+            assignedTo: ticket.assignedTo,
+            branch: ticket.branch,
+            additionalDetails: ticket.additionalDetails,
+          },
+          notes: note,
+          link: `${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard?view=tickets&ticketId=${ticket.id}`
+        });
+
+        await sendEmail(
+          ticketUser.email,
+          `New Note on Ticket: ${ticket.issue}`,
+          `Hello ${ticketUser.username},\n\n` +
+          `An admin has added a note to your ticket.\n\n` +
+          `Ticket: ${ticket.issue}\n` +
+          `Note: ${note}\n` +
+          `\nView your ticket: ${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard?view=tickets&ticketId=${ticket.id}`,
+          emailHtml
+        );
+      }
     } else {
       // User added a note - notify admins
       await notifyAdmins(
@@ -161,6 +206,34 @@ export async function POST(request: NextRequest, context: Params) {
         `${newNote.user.username} added a note to ticket: ${note.substring(0, 100)}${note.length > 100 ? '...' : ''}`,
         'INFO',
         `/admin/tickets/${ticket.id}`
+      );
+
+      // Send email to admins
+      const emailHtml = generateTicketEmailHtml({
+        headline: 'New Note on Ticket',
+        recipientName: 'Admin',
+        message: `A new note has been added by ${newNote.user.username} (${authResult.user.role}).`,
+        ticket: {
+          id: ticket.id,
+          issue: ticket.issue,
+          status: ticket.status,
+          priority: ticket.priority,
+          createdAt: ticket.createdAt,
+          assignedTo: ticket.assignedTo,
+          branch: ticket.branch,
+          additionalDetails: ticket.additionalDetails,
+        },
+        notes: note,
+        link: `${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/tickets/${ticket.id}`
+      });
+
+      await sendAdminNotification(
+        `New Note on Ticket: ${ticket.issue}`,
+        `A new note has been added by ${newNote.user.username} (${authResult.user.role}).\n\n` +
+        `Ticket: ${ticket.issue}\n` +
+        `Note: ${note}\n` +
+        `Link: ${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/tickets/${ticket.id}`,
+        emailHtml
       );
     }
 

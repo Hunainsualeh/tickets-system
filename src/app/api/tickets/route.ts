@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requireAdmin } from '@/lib/middleware';
 import { prisma } from '@/lib/prisma';
 import { notifyAdmins, notifyUser } from '@/lib/notifications';
+import { sendAdminNotification } from '@/lib/email';
+import { generateTicketEmailHtml } from '@/lib/email-templates';
 
 // GET all tickets
 export async function GET(request: NextRequest) {
@@ -18,6 +20,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const scope = searchParams.get('scope');
     const teamId = searchParams.get('teamId');
+    const assignedToUserId = searchParams.get('assignedToUserId');
+    const userId = searchParams.get('userId');
 
     const where: any = {};
 
@@ -40,7 +44,10 @@ export async function GET(request: NextRequest) {
       
       if (userTeamIds.length > 0) {
         if (scope === 'me') {
-          where.userId = authResult.user.userId;
+          where.OR = [
+            { userId: authResult.user.userId },
+            { assignedToUserId: authResult.user.userId }
+          ];
         } else {
           // Filter by specific team if teamId is provided
           if (teamId) {
@@ -80,8 +87,11 @@ export async function GET(request: NextRequest) {
           }
         }
       } else {
-        // User not in any team - show only their own tickets
-        where.userId = authResult.user.userId;
+        // User not in any team - show only their own tickets or assigned to them
+        where.OR = [
+          { userId: authResult.user.userId },
+          { assignedToUserId: authResult.user.userId }
+        ];
       }
     }
     // Admins can see all tickets (no filter applied)
@@ -92,6 +102,14 @@ export async function GET(request: NextRequest) {
 
     if (priority) {
       where.priority = priority;
+    }
+
+    if (assignedToUserId) {
+      where.assignedToUserId = assignedToUserId;
+    }
+
+    if (userId) {
+      where.userId = userId;
     }
 
     if (search) {
@@ -117,6 +135,13 @@ export async function GET(request: NextRequest) {
                 team: true,
               },
             },
+          },
+        },
+        assignedTo: {
+          select: {
+            id: true,
+            username: true,
+            role: true,
           },
         },
         branch: true,
@@ -166,7 +191,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { branchId, priority, issue, additionalDetails, userId, teamId, localContactName, localContactEmail, localContactPhone, timezone } = await request.json();
+    const { branchId, priority, issue, additionalDetails, userId, teamId, localContactName, localContactEmail, localContactPhone, timezone, assignedToUserId } = await request.json();
 
     if (!branchId || !priority || !issue) {
       return NextResponse.json(
@@ -211,6 +236,7 @@ export async function POST(request: NextRequest) {
         localContactEmail,
         localContactPhone,
         timezone,
+        assignedToUserId: assignedToUserId || null,
     };
 
     const ticket = await prisma.ticket.create({
@@ -224,6 +250,11 @@ export async function POST(request: NextRequest) {
           },
         },
         branch: true,
+        assignedTo: {
+          select: {
+            username: true,
+          }
+        }
       },
     });
 
@@ -236,6 +267,17 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Notify assigned user if ticket was assigned during creation
+    if (assignedToUserId) {
+      await notifyUser(
+        assignedToUserId,
+        'New Ticket Assigned',
+        `You have been assigned to ticket: ${ticket.issue}`,
+        'INFO',
+        `/dashboard?view=tickets&ticketId=${ticket.id}`
+      );
+    }
+
     // Notify admins about new ticket
     const ticketWithUser = ticket as any;
     await notifyAdmins(
@@ -243,6 +285,35 @@ export async function POST(request: NextRequest) {
       `${ticketWithUser.user.username} created a new ${ticket.priority} ticket: ${ticket.issue.substring(0, 50)}${ticket.issue.length > 50 ? '...' : ''}`,
       'INFO',
       `/admin/tickets/${ticket.id}`
+    );
+
+    // Send email to admin
+    const emailHtml = generateTicketEmailHtml({
+      headline: 'New Ticket Created',
+      recipientName: 'Admin',
+      message: `A new ticket has been created by ${ticketWithUser.user.username}.`,
+      ticket: {
+        id: ticket.id,
+        issue: ticket.issue,
+        status: ticket.status,
+        priority: ticket.priority,
+        createdAt: ticket.createdAt,
+        assignedTo: ticket.assignedTo,
+        branch: ticket.branch,
+        additionalDetails: ticket.additionalDetails,
+      },
+      link: `${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/tickets/${ticket.id}`
+    });
+
+    await sendAdminNotification(
+      `New Ticket Created: ${ticket.issue}`,
+      `A new ticket has been created by ${ticketWithUser.user.username}.\n\n` +
+      `Priority: ${ticket.priority}\n` +
+      `Issue: ${ticket.issue}\n` +
+      `Details: ${ticket.additionalDetails || 'N/A'}\n` +
+      `Branch: ${ticket.branch.name}\n` +
+      `Link: ${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/tickets/${ticket.id}`,
+      emailHtml
     );
 
     return NextResponse.json({ ticket }, { status: 201 });

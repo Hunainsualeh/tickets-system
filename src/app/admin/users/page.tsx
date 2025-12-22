@@ -9,7 +9,7 @@ import { Button } from '@/app/components/Button';
 import { Modal } from '@/app/components/Modal';
 import { Input } from '@/app/components/Input';
 import { StatCard } from '@/app/components/StatCard';
-import { Users, Plus, Edit, Trash2, UserPlus, Shield, UserCheck, Building2, Eye, EyeOff, Key } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, UserPlus, Shield, UserCheck, Building2, Eye, EyeOff, Key, Code, Wrench } from 'lucide-react';
 
 function UsersManagementContent() {
   const router = useRouter();
@@ -24,6 +24,7 @@ function UsersManagementContent() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [userForm, setUserForm] = useState({
     username: '',
+    email: '',
     password: '',
     role: 'USER',
     teamIds: [] as string[],
@@ -41,6 +42,51 @@ function UsersManagementContent() {
   // Status Update State
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusUpdateUser, setStatusUpdateUser] = useState<{ id: string; username: string; isActive: boolean } | null>(null);
+
+  // Bulk Selection State
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+
+  // User Profile State
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<any>(null);
+  const [userTickets, setUserTickets] = useState<any[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUserIds(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const toggleAllUsers = () => {
+    if (selectedUserIds.length === users.length) {
+      setSelectedUserIds([]);
+    } else {
+      setSelectedUserIds(users.map(u => u.id));
+    }
+  };
+
+  const handleBulkDeleteUsers = async () => {
+    setShowDeleteModal(true);
+  };
+
+  const openProfileModal = async (user: any) => {
+    setSelectedProfileUser(user);
+    setShowProfileModal(true);
+    setLoadingTickets(true);
+    try {
+      // Fetch tickets assigned to this user
+      const res = await apiClient.getTickets({ assignedToUserId: user.id });
+      setUserTickets(res.tickets || []);
+    } catch (error) {
+      console.error('Error fetching user tickets:', error);
+      toast.error('Failed to fetch user tickets');
+    } finally {
+      setLoadingTickets(false);
+    }
+  };
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -81,6 +127,7 @@ function UsersManagementContent() {
     setSelectedUser(null);
     setUserForm({
       username: '',
+      email: '',
       password: '',
       role: 'USER',
       teamIds: [],
@@ -94,6 +141,7 @@ function UsersManagementContent() {
     setSelectedUser(user);
     setUserForm({
       username: user.username,
+      email: user.email || '',
       password: '',
       role: user.role,
       teamIds: user.teams?.map((ut: any) => ut.team.id) || [],
@@ -116,6 +164,7 @@ function UsersManagementContent() {
     try {
       const data: any = {
         username: userForm.username,
+        email: userForm.email,
         role: userForm.role,
         teamIds: userForm.teamIds,
       };
@@ -146,6 +195,21 @@ function UsersManagementContent() {
   };
 
   const confirmDelete = async () => {
+    if (selectedUserIds.length > 0) {
+      try {
+        await Promise.all(selectedUserIds.map(id => apiClient.deleteUser(id)));
+        toast.success(`${selectedUserIds.length} users deleted successfully`);
+        setSelectedUserIds([]);
+        fetchData();
+      } catch (error) {
+        console.error('Error deleting users:', error);
+        toast.error('Failed to delete users');
+      } finally {
+        setShowDeleteModal(false);
+      }
+      return;
+    }
+
     if (!userToDelete) return;
 
     try {
@@ -262,10 +326,21 @@ function UsersManagementContent() {
 
               {/* Actions Toolbar */}
               <div className="flex justify-end gap-2 mt-4">
-                <Button onClick={openCreateModal} className="flex items-center gap-2">
-                  <Plus className="w-4 h-4" />
-                  Add User
-                </Button>
+                {selectedUserIds.length > 0 ? (
+                  <Button 
+                    variant="danger" 
+                    onClick={handleBulkDeleteUsers}
+                    className="flex items-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete Selected ({selectedUserIds.length})
+                  </Button>
+                ) : (
+                  <Button onClick={openCreateModal} className="flex items-center gap-2">
+                    <Plus className="w-4 h-4" />
+                    Add User
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -280,6 +355,14 @@ function UsersManagementContent() {
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-4">
+                        <input
+                          type="checkbox"
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          checked={users.length > 0 && selectedUserIds.length === users.length}
+                          onChange={toggleAllUsers}
+                        />
+                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                         User
                       </th>
@@ -304,12 +387,25 @@ function UsersManagementContent() {
                     {users.map((user) => (
                       <tr key={user.id} className="hover:bg-slate-50">
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                          <input
+                            type="checkbox"
+                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            checked={selectedUserIds.includes(user.id)}
+                            onChange={() => toggleUserSelection(user.id)}
+                          />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div 
+                            className="flex items-center gap-3 cursor-pointer group"
+                            onClick={() => openProfileModal(user)}
+                          >
+                            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold group-hover:bg-blue-600 transition-colors">
                               {user.username.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <div className="font-medium text-slate-900">{user.username}</div>
+                              <div className="font-medium text-slate-900 group-hover:text-blue-600 transition-colors">
+                                {user.username}
+                              </div>
                               <div className="text-sm text-slate-500">
                                 Joined {new Date(user.createdAt).toLocaleDateString()}
                               </div>
@@ -321,10 +417,16 @@ function UsersManagementContent() {
                             className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               user.role === 'ADMIN'
                                 ? 'bg-purple-100 text-purple-700'
+                                : user.role === 'DEVELOPER'
+                                ? 'bg-amber-100 text-amber-700'
+                                : user.role === 'TECHNICAL'
+                                ? 'bg-cyan-100 text-cyan-700'
                                 : 'bg-green-100 text-green-700'
                             }`}
                           >
                             {user.role === 'ADMIN' && <Shield className="w-3 h-3" />}
+                            {user.role === 'DEVELOPER' && <Code className="w-3 h-3" />}
+                            {user.role === 'TECHNICAL' && <Wrench className="w-3 h-3" />}
                             {user.role}
                           </span>
                         </td>
@@ -419,6 +521,14 @@ function UsersManagementContent() {
           />
 
           <Input
+            label="Email"
+            type="email"
+            value={userForm.email}
+            onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+            placeholder="Enter email address"
+          />
+
+          <Input
             label={modalMode === 'create' ? 'Password' : 'Password (leave empty to keep current)'}
             type={showPassword ? 'text' : 'password'}
             value={userForm.password}
@@ -479,6 +589,46 @@ function UsersManagementContent() {
                   }`}>Admin</span>
                 </div>
                 <p className="text-xs text-slate-500">Full access</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setUserForm({ ...userForm, role: 'DEVELOPER' })}
+                className={`p-4 rounded-lg border-2 transition-all text-left ${
+                  userForm.role === 'DEVELOPER'
+                    ? 'border-amber-500 bg-amber-50'
+                    : 'border-slate-200 hover:border-slate-300 bg-white'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Code className={`w-4 h-4 ${
+                    userForm.role === 'DEVELOPER' ? 'text-amber-600' : 'text-slate-500'
+                  }`} />
+                  <span className={`font-semibold ${
+                    userForm.role === 'DEVELOPER' ? 'text-amber-900' : 'text-slate-700'
+                  }`}>Developer</span>
+                </div>
+                <p className="text-xs text-slate-500">Technical access</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setUserForm({ ...userForm, role: 'TECHNICAL' })}
+                className={`p-4 rounded-lg border-2 transition-all text-left ${
+                  userForm.role === 'TECHNICAL'
+                    ? 'border-cyan-500 bg-cyan-50'
+                    : 'border-slate-200 hover:border-slate-300 bg-white'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Wrench className={`w-4 h-4 ${
+                    userForm.role === 'TECHNICAL' ? 'text-cyan-600' : 'text-slate-500'
+                  }`} />
+                  <span className={`font-semibold ${
+                    userForm.role === 'TECHNICAL' ? 'text-cyan-900' : 'text-slate-700'
+                  }`}>Technical</span>
+                </div>
+                <p className="text-xs text-slate-500">Support access</p>
               </button>
             </div>
           </div>
@@ -647,15 +797,22 @@ function UsersManagementContent() {
       </Modal>
 
       {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal */}
       <Modal
         isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        title="Delete User"
+        onClose={() => {
+          setShowDeleteModal(false);
+          setUserToDelete(null);
+        }}
+        title={selectedUserIds.length > 0 ? "Delete Users" : "Delete User"}
         size="sm"
       >
         <div className="space-y-4">
           <p className="text-slate-600">
-            Are you sure you want to delete user <span className="font-semibold text-slate-900">{userToDelete?.username}</span>? This action cannot be undone.
+            {selectedUserIds.length > 0 
+              ? `Are you sure you want to delete ${selectedUserIds.length} users? This action cannot be undone.`
+              : <>Are you sure you want to delete user <span className="font-semibold text-slate-900">{userToDelete?.username}</span>? This action cannot be undone.</>
+            }
           </p>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => setShowDeleteModal(false)}>
@@ -665,7 +822,7 @@ function UsersManagementContent() {
               onClick={confirmDelete}
               className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-500"
             >
-              Delete User
+              {selectedUserIds.length > 0 ? "Delete Users" : "Delete User"}
             </Button>
           </div>
         </div>
@@ -755,10 +912,146 @@ function UsersManagementContent() {
               onClick={handleStatusUpdate}
               className={statusUpdateUser?.isActive ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}
             >
-              {statusUpdateUser?.isActive ? 'Deactivate User' : 'Activate User'}
+              {statusUpdateUser?.isActive ? 'Deactivate' : 'Activate'}
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* User Profile Modal */}
+      <Modal
+        isOpen={showProfileModal}
+        onClose={() => {
+          setShowProfileModal(false);
+          setSelectedProfileUser(null);
+          setUserTickets([]);
+        }}
+        title="User Profile"
+        size="lg"
+      >
+        {selectedProfileUser && (
+          <div className="space-y-6">
+            {/* User Header */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl font-bold">
+                  {selectedProfileUser.username.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">{selectedProfileUser.username}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      selectedProfileUser.role === 'ADMIN'
+                        ? 'bg-purple-100 text-purple-700'
+                        : selectedProfileUser.role === 'DEVELOPER'
+                        ? 'bg-amber-100 text-amber-700'
+                        : selectedProfileUser.role === 'TECHNICAL'
+                        ? 'bg-cyan-100 text-cyan-700'
+                        : 'bg-green-100 text-green-700'
+                    }`}>
+                      {selectedProfileUser.role === 'ADMIN' && <Shield className="w-3 h-3" />}
+                      {selectedProfileUser.role === 'DEVELOPER' && <Code className="w-3 h-3" />}
+                      {selectedProfileUser.role === 'TECHNICAL' && <Wrench className="w-3 h-3" />}
+                      {selectedProfileUser.role}
+                    </span>
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      selectedProfileUser.isActive !== false
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {selectedProfileUser.isActive !== false ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowProfileModal(false);
+                    openEditModal(selectedProfileUser);
+                  }}
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowProfileModal(false);
+                    openPasswordModal(selectedProfileUser);
+                  }}
+                >
+                  <Key className="w-4 h-4 mr-2" />
+                  Password
+                </Button>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <div className="text-sm text-slate-500 mb-1">Created Tickets</div>
+                <div className="text-2xl font-bold text-slate-900">{selectedProfileUser._count?.tickets || 0}</div>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <div className="text-sm text-slate-500 mb-1">Assigned Tickets</div>
+                <div className="text-2xl font-bold text-slate-900">{selectedProfileUser._count?.assignedTickets || 0}</div>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <div className="text-sm text-slate-500 mb-1">Teams</div>
+                <div className="text-2xl font-bold text-slate-900">{selectedProfileUser.teams?.length || 0}</div>
+              </div>
+            </div>
+
+            {/* Assigned Tickets List */}
+            <div>
+              <h4 className="text-lg font-semibold text-slate-900 mb-3">Assigned Tickets</h4>
+              {loadingTickets ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : userTickets.length > 0 ? (
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-4 py-2 text-left font-medium text-slate-500">ID</th>
+                        <th className="px-4 py-2 text-left font-medium text-slate-500">Issue</th>
+                        <th className="px-4 py-2 text-left font-medium text-slate-500">Status</th>
+                        <th className="px-4 py-2 text-left font-medium text-slate-500">Priority</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {userTickets.map((ticket) => (
+                        <tr key={ticket.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-2 font-mono text-slate-600">#{ticket.incNumber || ticket.id.slice(0, 8)}</td>
+                          <td className="px-4 py-2 text-slate-900">{ticket.issue}</td>
+                          <td className="px-4 py-2">
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700`}>
+                              {ticket.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2">
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700`}>
+                              {ticket.priority}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-8 bg-slate-50 rounded-lg border border-slate-200 border-dashed">
+                  <p className="text-slate-500">No tickets assigned to this user.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

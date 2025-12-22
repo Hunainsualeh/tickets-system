@@ -3,6 +3,8 @@ import { requireAdmin } from '@/lib/middleware';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth';
 import { notifyUser } from '@/lib/notifications';
+import { sendAdminNotification } from '@/lib/email';
+import { generateUserUpdatedEmailHtml } from '@/lib/email-templates';
 
 interface Params {
   params: Promise<{
@@ -67,7 +69,7 @@ export async function PUT(request: NextRequest, context: Params) {
   }
 
   try {
-    const { username, password, role, teamIds, isActive } = await request.json();
+    const { username, password, role, teamIds, isActive, email } = await request.json();
 
     // Validate teams if provided
     if (teamIds !== undefined && Array.isArray(teamIds) && teamIds.length > 0) {
@@ -110,6 +112,26 @@ export async function PUT(request: NextRequest, context: Params) {
 
       updateData.username = sanitizedUsername;
     }
+
+    if (email !== undefined) {
+      if (email) {
+        const existingEmail = await prisma.user.findFirst({
+          where: {
+            email: email,
+            NOT: { id: params.id }
+          }
+        });
+        if (existingEmail) {
+          return NextResponse.json(
+            { error: 'Email already exists' },
+            { status: 409 }
+          );
+        }
+        updateData.email = email;
+      } else {
+        updateData.email = null;
+      }
+    }
     
     if (role) updateData.role = role;
     if (isActive !== undefined) updateData.isActive = isActive;
@@ -147,16 +169,12 @@ export async function PUT(request: NextRequest, context: Params) {
             select: { name: true },
           });
           
-          if (newTeams.length > 0) {
-            const teamNames = newTeams.map(t => t.name).join(', ');
-            await notifyUser(
-              params.id,
-              'Added to Team',
-              `You have been added to ${newTeams.length > 1 ? 'teams' : 'team'}: ${teamNames}`,
-              'SUCCESS',
-              '/dashboard'
-            );
-          }
+          await notifyUser(
+            params.id,
+            'Team Assignment',
+            `You have been added to teams: ${newTeams.map(t => t.name).join(', ')}`,
+            'INFO'
+          );
         }
       }
     }
@@ -167,6 +185,7 @@ export async function PUT(request: NextRequest, context: Params) {
       select: {
         id: true,
         username: true,
+        email: true,
         role: true,
         teamId: true,
         createdAt: true,
@@ -178,6 +197,35 @@ export async function PUT(request: NextRequest, context: Params) {
         },
       },
     });
+
+    // Prepare changes list for email
+    const changes: string[] = [];
+    if (username) changes.push(`Username changed to ${username}`);
+    if (email !== undefined) changes.push(`Email changed to ${email || 'removed'}`);
+    if (role) changes.push(`Role changed to ${role}`);
+    if (isActive !== undefined) changes.push(`Status changed to ${isActive ? 'Active' : 'Inactive'}`);
+    if (password) changes.push('Password updated');
+    if (teamIds !== undefined) changes.push('Team assignments updated');
+
+    // Send email to admin
+    const emailHtml = generateUserUpdatedEmailHtml({
+      username: user.username,
+      email: user.email || '',
+      role: user.role,
+      changes,
+      adminUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/users`
+    });
+
+    await sendAdminNotification(
+      `User Updated: ${user.username}`,
+      `A user has been updated.\n\n` +
+      `Username: ${user.username}\n` +
+      `Email: ${user.email || 'N/A'}\n` +
+      `Role: ${user.role}\n` +
+      `Changes: ${changes.join(', ')}\n` +
+      `Link: ${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/users`,
+      emailHtml
+    );
 
     return NextResponse.json({ user });
   } catch (error) {

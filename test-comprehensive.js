@@ -282,7 +282,7 @@ async function testCreateTicket() {
     },
     body: JSON.stringify({
       branchId: branchId,
-      priority: 'HIGH',
+      priority: 'P1',
       issue: 'Test ticket - Network connectivity issue',
       additionalDetails: 'This is a test ticket created via automated API testing',
     }),

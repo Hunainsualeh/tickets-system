@@ -10,9 +10,10 @@ interface TicketCardProps {
   onStatusChange?: (status: string) => void;
   onDelete?: () => void;
   isAdmin?: boolean;
+  currentUser?: any;
 }
 
-export function TicketCard({ ticket, onClick, onStatusChange, onDelete, isAdmin = false }: TicketCardProps) {
+export function TicketCard({ ticket, onClick, onStatusChange, onDelete, isAdmin = false, currentUser }: TicketCardProps) {
   let displayStatus = ticket.status;
   if (!isAdmin) {
      if (['INVOICE', 'PAID'].includes(ticket.status)) {
@@ -20,10 +21,14 @@ export function TicketCard({ ticket, onClick, onStatusChange, onDelete, isAdmin 
      }
   }
 
+  const isAssignedToMe = currentUser && ticket.assignedToUserId === currentUser.id;
+
   return (
     <div 
       onClick={onClick}
-      className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-all cursor-pointer group relative"
+      className={`bg-white rounded-xl border p-4 hover:shadow-md transition-all cursor-pointer group relative ${
+        isAssignedToMe ? 'border-purple-200 ring-1 ring-purple-100' : 'border-slate-200'
+      }`}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-3">
@@ -34,6 +39,11 @@ export function TicketCard({ ticket, onClick, onStatusChange, onDelete, isAdmin 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-900 truncate">{ticket.user?.username}</span>
+              {isAssignedToMe && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">
+                  ASSIGNED TO YOU
+                </span>
+              )}
               <span className="text-xs text-slate-400 font-mono shrink-0">
                 {new Date(ticket.createdAt).toLocaleDateString()}
               </span>
@@ -64,6 +74,12 @@ export function TicketCard({ ticket, onClick, onStatusChange, onDelete, isAdmin 
             <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
               {ticket.team.name}
             </span>
+          </div>
+        )}
+        {ticket.assignedTo && (
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <User className="w-4 h-4 shrink-0 text-slate-400" />
+            <span className="text-slate-700">Assigned to: <span className="font-medium">{ticket.assignedTo.username}</span></span>
           </div>
         )}
       </div>

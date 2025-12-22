@@ -43,7 +43,8 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }));
-      throw new Error(error.error || 'Request failed');
+      console.error('API Request Failed:', endpoint, error);
+      throw new Error(error.details || error.error || 'Request failed');
     }
 
     return response.json();
@@ -159,13 +160,15 @@ class ApiClient {
   }
 
   // Tickets
-  async getTickets(filters?: { status?: string; priority?: string; search?: string; scope?: string; teamId?: string }) {
+  async getTickets(filters?: { status?: string; priority?: string; search?: string; scope?: string; teamId?: string; assignedToUserId?: string; userId?: string }) {
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
     if (filters?.priority) params.append('priority', filters.priority);
     if (filters?.search) params.append('search', filters.search);
     if (filters?.scope) params.append('scope', filters.scope);
     if (filters?.teamId) params.append('teamId', filters.teamId);
+    if (filters?.assignedToUserId) params.append('assignedToUserId', filters.assignedToUserId);
+    if (filters?.userId) params.append('userId', filters.userId);
     
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request(`/api/tickets${query}`);

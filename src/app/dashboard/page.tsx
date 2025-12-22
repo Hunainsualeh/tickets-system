@@ -182,6 +182,11 @@ function UserDashboardContent() {
     try {
       const filters: any = { search: searchQuery, scope };
       
+      // For DEVELOPER/TECHNICAL users, fetch assigned tickets
+      if (user?.role === 'DEVELOPER' || user?.role === 'TECHNICAL') {
+        filters.assignedToUserId = user.id;
+      }
+      
       // If team scope and a specific team is selected, add teamId filter
       if (scope === 'team' && selectedTeamId) {
         filters.teamId = selectedTeamId;
@@ -443,6 +448,10 @@ function UserDashboardContent() {
               isAddingNote={isAddingNote}
             />
           ) : view === 'create' ? (
+            (user?.role === 'DEVELOPER' || user?.role === 'TECHNICAL') ? (
+              // Redirect DEVELOPER/TECHNICAL users to dashboard
+              <>{setView('dashboard')}</>
+            ) : (
             <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex justify-between items-center mb-6">
                 <button 
@@ -656,6 +665,7 @@ function UserDashboardContent() {
                 </div>
               </div>
             </div>
+            )
           ) : view === 'profile' ? (
             <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="mb-8">
@@ -764,6 +774,10 @@ function UserDashboardContent() {
               </div>
             </div>
           ) : view === 'analytics' && user ? (
+            (user?.role === 'DEVELOPER' || user?.role === 'TECHNICAL') ? (
+              // Redirect DEVELOPER/TECHNICAL users to dashboard
+              <>{setView('dashboard')}</>
+            ) : (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <AnalyticsSection 
                 tickets={tickets} 
@@ -772,12 +786,15 @@ function UserDashboardContent() {
                 companyName={companyName}
               />
             </div>
+            )
           ) : view === 'tickets' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
                 <div>
                   <h1 className="text-2xl font-bold text-slate-900">
-                    {scope === 'team' ? 'Team Tickets' : 'My Tickets'}
+                    {user?.role === 'DEVELOPER' || user?.role === 'TECHNICAL' 
+                      ? 'Assigned Tickets'
+                      : scope === 'team' ? 'Team Tickets' : 'My Tickets'}
                   </h1>
                   <p className="text-sm text-slate-600 mt-1">View and manage all your tickets</p>
                 </div>
@@ -796,10 +813,12 @@ function UserDashboardContent() {
                     onChange={setSearchQuery}
                     className="w-full lg:w-80"
                   />
-                  <Button onClick={() => setView('create')}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    New Ticket
-                  </Button>
+                  {user?.role !== 'DEVELOPER' && user?.role !== 'TECHNICAL' && (
+                    <Button onClick={() => setView('create')}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      New Ticket
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -920,6 +939,7 @@ function UserDashboardContent() {
                       key={ticket.id}
                       ticket={ticket}
                       onClick={() => setSelectedTicket(ticket)}
+                      currentUser={user}
                     />
                   ))
                 ) : (
@@ -940,6 +960,10 @@ function UserDashboardContent() {
               </div>
             </div>
           ) : view === 'requests' ? (
+            (user?.role === 'DEVELOPER' || user?.role === 'TECHNICAL') ? (
+              // Redirect DEVELOPER/TECHNICAL users to dashboard
+              <>{setView('dashboard')}</>
+            ) : (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 h-[calc(100vh-8rem)]">
               {/* Header */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -1076,7 +1100,12 @@ function UserDashboardContent() {
                 </div>
               )}
             </div>
+            )
           ) : view === 'create-request' ? (
+            (user?.role === 'DEVELOPER' || user?.role === 'TECHNICAL') ? (
+              // Redirect DEVELOPER/TECHNICAL users to dashboard
+              <>{setView('dashboard')}</>
+            ) : (
             <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex justify-between items-center mb-6">
                 <button 
@@ -1169,13 +1198,18 @@ function UserDashboardContent() {
                 </div>
               </div>
             </div>
+            )
           ) : (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {/* Header */}
               <div className="flex justify-between items-center">
                 <div>
                   <h1 className="text-3xl font-bold text-slate-900">Hello, {user?.username}</h1>
-                  <p className="text-slate-500 mt-1">Track team progress and manage your workflow</p>
+                  <p className="text-slate-500 mt-1">
+                    {user?.role === 'DEVELOPER' || user?.role === 'TECHNICAL'
+                      ? 'Manage and resolve assigned tickets'
+                      : 'Track team progress and manage your workflow'}
+                  </p>
                 </div>
                 <div className="flex items-center gap-3">
                   <NotificationBell />
@@ -1186,37 +1220,236 @@ function UserDashboardContent() {
                 </div>
               </div>
 
-              {/* Dashboard Tabs */}
-              <div className="flex items-center gap-4 border-b border-slate-200 mb-6">
-                <button
-                  onClick={() => setOverviewTab('tickets')}
-                  className={`pb-3 px-1 text-sm font-medium transition-colors relative ${
-                    overviewTab === 'tickets' 
-                      ? 'text-blue-600' 
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  Tickets Overview
-                  {overviewTab === 'tickets' && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />
-                  )}
-                </button>
-                <button
-                  onClick={() => setOverviewTab('requests')}
-                  className={`pb-3 px-1 text-sm font-medium transition-colors relative ${
-                    overviewTab === 'requests' 
-                      ? 'text-blue-600' 
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  Requests Overview
-                  {overviewTab === 'requests' && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />
-                  )}
-                </button>
-              </div>
+              {user?.role === 'DEVELOPER' || user?.role === 'TECHNICAL' ? (
+                // Simple Dashboard for DEVELOPER/TECHNICAL
+                <div className="space-y-6">
+                  {/* Ticket Status Overview */}
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h2 className="text-xl font-bold text-slate-900">Ticket Status</h2>
+                        <p className="text-sm text-slate-500 mt-1">Overview of your assigned tickets</p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Active Tickets Card */}
+                      <div className="bg-emerald-50 rounded-2xl p-6 relative overflow-hidden border border-emerald-100">
+                        <div className="absolute top-4 right-4">
+                          <button className="w-8 h-8 rounded-lg bg-white/50 hover:bg-white/80 flex items-center justify-center transition-colors">
+                            <MoreVertical className="w-4 h-4 text-emerald-700" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <p className="text-sm font-semibold text-emerald-700 mb-2">Active</p>
+                          <h3 className="text-5xl font-bold text-emerald-900">{stats.pending + stats.inProgress}</h3>
+                        </div>
+                        <p className="text-xs font-medium text-emerald-700">Working Tickets</p>
+                      </div>
 
-              {overviewTab === 'tickets' ? (
+                      {/* Completed Tickets Card */}
+                      <div className="bg-rose-50 rounded-2xl p-6 relative overflow-hidden border border-rose-100">
+                        <div className="absolute top-4 right-4">
+                          <button className="w-8 h-8 rounded-lg bg-white/50 hover:bg-white/80 flex items-center justify-center transition-colors">
+                            <MoreVertical className="w-4 h-4 text-rose-700" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <p className="text-sm font-semibold text-rose-700 mb-2">Completed</p>
+                          <h3 className="text-5xl font-bold text-rose-900">{stats.completed}</h3>
+                        </div>
+                        <p className="text-xs font-medium text-rose-700">Resolved Tickets</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ticket List Section */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Main Tickets List */}
+                    <div className="lg:col-span-2">
+                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+                        <div className="px-6 py-5 border-b border-slate-100">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h2 className="text-lg font-bold text-slate-900">Your Assigned Tickets</h2>
+                              <p className="text-sm text-slate-500 mt-0.5">Manage and resolve tickets efficiently</p>
+                            </div>
+                            <Button onClick={() => setView('tickets')} variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
+                              View All →
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
+                          {tickets.slice(0, 6).length > 0 ? (
+                            tickets.slice(0, 6).map((ticket) => (
+                              <div
+                                key={ticket.id}
+                                onClick={() => setSelectedTicket(ticket)}
+                                className="p-5 hover:bg-slate-50 cursor-pointer transition-all group"
+                              >
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <h3 className="font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors text-sm">{ticket.issue}</h3>
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${
+                                        ticket.priority === 'P1' ? 'bg-red-50 text-red-700' :
+                                        ticket.priority === 'P2' ? 'bg-amber-50 text-amber-700' :
+                                        'bg-blue-50 text-blue-700'
+                                      }`}>
+                                        {ticket.priority}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-slate-600 line-clamp-1 mb-2">{ticket.additionalDetails}</p>
+                                    <div className="flex items-center gap-3 text-xs text-slate-500">
+                                      <span className="flex items-center gap-1">
+                                        <UserIcon className="w-3 h-3" />
+                                        {ticket.user?.username}
+                                      </span>
+                                      <span className="flex items-center gap-1">
+                                        <Clock className="w-3 h-3" />
+                                        {formatRelativeTime(ticket.createdAt)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <Badge variant={getStatusColor(ticket.status)} className="shrink-0 text-xs">
+                                    {ticket.status.replace('_', ' ')}
+                                  </Badge>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-16 text-center">
+                              <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <MessageSquare className="w-8 h-8 text-slate-400" />
+                              </div>
+                              <h3 className="text-slate-900 font-semibold mb-1">No tickets assigned yet</h3>
+                              <p className="text-sm text-slate-500">Assigned tickets will appear here</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sidebar Stats */}
+                    <div className="space-y-6">
+                      {/* Progress Card */}
+                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                        <h3 className="text-sm font-bold text-slate-900 mb-4">Progress Overview</h3>
+                        <div className="space-y-4">
+                          <div>
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-xs font-medium text-slate-600">Pending</span>
+                              <span className="text-xs font-bold text-amber-600">{stats.pending}</span>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-2">
+                              <div 
+                                className="bg-amber-500 h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${tickets.length > 0 ? (stats.pending / tickets.length) * 100 : 0}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-xs font-medium text-slate-600">In Progress</span>
+                              <span className="text-xs font-bold text-blue-600">{stats.inProgress}</span>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-2">
+                              <div 
+                                className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${tickets.length > 0 ? (stats.inProgress / tickets.length) * 100 : 0}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-xs font-medium text-slate-600">Completed</span>
+                              <span className="text-xs font-bold text-green-600">{stats.completed}</span>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-2">
+                              <div 
+                                className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${tickets.length > 0 ? (stats.completed / tickets.length) * 100 : 0}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quick Stats */}
+                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                        <h3 className="text-sm font-bold text-slate-900 mb-4">Quick Stats</h3>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                                <MessageSquare className="w-5 h-5 text-blue-600" />
+                              </div>
+                              <div>
+                                <p className="text-xs text-slate-500 font-medium">Total Assigned</p>
+                                <p className="text-lg font-bold text-slate-900">{tickets.length}</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                                <Clock className="w-5 h-5 text-amber-600" />
+                              </div>
+                              <div>
+                                <p className="text-xs text-slate-500 font-medium">Active</p>
+                                <p className="text-lg font-bold text-slate-900">{stats.pending + stats.inProgress}</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                                <CheckCircle className="w-5 h-5 text-green-600" />
+                              </div>
+                              <div>
+                                <p className="text-xs text-slate-500 font-medium">Resolved</p>
+                                <p className="text-lg font-bold text-slate-900">{stats.completed}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Dashboard Tabs */}
+                  <div className="flex items-center gap-4 border-b border-slate-200 mb-6">
+                    <button
+                      onClick={() => setOverviewTab('tickets')}
+                      className={`pb-3 px-1 text-sm font-medium transition-colors relative ${
+                        overviewTab === 'tickets' 
+                          ? 'text-blue-600' 
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      Tickets Overview
+                      {overviewTab === 'tickets' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setOverviewTab('requests')}
+                      className={`pb-3 px-1 text-sm font-medium transition-colors relative ${
+                        overviewTab === 'requests' 
+                          ? 'text-blue-600' 
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      Requests Overview
+                      {overviewTab === 'requests' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />
+                      )}
+                    </button>
+                  </div>
+
+                  {overviewTab === 'tickets' ? (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                   {/* Stats Row - 4 Cards in 2x2 Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1501,6 +1734,8 @@ function UserDashboardContent() {
                   </div>
                 </div>
               </div>
+              </>
+              )}
             </div>
           )}
         </div>

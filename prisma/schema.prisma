@@ -20,6 +20,7 @@ model Team {
 model User {
   id            String         @id @default(cuid())
   username      String         @unique
+  email         String?        @unique
   password      String
   role          UserRole       @default(USER)
   isActive      Boolean        @default(true)
@@ -29,6 +30,7 @@ model User {
   requests      Request[]
   notes         TicketNote[]
   tickets       Ticket[]
+  assignedTickets Ticket[]   @relation("AssignedTickets")
   teams         UserTeam[]
   notifications Notification[]
 
@@ -71,6 +73,7 @@ model Ticket {
   updatedAt         DateTime        @updatedAt
   incNumber         String?
   teamId            String?
+  assignedToUserId  String?
   localContactName  String?
   localContactEmail String?
   localContactPhone String?
@@ -81,6 +84,7 @@ model Ticket {
   branch            Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
   team              Team?           @relation(fields: [teamId], references: [id])
   user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedTo        User?           @relation("AssignedTickets", fields: [assignedToUserId], references: [id])
 
   @@map("tickets")
 }
@@ -167,6 +171,8 @@ model Notification {
 enum UserRole {
   ADMIN
   USER
+  DEVELOPER
+  TECHNICAL
 }
 
 enum NotificationType {

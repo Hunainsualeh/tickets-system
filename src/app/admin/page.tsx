@@ -24,7 +24,7 @@ import { PieChart } from '@/app/components/PieChart';
 import { SearchBar } from '@/app/components/SearchBar';
 import { Pagination } from '@/app/components/Pagination';
 import { getStatusColor, getPriorityColor, getPriorityLabel, formatDate, formatRelativeTime } from '@/lib/utils';
-import { Users, Building2, Ticket as TicketIcon, Plus, Edit, Trash2, MessageSquare, Clock, CheckCircle, XCircle, Search, Filter, AlertTriangle, MoreVertical, Mail, Phone, MapPin, ArrowLeft, Eye, History, Calendar, FileText, Briefcase } from 'lucide-react';
+import { Users, Building2, Ticket as TicketIcon, Plus, Edit, Trash2, MessageSquare, Clock, CheckCircle, XCircle, Search, Filter, AlertTriangle, MoreVertical, Mail, Phone, MapPin, ArrowLeft, Eye, History, Calendar, FileText, Briefcase, List } from 'lucide-react';
 import { Suspense } from 'react';
 import { NoteDetailModal } from '@/app/components/NoteDetailModal';
 import { RequestDetail } from '@/app/components/RequestDetail';
@@ -51,6 +51,8 @@ function AdminDashboardContent() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [branchSearchQuery, setBranchSearchQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [isUserSearchExpanded, setIsUserSearchExpanded] = useState(false);
   const [isEditingBranch, setIsEditingBranch] = useState(false);
   const [editingBranchId, setEditingBranchId] = useState<string | null>(null);
   
@@ -72,8 +74,17 @@ function AdminDashboardContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [branchesPage, setBranchesPage] = useState(1);
   const [totalBranchesCount, setTotalBranchesCount] = useState(0);
+  const [usersPage, setUsersPage] = useState(1);
   const itemsPerPage = 5;
   const branchesPerPage = 10;
+  const usersPerPage = 10;
+
+  // Bulk Selection State
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
+  const [selectedTicketIds, setSelectedTicketIds] = useState<string[]>([]);
+  const [requestsViewMode, setRequestsViewMode] = useState<'kanban' | 'list'>('kanban');
+  const [ticketsViewMode, setTicketsViewMode] = useState<'kanban' | 'list'>('list');
 
   // Modals
   const [showUserModal, setShowUserModal] = useState(false);
@@ -94,6 +105,7 @@ function AdminDashboardContent() {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [statusUpdate, setStatusUpdate] = useState({ ticketId: '', status: '', adminNote: '' });
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'user' | 'branch' | 'ticket'; name?: string } | null>(null);
+  const [bulkDeleteType, setBulkDeleteType] = useState<'tickets' | 'requests' | 'users' | null>(null);
 
   // Form states
   const [userForm, setUserForm] = useState({ username: '', password: '', role: 'USER', teamIds: [] as string[] });
@@ -105,6 +117,7 @@ function AdminDashboardContent() {
   });
   const [ticketForm, setTicketForm] = useState({
     userId: '',
+    assignedToUserId: '',
     branchId: '',
     incNumber: '',
     priority: 'P2',
@@ -341,6 +354,46 @@ function AdminDashboardContent() {
   };
 
   const confirmDelete = async () => {
+    if (bulkDeleteType) {
+      try {
+        if (bulkDeleteType === 'tickets') {
+          const response = await fetch('/api/tickets', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify({ ids: selectedTicketIds }),
+          });
+          if (!response.ok) throw new Error('Failed to delete tickets');
+          toast.success(`${selectedTicketIds.length} tickets deleted successfully`);
+          setSelectedTicketIds([]);
+        } else if (bulkDeleteType === 'requests') {
+          const response = await fetch('/api/requests', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify({ ids: selectedRequestIds }),
+          });
+          if (!response.ok) throw new Error('Failed to delete requests');
+          toast.success(`${selectedRequestIds.length} requests deleted successfully`);
+          setSelectedRequestIds([]);
+        } else if (bulkDeleteType === 'users') {
+          const response = await fetch('/api/users', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify({ ids: selectedUserIds }),
+          });
+          if (!response.ok) throw new Error('Failed to delete users');
+          toast.success(`${selectedUserIds.length} users deleted successfully`);
+          setSelectedUserIds([]);
+        }
+        fetchData();
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to delete items');
+      } finally {
+        setShowDeleteModal(false);
+        setBulkDeleteType(null);
+      }
+      return;
+    }
+
     if (!deleteTarget) return;
     
     try {
@@ -493,6 +546,7 @@ function AdminDashboardContent() {
       setCreateView(null);
       setTicketForm({
         userId: '',
+        assignedToUserId: '',
         branchId: '',
         incNumber: '',
         priority: 'P2',
@@ -546,6 +600,21 @@ function AdminDashboardContent() {
 
   const handleDeleteTicket = async (id: string) => {
     setDeleteTarget({ id, type: 'ticket' });
+    setShowDeleteModal(true);
+  };
+
+  const handleBulkDeleteUsers = async () => {
+    setBulkDeleteType('users');
+    setShowDeleteModal(true);
+  };
+
+  const handleBulkDeleteRequests = async () => {
+    setBulkDeleteType('requests');
+    setShowDeleteModal(true);
+  };
+
+  const handleBulkDeleteTickets = async () => {
+    setBulkDeleteType('tickets');
     setShowDeleteModal(true);
   };
 
@@ -633,6 +702,27 @@ function AdminDashboardContent() {
               onUpdateStatus={(status) => handleUpdateTicketStatus(selectedTicket.id, status)}
               onDelete={() => handleDeleteTicket(selectedTicket.id)}
               onViewHistory={() => router.push(`/admin/tickets/${selectedTicket.id}/timeline`)}
+              availableUsers={users}
+              onAssignUser={async (userId) => {
+                try {
+                  const response = await fetch(`/api/tickets/${selectedTicket.id}`, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    },
+                    body: JSON.stringify({ assignedToUserId: userId }),
+                  });
+                  
+                  if (!response.ok) throw new Error('Failed to assign ticket');
+                  
+                  toast.success(userId ? 'Ticket assigned successfully' : 'Ticket unassigned');
+                  handleViewTicket(selectedTicket.id);
+                  fetchData();
+                } catch (error: any) {
+                  toast.error(error.message);
+                }
+              }}
             />
           ) : createView ? (
             <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -897,6 +987,14 @@ function AdminDashboardContent() {
                           onChange={(value) => setTicketForm({ ...ticketForm, userId: value })}
                           options={users.map((u) => ({ value: u.id, label: u.username }))}
                           placeholder="Select a user"
+                          searchable={true}
+                        />
+                        <CustomSelect
+                          label="Assign To (Optional)"
+                          value={ticketForm.assignedToUserId}
+                          onChange={(value) => setTicketForm({ ...ticketForm, assignedToUserId: value })}
+                          options={users.map((u) => ({ value: u.id, label: `${u.username} (${u.role})` }))}
+                          placeholder="Select a user to assign"
                           searchable={true}
                         />
                         <CustomSelect
@@ -1534,17 +1632,59 @@ function AdminDashboardContent() {
             </div>
 
             {/* Actions Toolbar */}
-            <div className="flex justify-end mb-4">
-              <Button onClick={() => setCreateView('user')}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add User
-              </Button>
+            <div className="flex justify-end items-center mb-4 gap-3">
+              <div className={`relative flex justify-end transition-all duration-300 ease-in-out ${isUserSearchExpanded ? 'w-64' : 'w-10'}`}>
+                {isUserSearchExpanded ? (
+                  <div className="w-full animate-in fade-in zoom-in-95 duration-200">
+                    <SearchBar
+                      placeholder="Search users..."
+                      value={userSearchQuery}
+                      onChange={setUserSearchQuery}
+                      autoFocus
+                      onBlur={() => !userSearchQuery && setIsUserSearchExpanded(false)}
+                    />
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setIsUserSearchExpanded(true)}
+                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 transition-all shadow-sm"
+                  >
+                    <Search className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+
+              {selectedUserIds.length > 0 ? (
+                <Button variant="danger" onClick={handleBulkDeleteUsers}>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete {selectedUserIds.length} Users
+                </Button>
+              ) : (
+                <Button onClick={() => setCreateView('user')}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add User
+                </Button>
+              )}
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
               <Table>
                 <TableHeader>
                   <tr>
+                    <TableHead className="w-12">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        checked={users.length > 0 && selectedUserIds.length === users.length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedUserIds(users.map(u => u.id));
+                          } else {
+                            setSelectedUserIds([]);
+                          }
+                        }}
+                      />
+                    </TableHead>
                     <TableHead>Username</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Team</TableHead>
@@ -1557,6 +1697,7 @@ function AdminDashboardContent() {
                   {loading ? (
                     Array.from({ length: 5 }).map((_, index) => (
                       <TableRow key={index} className="animate-pulse">
+                        <TableCell><div className="h-4 w-4 bg-slate-200 rounded"></div></TableCell>
                         <TableCell><div className="h-4 bg-slate-200 rounded w-24"></div></TableCell>
                         <TableCell><div className="h-6 bg-slate-200 rounded-full w-16"></div></TableCell>
                         <TableCell><div className="h-6 bg-slate-200 rounded-full w-20"></div></TableCell>
@@ -1565,8 +1706,26 @@ function AdminDashboardContent() {
                         <TableCell><div className="h-8 w-8 bg-slate-200 rounded"></div></TableCell>
                       </TableRow>
                     ))
-                  ) : users.map((user: any) => (
+                  ) : users.filter(u => 
+                    !userSearchQuery || 
+                    u.username.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                    (u.email && u.email.toLowerCase().includes(userSearchQuery.toLowerCase()))
+                  ).slice((usersPage - 1) * usersPerPage, usersPage * usersPerPage).map((user: any) => (
                     <TableRow key={user.id} onClick={() => setSelectedUser(user)} className="cursor-pointer hover:bg-slate-50">
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          checked={selectedUserIds.includes(user.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedUserIds([...selectedUserIds, user.id]);
+                            } else {
+                              setSelectedUserIds(selectedUserIds.filter(id => id !== user.id));
+                            }
+                          }}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{user.username}</TableCell>
                       <TableCell>
                         <Badge variant={user.role === 'ADMIN' ? 'info' : 'default'}>
@@ -1609,19 +1768,30 @@ function AdminDashboardContent() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {!loading && tickets
-                    .filter(t => ticketFilterStatus === 'ALL' || t.status === ticketFilterStatus)
-                    .filter(t => ticketFilterPriority === 'ALL' || t.priority === ticketFilterPriority)
-                    .length === 0 && (
+                  {!loading && users.filter(u => 
+                    !userSearchQuery || 
+                    u.username.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                    (u.email && u.email.toLowerCase().includes(userSearchQuery.toLowerCase()))
+                  ).length === 0 && (
                     <tr>
                       <td colSpan={7} className="p-8 text-center text-slate-500">
-                        No tickets found
+                        No users found
                       </td>
                     </tr>
                   )}
                 </TableBody>
               </Table>
             </div>
+
+            <Pagination
+              currentPage={usersPage}
+              totalPages={Math.ceil(users.filter(u => 
+                !userSearchQuery || 
+                u.username.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                (u.email && u.email.toLowerCase().includes(userSearchQuery.toLowerCase()))
+              ).length / usersPerPage)}
+              onPageChange={setUsersPage}
+            />
           </div>
             )
           )}
@@ -1937,13 +2107,41 @@ function AdminDashboardContent() {
                   </div>
                 )}
               </div>
-              <Button onClick={() => setCreateView('ticket')} variant="outline" className="w-full sm:w-auto">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Ticket
-              </Button>
+              {selectedTicketIds.length > 0 ? (
+                <Button variant="danger" onClick={handleBulkDeleteTickets} className="w-full sm:w-auto">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Selected ({selectedTicketIds.length})
+                </Button>
+              ) : (
+                <Button onClick={() => setCreateView('ticket')} variant="outline" className="w-full sm:w-auto">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Ticket
+                </Button>
+              )}
             </div>
 
+
             <div className="space-y-4">
+               {/* Bulk Actions & View Toggle for Tickets */}
+               <div className="flex justify-end gap-2 mb-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setTicketsViewMode(ticketsViewMode === 'kanban' ? 'list' : 'kanban')}
+                  >
+                    {ticketsViewMode === 'kanban' ? (
+                      <>
+                        <List className="w-4 h-4 mr-2" />
+                        View List
+                      </>
+                    ) : (
+                      <>
+                        <Briefcase className="w-4 h-4 mr-2" />
+                        View Board
+                      </>
+                    )}
+                  </Button>
+               </div>
+
               {loading ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <div key={index} className="bg-white rounded-xl border border-slate-200 p-4 animate-pulse">
@@ -1964,45 +2162,137 @@ function AdminDashboardContent() {
                     </div>
                   </div>
                 ))
-              ) : tickets
-                .filter(t => ticketFilterStatus === 'ALL' || t.status === ticketFilterStatus)
-                .filter(t => ticketFilterPriority === 'ALL' || t.priority === ticketFilterPriority)
-                .map((ticket) => (
-                  <TicketCard
-                    key={ticket.id}
-                    ticket={ticket}
-                    onClick={() => handleViewTicket(ticket.id)}
-                    onDelete={() => handleDeleteTicket(ticket.id)}
-                    isAdmin={true}
-                  />
-                ))}
-              
-              {!loading && tickets
-                .filter(t => ticketFilterStatus === 'ALL' || t.status === ticketFilterStatus)
-                .filter(t => ticketFilterPriority === 'ALL' || t.priority === ticketFilterPriority)
-                .length === 0 && (
-                <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
-                  <TicketIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                  <h3 className="text-lg font-medium text-slate-900">No tickets found</h3>
-                  <p className="text-slate-500">Try adjusting your filters or create a new ticket.</p>
-                </div>
+              ) : (
+                ticketsViewMode === 'kanban' ? (
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {tickets.map(ticket => (
+                        <TicketCard key={ticket.id} ticket={ticket} onClick={() => setSelectedTicket(ticket)} />
+                      ))}
+                   </div>
+                ) : (
+                   <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <tr>
+                            <TableHead className="w-12">
+                              <input
+                                type="checkbox"
+                                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                checked={tickets.length > 0 && selectedTicketIds.length === tickets.length}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedTicketIds(tickets.map(t => t.id));
+                                  } else {
+                                    setSelectedTicketIds([]);
+                                  }
+                                }}
+                              />
+                            </TableHead>
+                            <TableHead>Issue</TableHead>
+                            <TableHead>Branch</TableHead>
+                            <TableHead>Priority</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Assigned To</TableHead>
+                            <TableHead>Created</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </tr>
+                        </TableHeader>
+                        <TableBody>
+                          {tickets.map((ticket) => (
+                            <TableRow key={ticket.id} onClick={() => setSelectedTicket(ticket)} className="cursor-pointer hover:bg-slate-50">
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type="checkbox"
+                                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                  checked={selectedTicketIds.includes(ticket.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedTicketIds([...selectedTicketIds, ticket.id]);
+                                    } else {
+                                      setSelectedTicketIds(selectedTicketIds.filter(id => id !== ticket.id));
+                                    }
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell className="font-medium">{ticket.issue}</TableCell>
+                              <TableCell>{ticket.branch?.name || '-'}</TableCell>
+                              <TableCell>
+                                <Badge variant={getPriorityColor(ticket.priority)}>{ticket.priority}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={getStatusColor(ticket.status)}>{ticket.status}</Badge>
+                              </TableCell>
+                              <TableCell>{ticket.assignedTo?.username || '-'}</TableCell>
+                              <TableCell className="text-xs text-slate-600">
+                                {formatDate(ticket.createdAt)}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (confirm('Are you sure you want to delete this ticket?')) {
+                                      try {
+                                        await fetch(`/api/tickets/${ticket.id}`, {
+                                          method: 'DELETE',
+                                          headers: {
+                                            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                                          },
+                                        });
+                                        fetchData();
+                                        toast.success('Ticket deleted');
+                                      } catch (error) {
+                                        console.error('Delete ticket error:', error);
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                   </div>
+                )
               )}
             </div>
           </div>
           )}
 
-          {/* Requests Tab */}
           {activeTab === 'requests' && (
-            <div className="space-y-6 h-[calc(100vh-12rem)]">
-              {/* Header */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-900">Requests Management</h2>
-                  <p className="text-sm text-slate-500 mt-1">Manage and track all user requests</p>
-                </div>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-slate-900">Request Management</h2>
+              <div className="flex gap-2">
+                  {selectedRequestIds.length > 0 && requestsViewMode === 'list' && (
+                    <Button variant="danger" onClick={handleBulkDeleteRequests}>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete {selectedRequestIds.length} Requests
+                    </Button>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setRequestsViewMode(requestsViewMode === 'kanban' ? 'list' : 'kanban')}
+                  >
+                    {requestsViewMode === 'kanban' ? (
+                      <>
+                        <List className="w-4 h-4 mr-2" />
+                        View All List
+                      </>
+                    ) : (
+                      <>
+                        <Briefcase className="w-4 h-4 mr-2" />
+                        View Board
+                      </>
+                    )}
+                  </Button>
               </div>
+            </div>
 
-              {/* Filters Bar */}
+            {/* Filters Bar */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
                 <div className="flex-1 min-w-0">
                   <div className="relative">
@@ -2044,53 +2334,160 @@ function AdminDashboardContent() {
                 </div>
               </div>
 
-              {/* Kanban Board */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-6 overflow-x-auto">
-                {loading ? (
-                  <div className="flex gap-4 min-w-max">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="w-80 bg-slate-50 rounded-xl p-4 animate-pulse">
-                        <div className="h-6 bg-slate-200 rounded w-1/2 mb-4"></div>
-                        <div className="space-y-3">
-                          {Array.from({ length: 3 }).map((_, j) => (
-                            <div key={j} className="bg-white rounded-lg p-4 h-32 border border-slate-100"></div>
-                          ))}
+              {/* Content */}
+              {requestsViewMode === 'kanban' ? (
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-6 overflow-x-auto">
+                  {loading ? (
+                    <div className="flex gap-4 min-w-max">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="w-80 bg-slate-50 rounded-xl p-4 animate-pulse">
+                          <div className="h-6 bg-slate-200 rounded w-1/2 mb-4"></div>
+                          <div className="space-y-3">
+                            {Array.from({ length: 3 }).map((_, j) => (
+                              <div key={j} className="bg-white rounded-lg p-4 h-32 border border-slate-100"></div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <KanbanBoard
-                    requests={requests.filter(r => 
-                      (!searchQuery || 
-                      r.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      r.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      r.user?.username?.toLowerCase().includes(searchQuery.toLowerCase())) &&
-                      (!filterPriority || r.priority === filterPriority) &&
-                      (!filterStatus || r.status === filterStatus)
-                    )}
-                    onRequestClick={setSelectedRequest}
-                    isAdmin={true}
-                    onStatusChange={async (requestId, status) => {
-                      try {
-                        await fetch(`/api/requests/${requestId}`, {
-                          method: 'PUT',
-                          headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                          },
-                          body: JSON.stringify({ status }),
-                        });
-                        fetchData();
-                        toast.success('Request status updated');
-                      } catch (error) {
-                        console.error('Update request error:', error);
-                        toast.error('Failed to update request status');
-                      }
-                    }}
-                  />
-                )}
-              </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <KanbanBoard
+                      requests={requests.filter(r => 
+                        (!searchQuery || 
+                        r.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        r.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        r.user?.username?.toLowerCase().includes(searchQuery.toLowerCase())) &&
+                        (!filterPriority || r.priority === filterPriority) &&
+                        (!filterStatus || r.status === filterStatus)
+                      )}
+                      onRequestClick={setSelectedRequest}
+                      isAdmin={true}
+                      onStatusChange={async (requestId, status) => {
+                        try {
+                          await fetch(`/api/requests/${requestId}`, {
+                            method: 'PUT',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                            },
+                            body: JSON.stringify({ status }),
+                          });
+                          fetchData();
+                          toast.success('Request status updated');
+                        } catch (error) {
+                          console.error('Update request error:', error);
+                          toast.error('Failed to update request status');
+                        }
+                      }}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <tr>
+                        <TableHead className="w-12">
+                          <input
+                            type="checkbox"
+                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            checked={requests.length > 0 && selectedRequestIds.length === requests.length}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedRequestIds(requests.map(r => r.id));
+                              } else {
+                                setSelectedRequestIds([]);
+                              }
+                            }}
+                          />
+                        </TableHead>
+                        <TableHead>Title</TableHead>
+                        <TableHead>User</TableHead>
+                        <TableHead>Project</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </tr>
+                    </TableHeader>
+                    <TableBody>
+                      {requests
+                        .filter(r => 
+                          (!searchQuery || 
+                          r.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          r.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          r.user?.username?.toLowerCase().includes(searchQuery.toLowerCase())) &&
+                          (!filterPriority || r.priority === filterPriority) &&
+                          (!filterStatus || r.status === filterStatus)
+                        )
+                        .map((request: any) => (
+                        <TableRow key={request.id} onClick={() => setSelectedRequest(request)} className="cursor-pointer hover:bg-slate-50">
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                              checked={selectedRequestIds.includes(request.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedRequestIds([...selectedRequestIds, request.id]);
+                                } else {
+                                  setSelectedRequestIds(selectedRequestIds.filter(id => id !== request.id));
+                                }
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">{request.title}</TableCell>
+                          <TableCell>{request.user?.username}</TableCell>
+                          <TableCell>
+                            {request.projectId ? (
+                              <Badge variant="default" size="sm">{request.projectId}</Badge>
+                            ) : (
+                              <span className="text-slate-400 text-sm">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={getStatusColor(request.status)}>{request.status}</Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-slate-600">
+                            {formatDate(request.createdAt)}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (confirm('Are you sure you want to delete this request?')) {
+                                  try {
+                                    await fetch(`/api/requests/${request.id}`, {
+                                      method: 'DELETE',
+                                      headers: {
+                                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                                      },
+                                    });
+                                    fetchData();
+                                    toast.success('Request deleted');
+                                  } catch (error) {
+                                    console.error('Delete request error:', error);
+                                  }
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {requests.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-slate-500">
+                            No requests found
+                          </td>
+                        </tr>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
 
               {/* Request Detail Modal */}
               {selectedRequest && (
@@ -2289,7 +2686,10 @@ function AdminDashboardContent() {
       {/* Delete Confirmation Modal */}
       <Modal
         isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setBulkDeleteType(null);
+        }}
         title="Confirm Deletion"
         size="sm"
       >
@@ -2300,15 +2700,25 @@ function AdminDashboardContent() {
             </div>
             <h3 className="text-lg font-bold text-slate-900 mb-2">Are you sure?</h3>
             <p className="text-slate-500">
-              This action cannot be undone. This will permanently delete the {deleteTarget?.type}.
+              {bulkDeleteType 
+                ? `This action cannot be undone. This will permanently delete ${
+                    bulkDeleteType === 'tickets' ? selectedTicketIds.length :
+                    bulkDeleteType === 'requests' ? selectedRequestIds.length :
+                    selectedUserIds.length
+                  } ${bulkDeleteType}.`
+                : `This action cannot be undone. This will permanently delete the ${deleteTarget?.type}.`
+              }
             </p>
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-            <Button type="button" variant="ghost" onClick={() => setShowDeleteModal(false)}>
+            <Button type="button" variant="ghost" onClick={() => {
+              setShowDeleteModal(false);
+              setBulkDeleteType(null);
+            }}>
               Cancel
             </Button>
             <Button variant="danger" onClick={confirmDelete}>
-              Delete {deleteTarget?.type}
+              Delete {bulkDeleteType || deleteTarget?.type}
             </Button>
           </div>
         </div>

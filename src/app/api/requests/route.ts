@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/middleware';
 import { prisma } from '@/lib/prisma';
 import { notifyAdmins } from '@/lib/notifications';
+import { sendAdminNotification } from '@/lib/email';
+import { generateNewRequestEmailHtml } from '@/lib/email-templates';
 
 // GET all requests
 export async function GET(request: NextRequest) {
@@ -160,9 +162,70 @@ export async function POST(request: NextRequest) {
       `/admin/requests/${newRequest.id}`
     );
 
+    // Send email to admin
+    const emailHtml = generateNewRequestEmailHtml({
+      title: newRequest.title,
+      description: newRequest.description,
+      username: newRequest.user.username,
+      projectId: newRequest.projectId || undefined,
+      requestId: newRequest.id,
+      requestUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/requests/${newRequest.id}`
+    });
+
+    await sendAdminNotification(
+      `New Request Created: ${newRequest.title}`,
+      `A new request has been created by ${newRequest.user.username}.\n\n` +
+      `Title: ${newRequest.title}\n` +
+      `Description: ${newRequest.description}\n` +
+      `Project ID: ${newRequest.projectId || 'N/A'}\n` +
+      `Link: ${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/requests/${newRequest.id}`,
+      emailHtml
+    );
+
     return NextResponse.json({ request: newRequest }, { status: 201 });
   } catch (error) {
     console.error('Create request error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE bulk requests (Admin only)
+export async function DELETE(request: NextRequest) {
+  const authResult = requireAuth(request);
+  
+  if (authResult instanceof NextResponse) {
+    return authResult;
+  }
+
+  // Only admins can bulk delete
+  if (authResult.user.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  try {
+    const { ids } = await request.json();
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json(
+        { error: 'Request IDs are required' },
+        { status: 400 }
+      );
+    }
+
+    await prisma.request.deleteMany({
+      where: {
+        id: {
+          in: ids,
+        },
+      },
+    });
+
+    return NextResponse.json({ message: 'Requests deleted successfully' });
+  } catch (error) {
+    console.error('Bulk delete requests error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

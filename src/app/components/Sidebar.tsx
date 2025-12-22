@@ -8,7 +8,7 @@ import { Modal } from './Modal';
 import { apiClient } from '@/lib/api-client';
 
 interface SidebarProps {
-  userRole?: 'ADMIN' | 'USER';
+  userRole?: 'ADMIN' | 'USER' | 'DEVELOPER' | 'TECHNICAL';
   username?: string;
   onTabChange?: (tab: string) => void;
   onNavigate?: () => void;
@@ -85,6 +85,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
         { icon: ClipboardList, label: 'Tickets', key: 'tickets', href: '/admin?tab=tickets' },
         { icon: BarChart3, label: 'Analytics', key: 'analytics', href: '/admin?tab=analytics' },
         { icon: FileText, label: 'Requests', key: 'requests', href: '/admin?tab=requests' },
+      ]
+    : userRole === 'DEVELOPER' || userRole === 'TECHNICAL'
+    ? [
+        { icon: LayoutGrid, label: 'Dashboard', href: '/dashboard', key: 'overview' },
+        { icon: ClipboardList, label: 'Assigned Tickets', href: '/dashboard?view=tickets', key: 'tickets' },
+        { icon: Users, label: 'Profile', href: '/dashboard?view=profile', key: 'profile' },
       ]
     : [
         { icon: LayoutGrid, label: 'Dashboard', href: '/dashboard', key: 'overview' },

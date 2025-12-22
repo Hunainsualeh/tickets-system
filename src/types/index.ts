@@ -19,7 +19,8 @@ export interface UserTeam {
 export interface User {
   id: string;
   username: string;
-  role: 'ADMIN' | 'USER';
+  email?: string;
+  role: 'ADMIN' | 'USER' | 'DEVELOPER' | 'TECHNICAL';
   teamId?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -27,6 +28,7 @@ export interface User {
   teams?: UserTeam[];
   _count?: {
     tickets: number;
+    assignedTickets?: number;
   };
 }
 
@@ -71,6 +73,9 @@ export interface Ticket {
   localContactEmail?: string | null;
   localContactPhone?: string | null;
   timezone?: string | null;
+  assignedToUserId?: string | null;
+  assignedTo?: User | null;
+  assignedToUser?: User | null;
 }
 
 export interface StatusHistory {
