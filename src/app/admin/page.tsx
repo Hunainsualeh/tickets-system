@@ -1208,7 +1208,6 @@ function AdminDashboardContent() {
                       title="Total Tickets"
                       value={stats.totalTickets}
                       icon={MessageSquare}
-                      trend={{ value: '12%', label: 'vs last month', direction: 'up' }}
                       color="blue"
                       onClick={() => {
                         setActiveTab('tickets');
@@ -1219,7 +1218,11 @@ function AdminDashboardContent() {
                       title="Pending Issues"
                       value={stats.pendingTickets}
                       icon={Clock}
-                      trend={{ value: '3%', label: 'vs last month', direction: 'down' }}
+                      trend={{ 
+                        value: `${stats.totalTickets > 0 ? Math.round((stats.pendingTickets / stats.totalTickets) * 100) : 0}%`, 
+                        label: 'of total', 
+                        direction: 'neutral' 
+                      }}
                       color="orange"
                       onClick={() => {
                         setActiveTab('tickets');
@@ -1230,7 +1233,11 @@ function AdminDashboardContent() {
                       title="Completed"
                       value={stats.completedTickets}
                       icon={CheckCircle}
-                      trend={{ value: '8%', label: 'vs last month', direction: 'up' }}
+                      trend={{ 
+                        value: `${stats.totalTickets > 0 ? Math.round((stats.completedTickets / stats.totalTickets) * 100) : 0}%`, 
+                        label: 'completion rate', 
+                        direction: 'up' 
+                      }}
                       color="green"
                       onClick={() => {
                         setActiveTab('tickets');
@@ -1241,7 +1248,11 @@ function AdminDashboardContent() {
                       title="Pending Requests"
                       value={stats.pendingRequests}
                       icon={FileText}
-                      trend={{ value: `${Math.round((stats.pendingRequests / (stats.totalRequests || 1)) * 100)}%`, label: 'of total', direction: 'neutral' }}
+                      trend={{ 
+                        value: `${stats.totalRequests > 0 ? Math.round((stats.pendingRequests / stats.totalRequests) * 100) : 0}%`, 
+                        label: 'of total', 
+                        direction: 'neutral' 
+                      }}
                       color="purple"
                       onClick={() => {
                         setActiveTab('requests');
@@ -1255,7 +1266,7 @@ function AdminDashboardContent() {
                     <div className="flex items-end gap-2 px-4 pt-4 bg-slate-50 border-b border-slate-200">
                       <button
                         onClick={() => setOverviewTab('tickets')}
-                        className={`px-6 py-3 text-sm font-semibold rounded-t-lg border-t border-l border-r transition-all relative top-[1px] ${
+                        className={`px-6 py-3 text-sm font-semibold rounded-t-lg border-t border-l border-r transition-all relative top-px ${
                           overviewTab === 'tickets'
                             ? 'bg-white text-blue-600 border-slate-200 shadow-[0_-2px_3px_rgba(0,0,0,0.02)] z-10'
                             : 'bg-transparent border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
