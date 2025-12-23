@@ -24,6 +24,7 @@ import { SuccessModal } from '@/app/components/SuccessModal';
 import { NoteDetailModal } from '@/app/components/NoteDetailModal';
 import { RequestDetail } from '@/app/components/RequestDetail';
 import { AnalyticsSection } from '@/app/components/AnalyticsSection';
+import { ReportsSection } from '@/app/components/ReportsSection';
 import { AreaChart } from '@/app/components/AreaChart';
 import { PieChart } from '@/app/components/PieChart';
 import { KanbanBoard } from '@/app/components/KanbanBoard';
@@ -43,7 +44,7 @@ function UserDashboardContent() {
   const [requests, setRequests] = useState<any[]>([]);
   const [notes, setNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'dashboard' | 'create' | 'tickets' | 'profile' | 'requests' | 'create-request' | 'notes' | 'analytics'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'create' | 'tickets' | 'profile' | 'requests' | 'create-request' | 'notes' | 'analytics' | 'reports'>('dashboard');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedNote, setSelectedNote] = useState<any | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
@@ -782,8 +783,23 @@ function UserDashboardContent() {
               <AnalyticsSection 
                 tickets={tickets} 
                 requests={requests}
+                branches={branches}
                 currentUser={user}
                 companyName={companyName}
+              />
+            </div>
+            )
+          ) : view === 'reports' && user ? (
+            (user?.role === 'DEVELOPER' || user?.role === 'TECHNICAL') ? (
+              // Redirect DEVELOPER/TECHNICAL users to dashboard
+              <>{setView('dashboard')}</>
+            ) : (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <ReportsSection
+                tickets={tickets}
+                requests={requests}
+                branches={branches}
+                currentUser={user}
               />
             </div>
             )

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 interface AreaChartProps {
   data: number[];
@@ -24,15 +24,27 @@ export function AreaChart({
   action
 }: AreaChartProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const resizeObserver = new ResizeObserver(entries => {
+      if (!entries || entries.length === 0) return;
+      setWidth(entries[0].contentRect.width);
+    });
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
+
   const height = 350;
-  const width = 800;
-  const padding = { top: 40, right: 40, bottom: 50, left: 60 };
+  const padding = { top: 20, right: 30, bottom: 40, left: 40 };
   
-  const chartWidth = width - padding.left - padding.right;
+  // Use a default width for SSR/initial render to avoid layout shift or errors
+  const chartWidth = (width || 800) - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
   
-  const maxValue = Math.max(...data, ...(data2 || []), 1) * 1.25;
+  const maxValue = Math.max(...data, ...(data2 || []), 1) * 1.1;
   
   const getX = (index: number) => padding.left + (index / (labels.length - 1)) * chartWidth;
   const getY = (value: number) => height - padding.bottom - (value / maxValue) * chartHeight;
@@ -78,202 +90,146 @@ export function AreaChart({
   const areaD2 = points2.length ? `${pathD2} L ${points2[points2.length-1][0]},${height-padding.bottom} L ${points2[0][0]},${height-padding.bottom} Z` : '';
 
   return (
-    <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-8 hover:shadow-lg transition-shadow duration-300">
+    <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm p-6 hover:shadow-lg transition-shadow duration-300" ref={containerRef}>
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
-        <div className="flex-1">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-            <div>
-              {title && <h3 className="font-bold text-slate-900 text-lg">{title}</h3>}
-              {subtitle && <p className="text-slate-500 text-sm mt-1">{subtitle}</p>}
-            </div>
-            {action && <div className="w-full sm:w-auto sm:ml-4">{action}</div>}
-          </div>
+        <div>
+          {title && <h3 className="font-bold text-slate-900 text-lg">{title}</h3>}
+          {subtitle && <p className="text-slate-500 text-sm mt-1">{subtitle}</p>}
+        </div>
+        
+        <div className="flex items-center gap-4">
+           <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+              <span className="text-xs font-medium text-slate-600">{legend1}</span>
+           </div>
+           {data2 && (
+             <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                <span className="text-xs font-medium text-slate-600">{legend2}</span>
+             </div>
+           )}
+           {action}
         </div>
       </div>
       
-      <div className="flex flex-wrap justify-end gap-4 mb-6">
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg">
-          <div className="w-3 h-3 rounded-full bg-blue-500 shadow-sm"></div>
-          <span className="text-xs text-slate-700 font-semibold">{legend1}</span>
-        </div>
-        {data2 && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-lg">
-            <div className="w-3 h-3 rounded-full bg-red-500"></div>
-            <span className="text-xs text-slate-600 font-medium">{legend2}</span>
-          </div>
-        )}
-      </div>
-      
-      <div className="relative w-full aspect-2/1 max-h-[400px]">
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
+      <div className="relative w-full overflow-hidden" style={{ height: `${height}px` }}>
+        <svg width="100%" height="100%" viewBox={`0 0 ${width || 800} ${height}`} className="overflow-visible">
           <defs>
             <linearGradient id="gradient1" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6366F1" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#6366F1" stopOpacity="0.02" />
+              <stop offset="0%" stopColor="#6366F1" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="#6366F1" stopOpacity="0" />
             </linearGradient>
             {data2 && (
               <linearGradient id="gradient2" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0.02" />
+                <stop offset="0%" stopColor="#A855F7" stopOpacity="0.2" />
+                <stop offset="100%" stopColor="#A855F7" stopOpacity="0" />
               </linearGradient>
             )}
-            <filter id="lineShadow">
-              <feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.3" />
-            </filter>
           </defs>
 
-          {/* Background Grid */}
-          <rect x={padding.left} y={padding.top} width={chartWidth} height={chartHeight} fill="#FAFAFA" rx="8" />
-
           {/* Grid Lines */}
-          {Array.from({ length: 5 }).map((_, i) => {
-            const y = padding.top + (i * chartHeight) / 4;
-            const value = Math.round(maxValue - (i * maxValue) / 4);
+          {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
+            const y = height - padding.bottom - (tick * chartHeight);
             return (
-              <g key={i}>
-                <line
-                  x1={padding.left}
-                  y1={y}
-                  x2={width - padding.right}
-                  y2={y}
-                  stroke="#CBD5E1"
+              <g key={tick}>
+                <line 
+                  x1={padding.left} 
+                  y1={y} 
+                  x2={width ? width - padding.right : 800 - padding.right} 
+                  y2={y} 
+                  stroke="#E2E8F0" 
                   strokeWidth="1"
-                  strokeDasharray="6 4"
-                  opacity="0.6"
+                  strokeDasharray="4 4" 
                 />
-                <text
-                  x={padding.left - 15}
-                  y={y + 4}
-                  textAnchor="end"
-                  className="text-xs fill-slate-500 font-medium"
-                  style={{ fontSize: '11px' }}
+                <text 
+                  x={padding.left - 10} 
+                  y={y + 4} 
+                  textAnchor="end" 
+                  className="text-[10px] fill-slate-400 font-medium"
                 >
-                  {i === 4 ? 0 : value}
+                  {Math.round(tick * maxValue)}
                 </text>
               </g>
             );
           })}
 
           {/* Areas */}
-          {data2 && <path d={areaD2} fill="url(#gradient2)" />}
-          <path d={areaD1} fill="url(#gradient1)" />
+          <path d={areaD1} fill="url(#gradient1)" className="transition-all duration-300" />
+          {data2 && <path d={areaD2} fill="url(#gradient2)" className="transition-all duration-300" />}
 
-          {/* Lines with enhanced styling */}
-          {data2 && <path d={pathD2} fill="none" stroke="#8B5CF6" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" filter="url(#lineShadow)" />}
-          <path d={pathD1} fill="none" stroke="#6366F1" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" filter="url(#lineShadow)" />
+          {/* Lines */}
+          <path d={pathD1} fill="none" stroke="#6366F1" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-sm" />
+          {data2 && <path d={pathD2} fill="none" stroke="#A855F7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-sm" /> }
 
-          {/* Points and Tooltips */}
-          {points1.map((point, i) => (
-            <g key={i}>
-              {/* Data points with enhanced styling */}
-              <circle
-                cx={point[0]}
-                cy={point[1]}
-                r={hoverIndex === i ? 6 : 4}
-                fill="white"
-                stroke="#6366F1"
-                strokeWidth={hoverIndex === i ? 3 : 2.5}
-                className="transition-all duration-200"
-                style={{ filter: 'drop-shadow(0 2px 4px rgba(99, 102, 241, 0.3))' }}
-              />
-              {data2 && points2[i] && (
-                <circle
-                  cx={points2[i][0]}
-                  cy={points2[i][1]}
-                  r={hoverIndex === i ? 6 : 4}
-                  fill="white"
-                  stroke="#8B5CF6"
-                  strokeWidth={hoverIndex === i ? 3 : 2.5}
-                  className="transition-all duration-200"
-                  style={{ filter: 'drop-shadow(0 2px 4px rgba(139, 92, 246, 0.3))' }}
-                />
-              )}
+          {/* X Axis Labels */}
+          {labels.map((label, i) => {
+             // Show all labels if few, or skip some if many
+             if (labels.length > 12 && i % 2 !== 0) return null;
+             
+             return (
+              <text 
+                key={i}
+                x={getX(i)} 
+                y={height - 10} 
+                textAnchor="middle" 
+                className="text-[10px] fill-slate-400 font-medium"
+              >
+                {label}
+              </text>
+             );
+          })}
 
-              {/* Hover Trigger Area */}
-              <rect
-                x={point[0] - (chartWidth / labels.length) / 2}
-                y={padding.top}
-                width={chartWidth / labels.length}
-                height={chartHeight}
-                fill="transparent"
-                onMouseEnter={() => setHoverIndex(i)}
-                onMouseLeave={() => setHoverIndex(null)}
+          {/* Hover Effects */}
+          {labels.map((_, i) => (
+            <g key={i} onMouseEnter={() => setHoverIndex(i)} onMouseLeave={() => setHoverIndex(null)}>
+              {/* Invisible hover target */}
+              <rect 
+                x={getX(i) - (chartWidth / (labels.length - 1)) / 2} 
+                y={padding.top} 
+                width={chartWidth / (labels.length - 1)} 
+                height={chartHeight} 
+                fill="transparent" 
                 className="cursor-pointer"
               />
               
-              {/* Active State Elements */}
               {hoverIndex === i && (
-                <>
-                  <line
-                    x1={point[0]}
-                    y1={padding.top}
-                    x2={point[0]}
-                    y2={height - padding.bottom}
-                    stroke="#94a3b8"
-                    strokeWidth="1"
+                <g>
+                  <line 
+                    x1={getX(i)} 
+                    y1={padding.top} 
+                    x2={getX(i)} 
+                    y2={height - padding.bottom} 
+                    stroke="#94A3B8" 
+                    strokeWidth="1" 
                     strokeDasharray="4 4"
                   />
-                  <circle
-                    cx={point[0]}
-                    cy={point[1]}
-                    r={6}
-                    fill="#3b82f6"
-                    stroke="white"
-                    strokeWidth="2"
-                  />
-                  {data2 && points2[i] && (
-                    <circle
-                      cx={points2[i][0]}
-                      cy={points2[i][1]}
-                      r={6}
-                      fill="#ef4444"
-                      stroke="white"
-                      strokeWidth="2"
-                    />
+                  
+                  {/* Point 1 */}
+                  <circle cx={getX(i)} cy={getY(data[i])} r="5" fill="#6366F1" stroke="white" strokeWidth="2" />
+                  
+                  {/* Point 2 */}
+                  {data2 && (
+                    <circle cx={getX(i)} cy={getY(data2[i])} r="5" fill="#A855F7" stroke="white" strokeWidth="2" />
                   )}
-                </>
+
+                  {/* Tooltip */}
+                  <g transform={`translate(${getX(i) > (width || 800) / 2 ? getX(i) - 120 : getX(i) + 10}, ${padding.top})`}>
+                    <rect width="110" height={data2 ? 60 : 35} rx="6" fill="white" className="drop-shadow-lg" stroke="#E2E8F0" />
+                    <text x="10" y="20" className="text-[11px] font-bold fill-slate-700">{labels[i]}</text>
+                    <text x="10" y="35" className="text-[10px] fill-slate-500">
+                      {legend1}: <tspan className="font-bold fill-indigo-600">{data[i]}</tspan>
+                    </text>
+                    {data2 && (
+                      <text x="10" y="50" className="text-[10px] fill-slate-500">
+                        {legend2}: <tspan className="font-bold fill-purple-600">{data2[i]}</tspan>
+                      </text>
+                    )}
+                  </g>
+                </g>
               )}
             </g>
           ))}
-
-          {/* X Axis Labels */}
-          {labels.map((label, i) => (
-            <text
-              key={i}
-              x={getX(i)}
-              y={height - 10}
-              textAnchor="middle"
-              className="text-xs fill-slate-400 font-medium"
-              style={{ fontSize: '12px' }}
-            >
-              {label}
-            </text>
-          ))}
         </svg>
-        
-        {/* Tooltip Popup */}
-        {hoverIndex !== null && (
-          <div 
-            className="absolute bg-slate-900 text-white text-xs rounded-lg py-2 px-3 pointer-events-none transform -translate-x-1/2 -translate-y-full shadow-xl z-10"
-            style={{ 
-              left: `${(points1[hoverIndex][0] / width) * 100}%`, 
-              top: `${(points1[hoverIndex][1] / height) * 100}%`,
-              marginTop: '-15px'
-            }}
-          >
-            <div className="font-bold mb-1">{labels[hoverIndex]}</div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-              <span>{legend1}: {data[hoverIndex]}</span>
-            </div>
-            {data2 && (
-              <div className="flex items-center gap-2 mt-1">
-                <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                <span>{legend2}: {data2[hoverIndex]}</span>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Ticket, User } from '@/types';
+import { Ticket, User, Branch, Team } from '@/types';
 import { Card, CardHeader, CardBody } from './Card';
 import { Button } from './Button';
 import { Input } from './Input';
@@ -11,6 +11,7 @@ import { Badge } from './Badge';
 import { AreaChart } from './AreaChart';
 import { PieChart } from './PieChart';
 import { BarChart } from './BarChart';
+import { Modal } from './Modal';
 import { Search, Filter, BarChart3, List, PieChart as PieChartIcon, Calendar, Building2, User as UserIcon, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { getStatusColor, getPriorityColor, getPriorityLabel, formatDate, formatRelativeTime } from '@/lib/utils';
 
@@ -21,16 +22,17 @@ interface AnalyticsSectionProps {
   tickets: Ticket[];
   requests?: any[];
   users?: User[]; // For admin to filter by creator
+  branches?: Branch[];
+  teams?: Team[];
   currentUser: User;
   hideHeader?: boolean;
   defaultTab?: 'tickets' | 'requests' | 'analytics';
   companyName?: string;
 }
 
-export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, requests = [], users, currentUser, hideHeader = false, defaultTab = 'tickets', companyName }) => {
+export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, requests = [], users, branches = [], teams = [], currentUser, hideHeader = false, defaultTab = 'analytics', companyName }) => {
   const [activeTab, setActiveTab] = useState<'tickets' | 'requests' | 'analytics'>(defaultTab);
   
-  // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
@@ -182,8 +184,12 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, req
         <div className="flex-1">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Analytics & Reports</h1>
-              <p className="text-slate-500 mt-1">View ticket and request statistics</p>
+              <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                Analytics
+              </h1>
+              <p className="text-slate-500 mt-1">
+                View ticket and request statistics
+              </p>
             </div>
             {companyName && (
               <div className="hidden md:flex items-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
@@ -237,7 +243,8 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, req
         </div>
       </div>
 
-      {/* Search, Filter & Stats Section */}
+      {/* Search, Filter & Stats Section - Only show for non-report tabs */}
+      {true && (
       <Card className="overflow-visible">
         <CardBody className="p-4 space-y-4">
           {/* Top Row: Search & Filter Toggle */}
@@ -360,6 +367,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, req
           </div>
         </CardBody>
       </Card>
+      )}
 
       {activeTab === 'tickets' && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -519,6 +527,9 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, req
           </div>
         </div>
       )}
+
+
+
     </div>
   );
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 interface BarChartProps {
   data: number[];
@@ -18,29 +18,40 @@ export function BarChart({
   color = '#6366F1'
 }: BarChartProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const resizeObserver = new ResizeObserver(entries => {
+      if (!entries || entries.length === 0) return;
+      setWidth(entries[0].contentRect.width);
+    });
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
   
-  const height = 240;
-  const width = 500;
-  const padding = { top: 30, right: 20, bottom: 40, left: 50 };
+  const height = 300;
+  const padding = { top: 30, right: 20, bottom: 40, left: 40 };
   
-  const chartWidth = width - padding.left - padding.right;
+  const chartWidth = (width || 500) - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
   
   const maxValue = Math.max(...data, 1) * 1.15; // Add 15% headroom
   
   const slotWidth = chartWidth / data.length;
-  const maxBarWidth = 50;
+  const maxBarWidth = 60;
   const barWidth = Math.min(slotWidth * 0.6, maxBarWidth);
 
   return (
-    <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm p-6 hover:shadow-lg transition-shadow duration-300">
+    <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm p-6 hover:shadow-lg transition-shadow duration-300" ref={containerRef}>
       <div className="mb-6">
         {title && <h3 className="font-bold text-slate-900 text-lg">{title}</h3>}
         {subtitle && <p className="text-slate-500 text-sm mt-1">{subtitle}</p>}
       </div>
 
-      <div className="relative w-full overflow-hidden">
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
+      <div className="relative w-full overflow-hidden" style={{ height: `${height}px` }}>
+        <svg width="100%" height="100%" viewBox={`0 0 ${width || 500} ${height}`} className="overflow-visible">
           {/* Background */}
           <rect x={padding.left} y={padding.top} width={chartWidth} height={chartHeight} fill="#F8FAFC" rx="8" />
           
@@ -52,7 +63,7 @@ export function BarChart({
                 <line 
                   x1={padding.left} 
                   y1={y} 
-                  x2={width - padding.right} 
+                  x2={width ? width - padding.right : 500 - padding.right} 
                   y2={y} 
                   stroke="#CBD5E1" 
                   strokeWidth="1"
@@ -101,42 +112,35 @@ export function BarChart({
                   height={barHeight}
                   fill="url(#barGradient)"
                   rx="6"
-                  filter="url(#barShadow)"
+                  ry="6"
                   className="transition-all duration-300 cursor-pointer"
                   style={{
-                    opacity: hoverIndex === index ? 1 : 0.85,
+                    filter: hoverIndex === index ? 'brightness(1.1) drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'url(#barShadow)',
                     transform: hoverIndex === index ? `scaleY(1.02)` : 'scaleY(1)',
                     transformOrigin: `${x + barWidth/2}px ${height - padding.bottom}px`
                   }}
                 />
-                {/* Value label on hover or always show */}
-                {(hoverIndex === index || value > 0) && (
-                  <text
-                    x={x + barWidth / 2}
-                    y={y - 10}
-                    textAnchor="middle"
-                    className={`text-xs font-bold transition-all duration-300 ${hoverIndex === index ? 'fill-slate-900' : 'fill-slate-500'}`}
-                  >
-                    {value}
-                  </text>
-                )}
-              </g>
-            );
-          })}
+                
+                {/* Value Label on Top */}
+                <text
+                  x={x + barWidth / 2}
+                  y={y - 8}
+                  textAnchor="middle"
+                  className={`text-[11px] font-bold fill-slate-700 transition-opacity duration-300 ${hoverIndex === index ? 'opacity-100' : 'opacity-0'}`}
+                >
+                  {value}
+                </text>
 
-          {/* X Axis Labels */}
-          {labels.map((label, index) => {
-            const x = padding.left + (index * slotWidth) + (slotWidth / 2);
-            return (
-              <text
-                key={index}
-                x={x}
-                y={height - 10}
-                textAnchor="middle"
-                className="text-[10px] font-medium fill-slate-500"
-              >
-                {label}
-              </text>
+                {/* X Axis Label */}
+                <text
+                  x={x + barWidth / 2}
+                  y={height - 15}
+                  textAnchor="middle"
+                  className={`text-[11px] font-medium transition-colors duration-300 ${hoverIndex === index ? 'fill-slate-900 font-bold' : 'fill-slate-500'}`}
+                >
+                  {labels[index]}
+                </text>
+              </g>
             );
           })}
         </svg>

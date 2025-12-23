@@ -30,6 +30,7 @@ import { Suspense } from 'react';
 import { NoteDetailModal } from '@/app/components/NoteDetailModal';
 import { RequestDetail } from '@/app/components/RequestDetail';
 import { AnalyticsSection } from '@/app/components/AnalyticsSection';
+import { ReportsSection } from '@/app/components/ReportsSection';
 import { TicketCard } from '@/app/components/TicketCard';
 import { TicketDetail } from '@/app/components/TicketDetail';
 import { RecentActivity, ActivityItem } from '@/app/components/RecentActivity';
@@ -43,7 +44,7 @@ function AdminDashboardContent() {
   const toast = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [companyName, setCompanyName] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'tickets' | 'requests' | 'notes' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'tickets' | 'requests' | 'notes' | 'analytics' | 'reports'>('overview');
   const [dashboardTab, setDashboardTab] = useState<'stats' | 'reports'>('stats');
   const [overviewTab, setOverviewTab] = useState<'tickets' | 'requests'>('tickets');
   const [selectedReportBranch, setSelectedReportBranch] = useState<string>('ALL');
@@ -1148,7 +1149,8 @@ function AdminDashboardContent() {
                     {activeTab === 'tickets' && 'Tickets Management'}
                     {activeTab === 'requests' && 'Requests Management'}
                     {activeTab === 'notes' && 'Notes Management'}
-                    {activeTab === 'analytics' && 'Analytics & Reports'}
+                    {activeTab === 'analytics' && 'Analytics'}
+                    {activeTab === 'reports' && 'Reports Center'}
                   </h1>
                   <p className="text-sm text-slate-600 mt-1">
                     {activeTab === 'overview' && 'Monitor and manage all tickets, requests, and system activity'}
@@ -1158,6 +1160,7 @@ function AdminDashboardContent() {
                     {activeTab === 'requests' && 'View and manage all user requests'}
                     {activeTab === 'notes' && 'View all ticket notes and communications'}
                     {activeTab === 'analytics' && 'View ticket and request statistics'}
+                    {activeTab === 'reports' && 'Generate and download detailed reports'}
                   </p>
                 </div>
                 {companyName && (
@@ -1284,7 +1287,7 @@ function AdminDashboardContent() {
                       
                       <button
                         onClick={() => setOverviewTab('requests')}
-                        className={`px-6 py-3 text-sm font-semibold rounded-t-lg border-t border-l border-r transition-all relative top-[1px] ${
+                        className={`px-6 py-3 text-sm font-semibold rounded-t-lg border-t border-l border-r transition-all relative top-px ${
                           overviewTab === 'requests'
                             ? 'bg-white text-blue-600 border-slate-200 shadow-[0_-2px_3px_rgba(0,0,0,0.02)] z-10'
                             : 'bg-transparent border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
@@ -2047,10 +2050,23 @@ function AdminDashboardContent() {
                 tickets={tickets} 
                 requests={requests}
                 users={users}
+                branches={branches}
+                teams={teams}
                 currentUser={user}
                 hideHeader={true}
               />
             )
+          )}
+
+          {activeTab === 'reports' && user && (
+            <ReportsSection
+              tickets={tickets}
+              requests={requests}
+              users={users}
+              branches={branches}
+              teams={teams}
+              currentUser={user}
+            />
           )}
 
           {activeTab === 'tickets' && (

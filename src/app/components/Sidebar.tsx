@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { LayoutGrid, Users, Store, ClipboardList, LogOut, Menu, X, Settings, HelpCircle, Bell, Calendar, FileText, MessageSquare, Briefcase, Landmark, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutGrid, Users, Store, ClipboardList, LogOut, Menu, X, Settings, HelpCircle, Bell, Calendar, FileText, MessageSquare, Briefcase, Landmark, BarChart3, ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react';
 import { Button } from './Button';
 import { Modal } from './Modal';
 import { apiClient } from '@/lib/api-client';
@@ -84,6 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
         { icon: Store, label: 'Branches', key: 'branches', href: '/admin?tab=branches' },
         { icon: ClipboardList, label: 'Tickets', key: 'tickets', href: '/admin?tab=tickets' },
         { icon: BarChart3, label: 'Analytics', key: 'analytics', href: '/admin?tab=analytics' },
+        { icon: FileSpreadsheet, label: 'Reports', key: 'reports', href: '/admin?tab=reports' },
         { icon: FileText, label: 'Requests', key: 'requests', href: '/admin?tab=requests' },
       ]
     : userRole === 'DEVELOPER' || userRole === 'TECHNICAL'
@@ -96,6 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
         { icon: LayoutGrid, label: 'Dashboard', href: '/dashboard', key: 'overview' },
         { icon: ClipboardList, label: 'My Tickets', href: '/dashboard?view=tickets', key: 'tickets' },
         { icon: BarChart3, label: 'Analytics', href: '/dashboard?view=analytics', key: 'analytics' },
+        { icon: FileSpreadsheet, label: 'Reports', href: '/dashboard?view=reports', key: 'reports' },
         { icon: FileText, label: 'Requests', href: '/dashboard?view=requests', key: 'requests' },
         { icon: Users, label: 'Profile', href: '/dashboard?view=profile', key: 'profile' },
       ];
