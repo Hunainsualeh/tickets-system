@@ -17,6 +17,7 @@ import { Textarea } from '@/app/components/Textarea';
 import { Sidebar } from '@/app/components/Sidebar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/Table';
 import { StatCard } from '@/app/components/StatCard';
+import { DashboardStatCard } from '@/app/components/DashboardStatCard';
 import { StatRow } from '@/app/components/StatRow';
 import { Timeline } from '@/app/components/Timeline';
 import { AreaChart } from '@/app/components/AreaChart';
@@ -24,13 +25,14 @@ import { PieChart } from '@/app/components/PieChart';
 import { SearchBar } from '@/app/components/SearchBar';
 import { Pagination } from '@/app/components/Pagination';
 import { getStatusColor, getPriorityColor, getPriorityLabel, formatDate, formatRelativeTime } from '@/lib/utils';
-import { Users, Building2, Ticket as TicketIcon, Plus, Edit, Trash2, MessageSquare, Clock, CheckCircle, XCircle, Search, Filter, AlertTriangle, MoreVertical, Mail, Phone, MapPin, ArrowLeft, Eye, History, Calendar, FileText, Briefcase, List } from 'lucide-react';
+import { Users, Building2, Ticket as TicketIcon, Plus, Edit, Trash2, MessageSquare, Clock, CheckCircle, XCircle, Search, Filter, AlertTriangle, MoreVertical, Mail, Phone, MapPin, ArrowLeft, Eye, History, Calendar, FileText, Briefcase, List, UserX, TrendingUp, Activity, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Suspense } from 'react';
 import { NoteDetailModal } from '@/app/components/NoteDetailModal';
 import { RequestDetail } from '@/app/components/RequestDetail';
 import { AnalyticsSection } from '@/app/components/AnalyticsSection';
 import { TicketCard } from '@/app/components/TicketCard';
 import { TicketDetail } from '@/app/components/TicketDetail';
+import { RecentActivity, ActivityItem } from '@/app/components/RecentActivity';
 import { KanbanBoard } from '@/app/components/KanbanBoard';
 import * as XLSX from 'xlsx';
 import NotificationBell from '@/app/components/NotificationBell';
@@ -652,6 +654,49 @@ function AdminDashboardContent() {
     highPriority: tickets.filter((t) => t.priority === 'P1').length,
     mediumPriority: tickets.filter((t) => t.priority === 'P2').length,
     lowPriority: tickets.filter((t) => t.priority === 'P3').length,
+    escalatedTickets: tickets.filter((t) => t.status === 'ESCALATED').length,
+    avgResolutionTime: '4.2h', // Placeholder for now, would need calculation
+    slaBreachRisk: tickets.filter(t => {
+      const created = new Date(t.createdAt);
+      const now = new Date();
+      const hoursDiff = (now.getTime() - created.getTime()) / (1000 * 60 * 60);
+      return t.status !== 'COMPLETED' && t.status !== 'CLOSED' && 
+             ((t.priority === 'P1' && hoursDiff > 3) || (t.priority === 'P2' && hoursDiff > 20));
+    }).length
+  };
+
+  // Mock Activity Data (In a real app, this would come from an API)
+  const recentActivity: ActivityItem[] = [
+    ...tickets.slice(0, 5).map(t => ({
+      id: `ticket-${t.id}`,
+      type: 'TICKET_CREATED' as const,
+      title: 'New Ticket Created',
+      description: t.issue,
+      timestamp: new Date(t.createdAt),
+      user: { name: t.user?.username || 'Unknown' },
+      entityId: t.id
+    })),
+    ...users.slice(0, 3).map(u => ({
+      id: `user-${u.id}`,
+      type: 'USER_JOINED' as const,
+      title: 'New User Joined',
+      description: `${u.username} joined the team`,
+      timestamp: new Date(u.createdAt),
+      user: { name: u.username },
+      entityId: u.id
+    }))
+  ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 8);
+
+  const handleActivityClick = (item: ActivityItem) => {
+    if (item.type === 'TICKET_CREATED' && item.entityId) {
+      handleViewTicket(item.entityId);
+    } else if (item.type === 'USER_JOINED' && item.entityId) {
+      const user = users.find(u => u.id === item.entityId);
+      if (user) {
+        setSelectedUser(user);
+        setActiveTab('users');
+      }
+    }
   };
 
   const handleNavigation = () => {
@@ -1130,23 +1175,23 @@ function AdminDashboardContent() {
           <div className="space-y-6">
 
             {/* Tab Selector */}
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+            <div className="flex items-center gap-1 bg-slate-100/80 p-1.5 rounded-xl w-fit border border-slate-200/50 backdrop-blur-sm">
               <button
                 onClick={() => setDashboardTab('stats')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
                   dashboardTab === 'stats'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900'
+                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
                 }`}
               >
                 Overview
               </button>
               <button
                 onClick={() => setDashboardTab('reports')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
                   dashboardTab === 'reports'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900'
+                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
                 }`}
               >
                 Analytics
@@ -1158,72 +1203,51 @@ function AdminDashboardContent() {
                 {/* Left Column - Tickets/Requests List (2/3 width) */}
                 <div className="xl:col-span-2 space-y-6">
                   {/* Stats Cards Row */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Total Tickets */}
-                    <div 
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <DashboardStatCard
+                      title="Total Tickets"
+                      value={stats.totalTickets}
+                      icon={MessageSquare}
+                      trend={{ value: '12%', label: 'vs last month', direction: 'up' }}
+                      color="blue"
                       onClick={() => {
                         setActiveTab('tickets');
                         setTicketFilterStatus('ALL');
                       }}
-                      className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                          <MessageSquare className="w-6 h-6 text-blue-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-slate-500 mb-1">Total Tickets</p>
-                          <div className="flex items-baseline gap-2">
-                            <h3 className="text-2xl font-bold text-slate-900">{stats.totalTickets}</h3>
-                            <span className="text-xs font-semibold text-green-600">▲ +12%</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Completed */}
-                    <div 
-                      onClick={() => {
-                        setActiveTab('tickets');
-                        setTicketFilterStatus('COMPLETED');
-                      }}
-                      className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
-                          <CheckCircle className="w-6 h-6 text-green-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-slate-500 mb-1">Completed</p>
-                          <div className="flex items-baseline gap-2">
-                            <h3 className="text-2xl font-bold text-slate-900">{stats.completedTickets}</h3>
-                            <span className="text-xs font-semibold text-green-600">▲ +8%</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Pending */}
-                    <div 
+                    />
+                    <DashboardStatCard
+                      title="Pending Issues"
+                      value={stats.pendingTickets}
+                      icon={Clock}
+                      trend={{ value: '3%', label: 'vs last month', direction: 'down' }}
+                      color="orange"
                       onClick={() => {
                         setActiveTab('tickets');
                         setTicketFilterStatus('PENDING');
                       }}
-                      className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                          <Clock className="w-6 h-6 text-amber-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-slate-500 mb-1">Pending</p>
-                          <div className="flex items-baseline gap-2">
-                            <h3 className="text-2xl font-bold text-slate-900">{stats.pendingTickets}</h3>
-                            <span className="text-xs font-semibold text-red-600">▼ -3%</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    />
+                    <DashboardStatCard
+                      title="Completed"
+                      value={stats.completedTickets}
+                      icon={CheckCircle}
+                      trend={{ value: '8%', label: 'vs last month', direction: 'up' }}
+                      color="green"
+                      onClick={() => {
+                        setActiveTab('tickets');
+                        setTicketFilterStatus('COMPLETED');
+                      }}
+                    />
+                    <DashboardStatCard
+                      title="Pending Requests"
+                      value={stats.pendingRequests}
+                      icon={FileText}
+                      trend={{ value: `${Math.round((stats.pendingRequests / (stats.totalRequests || 1)) * 100)}%`, label: 'of total', direction: 'neutral' }}
+                      color="purple"
+                      onClick={() => {
+                        setActiveTab('requests');
+                        setFilterStatus('PENDING');
+                      }}
+                    />
                   </div>
 
                   {/* Tickets/Requests Tabs */}
@@ -1231,23 +1255,43 @@ function AdminDashboardContent() {
                     <div className="flex border-b border-slate-200">
                       <button
                         onClick={() => setOverviewTab('tickets')}
-                        className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                        className={`flex-1 px-6 py-4 text-sm font-medium transition-all relative ${
                           overviewTab === 'tickets'
-                            ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                            ? 'text-blue-600'
+                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                         }`}
                       >
-                        Tickets ({stats.totalTickets})
+                        <span className="relative z-10 flex items-center justify-center gap-2">
+                          Tickets
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            overviewTab === 'tickets' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {stats.totalTickets}
+                          </span>
+                        </span>
+                        {overviewTab === 'tickets' && (
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                        )}
                       </button>
                       <button
                         onClick={() => setOverviewTab('requests')}
-                        className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                        className={`flex-1 px-6 py-4 text-sm font-medium transition-all relative ${
                           overviewTab === 'requests'
-                            ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                            ? 'text-blue-600'
+                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                         }`}
                       >
-                        Requests ({stats.totalRequests})
+                        <span className="relative z-10 flex items-center justify-center gap-2">
+                          Requests
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            overviewTab === 'requests' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {stats.totalRequests}
+                          </span>
+                        </span>
+                        {overviewTab === 'requests' && (
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                        )}
                       </button>
                     </div>
 
@@ -1292,37 +1336,51 @@ function AdminDashboardContent() {
                                 setSelectedRequest(request);
                                 setActiveTab('requests');
                               }}
-                              className="p-4 hover:bg-slate-50 rounded-xl border border-slate-100 cursor-pointer transition-all group"
+                              className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-all cursor-pointer group relative"
                             >
                               <div className="flex items-start gap-4">
-                                <div className="w-10 h-10 rounded-full bg-linear-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                                  {request.user?.username?.charAt(0).toUpperCase()}
+                                {/* Icon/Avatar */}
+                                <div className="flex flex-col items-center gap-2 shrink-0">
+                                  <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600">
+                                    <FileText className="w-5 h-5" />
+                                  </div>
                                 </div>
+
+                                {/* Content */}
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                      <h4 className="font-bold text-slate-900 line-clamp-1">{request.title}</h4>
-                                      <p className="text-xs text-slate-500 mt-1">
-                                        by {request.user?.username}
-                                        {request.user?.team && <span className="text-slate-400"> • {request.user.team.name}</span>}
-                                      </p>
-                                    </div>
+                                  <div className="flex justify-between items-start mb-1">
+                                    <h4 className="font-semibold text-slate-900 truncate pr-2">{request.title}</h4>
+                                    <span className="text-xs text-slate-400 whitespace-nowrap shrink-0">
+                                      {formatRelativeTime(request.createdAt)}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
+                                    <span className="font-medium text-slate-700">{request.user?.username}</span>
+                                    {request.user?.team && (
+                                      <>
+                                        <span>•</span>
+                                        <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600 font-medium">
+                                          {request.user.team.name}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                  
+                                  <p className="text-sm text-slate-600 line-clamp-1 mb-3">{request.description}</p>
+
+                                  <div className="flex items-center justify-between">
                                     <Badge variant={
                                       request.status === 'COMPLETED' ? 'success' :
                                       request.status === 'APPROVED' ? 'info' :
                                       request.status === 'REJECTED' ? 'danger' :
                                       request.status === 'IN_PROGRESS' ? 'warning' :
                                       'default'
-                                    }>
+                                    } size="sm">
                                       {request.status.replace('_', ' ')}
                                     </Badge>
-                                  </div>
-                                  <p className="text-sm text-slate-600 line-clamp-2">{request.description}</p>
-                                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-50">
-                                    <span className="text-xs text-slate-400">
-                                      {formatRelativeTime(request.createdAt)}
-                                    </span>
-                                    <button className="text-slate-400 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    
+                                    <button className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
                                       <MoreVertical className="w-4 h-4" />
                                     </button>
                                   </div>
@@ -1339,49 +1397,6 @@ function AdminDashboardContent() {
 
                 {/* Right Column - Stats & Quick Actions (1/3 width) */}
                 <div className="space-y-6">
-                  {/* Quick Stats */}
-                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <h3 className="text-lg font-bold text-slate-900 mb-4">Quick Stats</h3>
-                    <div className="space-y-4">
-                      <div 
-                        className="flex items-center justify-between p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors"
-                        onClick={() => router.push('/admin/users')}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                            <Users className="w-4 h-4 text-blue-600" />
-                          </div>
-                          <span className="text-sm font-medium text-slate-700">Total Users</span>
-                        </div>
-                        <span className="text-lg font-bold text-slate-900">{users.length}</span>
-                      </div>
-                      <div 
-                        className="flex items-center justify-between p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors"
-                        onClick={() => router.push('/admin?tab=branches')}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                            <Building2 className="w-4 h-4 text-green-600" />
-                          </div>
-                          <span className="text-sm font-medium text-slate-700">Branches</span>
-                        </div>
-                        <span className="text-lg font-bold text-slate-900">{branches.length}</span>
-                      </div>
-                      <div 
-                        className="flex items-center justify-between p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors"
-                        onClick={() => router.push('/admin/teams')}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                            <Briefcase className="w-4 h-4 text-purple-600" />
-                          </div>
-                          <span className="text-sm font-medium text-slate-700">Teams</span>
-                        </div>
-                        <span className="text-lg font-bold text-slate-900">{teams.length}</span>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Ticket Priority Distribution */}
                   <PieChart 
                     title="Priority Distribution"
@@ -1393,6 +1408,12 @@ function AdminDashboardContent() {
                     ]}
                     labels={['High (P1)', 'Medium (P2)', 'Low (P3)']}
                     colors={['#EF4444', '#F59E0B', '#10B981']}
+                  />
+
+                  {/* Recent Activity */}
+                  <RecentActivity 
+                    activities={recentActivity} 
+                    onItemClick={handleActivityClick}
                   />
 
                   {/* Quick Actions */}
@@ -2635,7 +2656,7 @@ function AdminDashboardContent() {
 
                         <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2 mt-auto">
                           <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded-md max-w-[150px]">
-                            <TicketIcon className="w-3 h-3 flex-shrink-0" />
+                            <TicketIcon className="w-3 h-3 shrink-0" />
                             <span className="truncate">{note.ticket?.issue}</span>
                           </div>
                           <div className="flex gap-2">

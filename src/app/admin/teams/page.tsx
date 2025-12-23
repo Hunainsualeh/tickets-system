@@ -188,7 +188,7 @@ function TeamsPageContent() {
                   title="Total Teams"
                   count={teams.length}
                   icon={Users}
-                  variant="indigo"
+                  variant="charcoal"
                 />
               </div>
 
@@ -295,12 +295,33 @@ function TeamsPageContent() {
               <div className="bg-white rounded-b-2xl border border-slate-200 p-4 sm:p-8">
                 {activeTeam ? (
                   <>
-                    {/* Before we start... section */}
-                    <div className="mb-8">
-                      <h2 className="text-xl font-bold text-slate-900 mb-4">Before we start...</h2>
-                      <p className="text-slate-600 mb-6">
-                        Confirm you have the correct team members on your team to complete registration.
-                      </p>
+                    {/* Team Header Section */}
+                    <div className="mb-8 bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                          <h2 className="text-3xl font-bold text-slate-900 mb-2">{activeTeam.name}</h2>
+                          <p className="text-slate-500">Manage team members and settings</p>
+                        </div>
+                        <div className="flex items-center gap-4 bg-white px-5 py-3 rounded-xl border border-slate-200 shadow-sm">
+                          <div className="flex -space-x-3">
+                            {activeTeam.users?.slice(0, 5).map((u: any, i: number) => (
+                              <div key={i} className="w-10 h-10 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-sm font-bold text-blue-600 shadow-sm">
+                                {u.username?.charAt(0).toUpperCase()}
+                              </div>
+                            ))}
+                            {(activeTeam.users?.length || 0) > 5 && (
+                              <div className="w-10 h-10 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-xs font-bold text-slate-600 shadow-sm">
+                                +{(activeTeam.users?.length || 0) - 5}
+                              </div>
+                            )}
+                          </div>
+                          <div className="h-8 w-px bg-slate-200"></div>
+                          <div className="flex flex-col">
+                            <span className="text-lg font-bold text-slate-900 leading-none">{activeTeam.users?.length || 0}</span>
+                            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Members</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     {/* People Section */}

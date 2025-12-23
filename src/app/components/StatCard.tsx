@@ -5,7 +5,7 @@ interface StatCardProps {
   title: string;
   count: number | string;
   icon: LucideIcon;
-  variant: 'orange' | 'lime' | 'green' | 'grey' | 'blue' | 'purple' | 'teal' | 'navy' | 'slate' | 'indigo';
+  variant: 'orange' | 'lime' | 'green' | 'grey' | 'blue' | 'purple' | 'teal' | 'navy' | 'slate' | 'indigo' | 'white' | 'silver' | 'charcoal';
   avatars?: string[]; // URLs for avatars
   onClick?: () => void;
   isActive?: boolean;
@@ -22,6 +22,9 @@ const variants = {
   navy: 'bg-gradient-to-br from-[#1e40af] to-[#1e3a8a] text-white',
   slate: 'bg-gradient-to-br from-[#475569] to-[#334155] text-white',
   indigo: 'bg-gradient-to-br from-[#4f46e5] to-[#4338ca] text-white',
+  white: 'bg-white border border-slate-200 text-slate-900 shadow-sm',
+  silver: 'bg-gradient-to-br from-[#f8fafc] to-[#e2e8f0] text-slate-900 border border-slate-200 shadow-sm',
+  charcoal: 'bg-gradient-to-br from-[#334155] to-[#0f172a] text-white shadow-lg',
 };
 
 const iconVariants = {
@@ -35,6 +38,9 @@ const iconVariants = {
   navy: 'bg-white/20 text-white',
   slate: 'bg-white/20 text-white',
   indigo: 'bg-white/20 text-white',
+  white: 'bg-slate-100 text-slate-600',
+  silver: 'bg-white text-slate-600 shadow-sm',
+  charcoal: 'bg-white/10 text-white',
 };
 
 export const StatCard: React.FC<StatCardProps> = ({ 

@@ -70,8 +70,8 @@ export default function LoginPage() {
             <Globe className="absolute bottom-[5%] left-[5%] w-28 h-28 rotate-12" />
             
             {/* Geometric Accents */}
-            <div className="absolute top-1/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent transform -rotate-45"></div>
-            <div className="absolute bottom-1/3 right-0 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent transform rotate-45"></div>
+            <div className="absolute top-1/4 left-0 w-full h-px bg-linear-to-r from-transparent via-white/20 to-transparent transform -rotate-45"></div>
+            <div className="absolute bottom-1/3 right-0 w-full h-px bg-linear-to-r from-transparent via-white/20 to-transparent transform rotate-45"></div>
             <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
             <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
         </div>
@@ -179,7 +179,7 @@ export default function LoginPage() {
               <Button 
                 type="submit" 
                 disabled={loading}
-                className="w-full !rounded-full py-4 text-lg font-semibold shadow-lg shadow-blue-600/20 hover:shadow-blue-600/30 hover:-translate-y-0.5 transition-all duration-200"
+                className="w-full rounded-full! py-4 text-lg font-semibold shadow-lg shadow-blue-600/20 hover:shadow-blue-600/30 hover:-translate-y-0.5 transition-all duration-200"
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
