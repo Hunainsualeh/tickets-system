@@ -1175,7 +1175,7 @@ function AdminDashboardContent() {
           <div className="space-y-6">
 
             {/* Tab Selector */}
-            <div className="flex items-center gap-1 bg-slate-100/80 p-1.5 rounded-xl w-fit border border-slate-200/50 backdrop-blur-sm">
+            {/* <div className="flex items-center gap-1 bg-slate-100/80 p-1.5 rounded-xl w-fit border border-slate-200/50 backdrop-blur-sm">
               <button
                 onClick={() => setDashboardTab('stats')}
                 className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
@@ -1196,7 +1196,7 @@ function AdminDashboardContent() {
               >
                 Analytics
               </button>
-            </div>
+            </div> */}
 
             {dashboardTab === 'stats' && (
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -1252,46 +1252,41 @@ function AdminDashboardContent() {
 
                   {/* Tickets/Requests Tabs */}
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div className="flex border-b border-slate-200">
+                    <div className="flex items-end gap-2 px-4 pt-4 bg-slate-50 border-b border-slate-200">
                       <button
                         onClick={() => setOverviewTab('tickets')}
-                        className={`flex-1 px-6 py-4 text-sm font-medium transition-all relative ${
+                        className={`px-6 py-3 text-sm font-semibold rounded-t-lg border-t border-l border-r transition-all relative top-[1px] ${
                           overviewTab === 'tickets'
-                            ? 'text-blue-600'
-                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            ? 'bg-white text-blue-600 border-slate-200 shadow-[0_-2px_3px_rgba(0,0,0,0.02)] z-10'
+                            : 'bg-transparent border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
                         }`}
                       >
-                        <span className="relative z-10 flex items-center justify-center gap-2">
+                        <div className="flex items-center gap-2">
                           Tickets
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            overviewTab === 'tickets' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                          <span className={`px-2 py-0.5 rounded-full text-xs ${
+                            overviewTab === 'tickets' ? 'bg-blue-50 text-blue-700' : 'bg-slate-200 text-slate-600'
                           }`}>
                             {stats.totalTickets}
                           </span>
-                        </span>
-                        {overviewTab === 'tickets' && (
-                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
-                        )}
+                        </div>
                       </button>
+                      
                       <button
                         onClick={() => setOverviewTab('requests')}
-                        className={`flex-1 px-6 py-4 text-sm font-medium transition-all relative ${
+                        className={`px-6 py-3 text-sm font-semibold rounded-t-lg border-t border-l border-r transition-all relative top-[1px] ${
                           overviewTab === 'requests'
-                            ? 'text-blue-600'
-                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            ? 'bg-white text-blue-600 border-slate-200 shadow-[0_-2px_3px_rgba(0,0,0,0.02)] z-10'
+                            : 'bg-transparent border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
                         }`}
                       >
-                        <span className="relative z-10 flex items-center justify-center gap-2">
+                        <div className="flex items-center gap-2">
                           Requests
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            overviewTab === 'requests' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                          <span className={`px-2 py-0.5 rounded-full text-xs ${
+                            overviewTab === 'requests' ? 'bg-blue-50 text-blue-700' : 'bg-slate-200 text-slate-600'
                           }`}>
                             {stats.totalRequests}
                           </span>
-                        </span>
-                        {overviewTab === 'requests' && (
-                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
-                        )}
+                        </div>
                       </button>
                     </div>
 
