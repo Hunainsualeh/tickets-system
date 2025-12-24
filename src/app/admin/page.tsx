@@ -107,7 +107,7 @@ function AdminDashboardContent() {
   
   const [editingItem, setEditingItem] = useState<any>(null);
   const [statusUpdate, setStatusUpdate] = useState({ ticketId: '', status: '', adminNote: '' });
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'user' | 'branch' | 'ticket'; name?: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'user' | 'branch' | 'ticket' | 'team' | 'request'; name?: string } | null>(null);
   const [bulkDeleteType, setBulkDeleteType] = useState<'tickets' | 'requests' | 'users' | null>(null);
 
   // Form states
@@ -131,6 +131,12 @@ function AdminDashboardContent() {
     localContactEmail: '',
     localContactPhone: '',
     timezone: '',
+  });
+
+  const filteredTickets = tickets.filter(ticket => {
+    const matchesPriority = ticketFilterPriority === 'ALL' || ticket.priority === ticketFilterPriority;
+    const matchesStatus = ticketFilterStatus === 'ALL' || ticket.status === ticketFilterStatus;
+    return matchesPriority && matchesStatus;
   });
 
   useEffect(() => {
@@ -327,28 +333,8 @@ function AdminDashboardContent() {
   };
 
   const handleDeleteTeam = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this team? Users in this team will be unassigned.')) {
-      return;
-    }
-    
-    try {
-      const response = await fetch(`/api/teams/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to delete team');
-      }
-      
-      toast.error('Team deleted successfully');
-      fetchData();
-    } catch (error: any) {
-      toast.error(error.message);
-    }
+    setDeleteTarget({ id, type: 'team' });
+    setShowDeleteModal(true);
   };
 
   const handleDeleteUser = async (id: string) => {
@@ -410,6 +396,31 @@ function AdminDashboardContent() {
         await apiClient.deleteTicket(deleteTarget.id);
         toast.error('Ticket deleted successfully');
         setSelectedTicket(null);
+      } else if (deleteTarget.type === 'team') {
+        const response = await fetch(`/api/teams/${deleteTarget.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to delete team');
+        }
+        toast.error('Team deleted successfully');
+      } else if (deleteTarget.type === 'request') {
+        const response = await fetch(`/api/requests/${deleteTarget.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to delete request');
+        }
+        toast.error('Request deleted successfully');
+        setSelectedRequest(null);
       }
       setShowDeleteModal(false);
       setDeleteTarget(null);
@@ -623,12 +634,7 @@ function AdminDashboardContent() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterStatus, filterPriority, searchQuery]);
-
-  const filteredTickets = tickets.filter(ticket => 
-    (!filterStatus || ticket.status === filterStatus) && 
-    (!filterPriority || ticket.priority === filterPriority)
-  );
+  }, [filterStatus, filterPriority, ticketFilterStatus, ticketFilterPriority, searchQuery]);
   
   const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
   const paginatedTickets = filteredTickets.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -2110,9 +2116,9 @@ function AdminDashboardContent() {
                           onChange={setTicketFilterPriority}
                           options={[
                             { value: 'ALL', label: 'All Priorities' },
-                            { value: 'HIGH', label: 'High' },
-                            { value: 'MEDIUM', label: 'Medium' },
-                            { value: 'LOW', label: 'Low' },
+                            { value: 'P1', label: 'High (P1)' },
+                            { value: 'P2', label: 'Medium (P2)' },
+                            { value: 'P3', label: 'Low (P3)' },
                           ]}
                         />
                       </div>
@@ -2208,8 +2214,16 @@ function AdminDashboardContent() {
               ) : (
                 ticketsViewMode === 'kanban' ? (
                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {tickets.map(ticket => (
-                        <TicketCard key={ticket.id} ticket={ticket} onClick={() => setSelectedTicket(ticket)} />
+                      {filteredTickets.map(ticket => (
+                        <TicketCard 
+                          key={ticket.id} 
+                          ticket={ticket} 
+                          onClick={() => setSelectedTicket(ticket)} 
+                          onDelete={() => {
+                            setDeleteTarget({ id: ticket.id, type: 'ticket' });
+                            setShowDeleteModal(true);
+                          }}
+                        />
                       ))}
                    </div>
                 ) : (
@@ -2221,10 +2235,10 @@ function AdminDashboardContent() {
                               <input
                                 type="checkbox"
                                 className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                checked={tickets.length > 0 && selectedTicketIds.length === tickets.length}
+                                checked={filteredTickets.length > 0 && selectedTicketIds.length === filteredTickets.length}
                                 onChange={(e) => {
                                   if (e.target.checked) {
-                                    setSelectedTicketIds(tickets.map(t => t.id));
+                                    setSelectedTicketIds(filteredTickets.map(t => t.id));
                                   } else {
                                     setSelectedTicketIds([]);
                                   }
@@ -2241,7 +2255,7 @@ function AdminDashboardContent() {
                           </tr>
                         </TableHeader>
                         <TableBody>
-                          {tickets.map((ticket) => (
+                          {filteredTickets.map((ticket) => (
                             <TableRow key={ticket.id} onClick={() => setSelectedTicket(ticket)} className="cursor-pointer hover:bg-slate-50">
                               <TableCell onClick={(e) => e.stopPropagation()}>
                                 <input
@@ -2273,22 +2287,10 @@ function AdminDashboardContent() {
                                 <Button
                                   variant="danger"
                                   size="sm"
-                                  onClick={async (e) => {
+                                  onClick={(e) => {
                                     e.stopPropagation();
-                                    if (confirm('Are you sure you want to delete this ticket?')) {
-                                      try {
-                                        await fetch(`/api/tickets/${ticket.id}`, {
-                                          method: 'DELETE',
-                                          headers: {
-                                            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                                          },
-                                        });
-                                        fetchData();
-                                        toast.success('Ticket deleted');
-                                      } catch (error) {
-                                        console.error('Delete ticket error:', error);
-                                      }
-                                    }
+                                    setDeleteTarget({ id: ticket.id, type: 'ticket' });
+                                    setShowDeleteModal(true);
                                   }}
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -2497,22 +2499,10 @@ function AdminDashboardContent() {
                             <Button
                               variant="danger"
                               size="sm"
-                              onClick={async (e) => {
+                              onClick={(e) => {
                                 e.stopPropagation();
-                                if (confirm('Are you sure you want to delete this request?')) {
-                                  try {
-                                    await fetch(`/api/requests/${request.id}`, {
-                                      method: 'DELETE',
-                                      headers: {
-                                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                                      },
-                                    });
-                                    fetchData();
-                                    toast.success('Request deleted');
-                                  } catch (error) {
-                                    console.error('Delete request error:', error);
-                                  }
-                                }
+                                setDeleteTarget({ id: request.id, type: 'request' });
+                                setShowDeleteModal(true);
                               }}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -2540,6 +2530,10 @@ function AdminDashboardContent() {
                       request={selectedRequest}
                       onClose={() => setSelectedRequest(null)}
                       isAdmin={true}
+                      onDelete={(requestId) => {
+                        setDeleteTarget({ id: requestId, type: 'request' });
+                        setShowDeleteModal(true);
+                      }}
                       onStatusChange={async (requestId, status) => {
                         try {
                           await fetch(`/api/requests/${requestId}`, {
@@ -2554,22 +2548,6 @@ function AdminDashboardContent() {
                           setSelectedRequest({ ...selectedRequest, status });
                         } catch (error) {
                           console.error('Update request error:', error);
-                        }
-                      }}
-                      onDelete={async (requestId) => {
-                        if (confirm('Are you sure you want to delete this request?')) {
-                          try {
-                            await fetch(`/api/requests/${requestId}`, {
-                              method: 'DELETE',
-                              headers: {
-                                'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                              },
-                            });
-                            setSelectedRequest(null);
-                            fetchData();
-                          } catch (error) {
-                            console.error('Delete request error:', error);
-                          }
                         }
                       }}
                     />

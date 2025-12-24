@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Card, CardBody } from '@/app/components/Card';
 import { Button } from '@/app/components/Button';
+import { Modal } from '@/app/components/Modal';
 
 export default function NotificationsPage() {
   const router = useRouter();
@@ -34,6 +35,8 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -52,8 +55,15 @@ export default function NotificationsPage() {
 
   const handleDelete = async (e: React.MouseEvent, notificationId: string) => {
     e.stopPropagation();
-    if (confirm('Are you sure you want to delete this notification?')) {
-      await deleteNotification(notificationId);
+    setDeleteTargetId(notificationId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (deleteTargetId) {
+      await deleteNotification(deleteTargetId);
+      setShowDeleteModal(false);
+      setDeleteTargetId(null);
     }
   };
 
@@ -363,6 +373,27 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Notification"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-slate-600">
+            Are you sure you want to delete this notification? This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmDelete}>
+              Delete
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

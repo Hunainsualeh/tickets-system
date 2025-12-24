@@ -1470,7 +1470,7 @@ function UserDashboardContent() {
                           {tickets.slice(0, 5).map((t, i) => (
                             <div key={t.id} className="flex gap-3 relative group cursor-pointer" onClick={() => setSelectedTicket(t)}>
                               {i !== tickets.slice(0, 5).length - 1 && (
-                                <div className="absolute left-[5px] top-6 bottom-[-24px] w-px bg-slate-100 group-hover:bg-slate-200 transition-colors"></div>
+                                <div className="absolute left-[5px] top-6 -bottom-6 w-px bg-slate-100 group-hover:bg-slate-200 transition-colors"></div>
                               )}
                               <div className={`w-2.5 h-2.5 mt-1.5 rounded-full shrink-0 ring-4 ring-white ${
                                 t.status === 'COMPLETED' ? 'bg-emerald-500' :

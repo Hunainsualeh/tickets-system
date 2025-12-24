@@ -18,14 +18,6 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    // DB Health Check
-    try {
-      await prisma.$queryRaw`SELECT 1`;
-    } catch (dbError) {
-      console.error('DB Health Check Failed:', dbError);
-      throw new Error(`DB Connection Failed: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
-    }
-
     const where: any = search ? {
       OR: [
         { name: { contains: search, mode: 'insensitive' } },
@@ -33,7 +25,7 @@ export async function GET(request: NextRequest) {
       ]
     } : {};
 
-    const [branches, total] = await prisma.$transaction([
+    const [branches, total] = await Promise.all([
       prisma.branch.findMany({
         where,
         orderBy: {
@@ -45,7 +37,7 @@ export async function GET(request: NextRequest) {
       prisma.branch.count({ where }),
     ]);
 
-    return NextResponse.json({ 
+    return NextResponse.json({  
       branches,
       pagination: {
         total,

@@ -221,7 +221,7 @@ export function TicketDetail({
                                             : 'bg-white border-slate-200 text-slate-300'
                                     }
                                 `}>
-                                    {isCompleted ? <Check className="w-4 h-4 stroke-[3]" /> : 
+                                    {isCompleted ? <Check className="w-4 h-4 stroke-3" /> : 
                                      isActive ? <div className="w-2.5 h-2.5 bg-blue-600 rounded-full animate-pulse" /> :
                                      <Circle className="w-2.5 h-2.5 fill-slate-100 text-transparent" />
                                     }
