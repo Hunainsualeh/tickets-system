@@ -108,6 +108,13 @@ export async function GET(request: NextRequest, context: Params) {
       }
     }
 
+    // Developers and Technical users can only view tickets assigned to them
+    if (authResult.user.role === 'DEVELOPER' || authResult.user.role === 'TECHNICAL') {
+      if (ticket.assignedToUserId !== authResult.user.userId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     return NextResponse.json({ ticket });
   } catch (error) {
     console.error('Get ticket error:', error);
@@ -128,6 +135,19 @@ export async function PUT(request: NextRequest, context: Params) {
 
   try {
     const params = await context.params;
+
+    // Developers and Technical users can only update tickets assigned to them
+    if (authResult.user.role === 'DEVELOPER' || authResult.user.role === 'TECHNICAL') {
+      const existingTicket = await prisma.ticket.findUnique({
+        where: { id: params.id },
+        select: { assignedToUserId: true }
+      });
+      
+      if (!existingTicket || existingTicket.assignedToUserId !== authResult.user.userId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     const { status, note, adminNote, priority, issue, additionalDetails, assignedToUserId } = await request.json();
 
     const updateData: any = {};

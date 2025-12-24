@@ -18,7 +18,7 @@ import { StatRow } from '@/app/components/StatRow';
 import { SearchBar } from '@/app/components/SearchBar';
 import { Pagination } from '@/app/components/Pagination';
 import { getStatusColor, getPriorityColor, getPriorityLabel, formatDate, formatRelativeTime } from '@/lib/utils';
-import { Plus, CheckCircle, Clock, AlertCircle, MessageSquare, XCircle, Search, Filter, Building2, Copy, User as UserIcon, Shield, Lock, Eye, Calendar, BarChart3, MoreVertical, Phone, Video, Paperclip, Smile, Mic, FileText } from 'lucide-react';
+import { Plus, CheckCircle, Clock, AlertCircle, MessageSquare, XCircle, Search, Filter, Building2, Copy, User as UserIcon, Shield, Lock, Eye, Calendar, BarChart3, MoreVertical, Phone, Video, Paperclip, Smile, Mic, FileText, Activity, List, Zap, TrendingUp, CheckSquare, AlertTriangle } from 'lucide-react';
 import { Suspense } from 'react';
 import { SuccessModal } from '@/app/components/SuccessModal';
 import { NoteDetailModal } from '@/app/components/NoteDetailModal';
@@ -226,7 +226,7 @@ function UserDashboardContent() {
       fetchData();
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchQuery, scope, selectedTeamId]);
+  }, [searchQuery, scope, selectedTeamId, user]);
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1237,67 +1237,126 @@ function UserDashboardContent() {
               </div>
 
               {user?.role === 'DEVELOPER' || user?.role === 'TECHNICAL' ? (
-                // Simple Dashboard for DEVELOPER/TECHNICAL
-                <div className="space-y-6">
-                  {/* Ticket Status Overview */}
-                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
-                    <div className="flex items-center justify-between mb-6">
+                // Enhanced Dashboard for DEVELOPER/TECHNICAL
+                <div className="space-y-8">
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Total Assigned */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                          <List className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <span className="flex items-center text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded-full">
+                          Total
+                        </span>
+                      </div>
                       <div>
-                        <h2 className="text-xl font-bold text-slate-900">Ticket Status</h2>
-                        <p className="text-sm text-slate-500 mt-1">Overview of your assigned tickets</p>
+                        <h3 className="text-3xl font-bold text-slate-900 mb-1">{stats.total}</h3>
+                        <p className="text-sm text-slate-500 font-medium">Assigned Tickets</p>
                       </div>
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Active Tickets Card */}
-                      <div className="bg-emerald-50 rounded-2xl p-6 relative overflow-hidden border border-emerald-100">
-                        <div className="absolute top-4 right-4">
-                          <button className="w-8 h-8 rounded-lg bg-white/50 hover:bg-white/80 flex items-center justify-center transition-colors">
-                            <MoreVertical className="w-4 h-4 text-emerald-700" />
-                          </button>
-                        </div>
-                        <div className="mb-4">
-                          <p className="text-sm font-semibold text-emerald-700 mb-2">Active</p>
-                          <h3 className="text-5xl font-bold text-emerald-900">{stats.pending + stats.inProgress}</h3>
-                        </div>
-                        <p className="text-xs font-medium text-emerald-700">Working Tickets</p>
-                      </div>
 
-                      {/* Completed Tickets Card */}
-                      <div className="bg-rose-50 rounded-2xl p-6 relative overflow-hidden border border-rose-100">
-                        <div className="absolute top-4 right-4">
-                          <button className="w-8 h-8 rounded-lg bg-white/50 hover:bg-white/80 flex items-center justify-center transition-colors">
-                            <MoreVertical className="w-4 h-4 text-rose-700" />
-                          </button>
+                    {/* Pending Action */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
+                          <AlertCircle className="w-5 h-5 text-amber-600" />
                         </div>
-                        <div className="mb-4">
-                          <p className="text-sm font-semibold text-rose-700 mb-2">Completed</p>
-                          <h3 className="text-5xl font-bold text-rose-900">{stats.completed}</h3>
+                        <span className="flex items-center text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-full">
+                          Needs Action
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="text-3xl font-bold text-slate-900 mb-1">{stats.pending}</h3>
+                        <p className="text-sm text-slate-500 font-medium">Pending Review</p>
+                      </div>
+                    </div>
+
+                    {/* In Progress */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                          <Activity className="w-5 h-5 text-indigo-600" />
                         </div>
-                        <p className="text-xs font-medium text-rose-700">Resolved Tickets</p>
+                        <span className="flex items-center text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-1 rounded-full">
+                          Active
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="text-3xl font-bold text-slate-900 mb-1">{stats.inProgress}</h3>
+                        <p className="text-sm text-slate-500 font-medium">In Progress</p>
+                      </div>
+                    </div>
+
+                    {/* Resolved */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+                          <CheckCircle className="w-5 h-5 text-emerald-600" />
+                        </div>
+                        <span className="flex items-center text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full">
+                          Resolved
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="text-3xl font-bold text-slate-900 mb-1">{stats.completed + stats.closed}</h3>
+                        <p className="text-sm text-slate-500 font-medium">Completed</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Ticket List Section */}
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Main Tickets List */}
-                    <div className="lg:col-span-2">
-                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-                        <div className="px-6 py-5 border-b border-slate-100">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h2 className="text-lg font-bold text-slate-900">Your Assigned Tickets</h2>
-                              <p className="text-sm text-slate-500 mt-0.5">Manage and resolve tickets efficiently</p>
-                            </div>
-                            <Button onClick={() => setView('tickets')} variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
-                              View All →
-                            </Button>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Left Column: Ticket List */}
+                    <div className="lg:col-span-2 space-y-6">
+                      {/* Priority Breakdown (Mini) */}
+                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                        <div className="flex items-center justify-between mb-6">
+                          <h3 className="text-lg font-bold text-slate-900">Priority Breakdown</h3>
+                          <div className="flex gap-2">
+                            <span className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                              <span className="w-2 h-2 rounded-full bg-rose-500"></span> High
+                            </span>
+                            <span className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                              <span className="w-2 h-2 rounded-full bg-amber-500"></span> Medium
+                            </span>
+                            <span className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                              <span className="w-2 h-2 rounded-full bg-blue-500"></span> Low
+                            </span>
                           </div>
                         </div>
-                        <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
-                          {tickets.slice(0, 6).length > 0 ? (
-                            tickets.slice(0, 6).map((ticket) => (
+                        <div className="flex gap-4 h-4 rounded-full overflow-hidden bg-slate-100">
+                          {(() => {
+                            const p1Count = tickets.filter(t => t.priority === 'P1').length;
+                            const p2Count = tickets.filter(t => t.priority === 'P2').length;
+                            const p3Count = tickets.filter(t => t.priority === 'P3').length;
+                            const total = tickets.length || 1;
+                            
+                            return (
+                              <>
+                                <div style={{ width: `${(p1Count / total) * 100}%` }} className="bg-rose-500 h-full transition-all duration-500" />
+                                <div style={{ width: `${(p2Count / total) * 100}%` }} className="bg-amber-500 h-full transition-all duration-500" />
+                                <div style={{ width: `${(p3Count / total) * 100}%` }} className="bg-blue-500 h-full transition-all duration-500" />
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Assigned Tickets List */}
+                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
+                          <div>
+                            <h3 className="text-lg font-bold text-slate-900">Assigned Tickets</h3>
+                            <p className="text-sm text-slate-500 mt-0.5">Manage your active workload</p>
+                          </div>
+                          <Button variant="ghost" onClick={() => setView('tickets')} className="text-blue-600 hover:bg-blue-50">
+                            View All Tickets
+                          </Button>
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                          {tickets.slice(0, 5).length > 0 ? (
+                            tickets.slice(0, 5).map((ticket) => (
                               <div
                                 key={ticket.id}
                                 onClick={() => setSelectedTicket(ticket)}
@@ -1307,127 +1366,138 @@ function UserDashboardContent() {
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-3 mb-2">
                                       <h3 className="font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors text-sm">{ticket.issue}</h3>
-                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${
-                                        ticket.priority === 'P1' ? 'bg-red-50 text-red-700' :
-                                        ticket.priority === 'P2' ? 'bg-amber-50 text-amber-700' :
-                                        'bg-blue-50 text-blue-700'
+                                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                                        ticket.priority === 'P1' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                        ticket.priority === 'P2' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                        'bg-blue-50 text-blue-700 border-blue-100'
                                       }`}>
                                         {ticket.priority}
                                       </span>
                                     </div>
-                                    <p className="text-xs text-slate-600 line-clamp-1 mb-2">{ticket.additionalDetails}</p>
-                                    <div className="flex items-center gap-3 text-xs text-slate-500">
-                                      <span className="flex items-center gap-1">
+                                    <p className="text-xs text-slate-600 line-clamp-1 mb-3">{ticket.additionalDetails}</p>
+                                    <div className="flex items-center gap-4 text-xs text-slate-500">
+                                      <span className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-md">
                                         <UserIcon className="w-3 h-3" />
                                         {ticket.user?.username}
                                       </span>
-                                      <span className="flex items-center gap-1">
+                                      <span className="flex items-center gap-1.5">
                                         <Clock className="w-3 h-3" />
                                         {formatRelativeTime(ticket.createdAt)}
                                       </span>
+                                      {ticket.branch && (
+                                        <span className="flex items-center gap-1.5">
+                                          <Building2 className="w-3 h-3" />
+                                          {ticket.branch.name}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
-                                  <Badge variant={getStatusColor(ticket.status)} className="shrink-0 text-xs">
-                                    {ticket.status.replace('_', ' ')}
-                                  </Badge>
+                                  <div className="flex flex-col items-end gap-2">
+                                    <Badge variant={getStatusColor(ticket.status)} className="shrink-0 text-xs font-medium px-2.5 py-1">
+                                      {ticket.status.replace('_', ' ')}
+                                    </Badge>
+                                  </div>
                                 </div>
                               </div>
                             ))
                           ) : (
-                            <div className="p-16 text-center">
-                              <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                <MessageSquare className="w-8 h-8 text-slate-400" />
+                            <div className="p-12 text-center">
+                              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <CheckSquare className="w-8 h-8 text-slate-300" />
                               </div>
-                              <h3 className="text-slate-900 font-semibold mb-1">No tickets assigned yet</h3>
-                              <p className="text-sm text-slate-500">Assigned tickets will appear here</p>
+                              <h3 className="text-slate-900 font-medium mb-1">All caught up!</h3>
+                              <p className="text-sm text-slate-500">No tickets currently assigned to you.</p>
                             </div>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Sidebar Stats */}
+                    {/* Right Column: Quick Actions & Recent Activity */}
                     <div className="space-y-6">
-                      {/* Progress Card */}
+                      {/* Quick Actions */}
                       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                        <h3 className="text-sm font-bold text-slate-900 mb-4">Progress Overview</h3>
-                        <div className="space-y-4">
-                          <div>
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="text-xs font-medium text-slate-600">Pending</span>
-                              <span className="text-xs font-bold text-amber-600">{stats.pending}</span>
+                        <h3 className="text-lg font-bold text-slate-900 mb-4">Quick Actions</h3>
+                        <div className="space-y-3">
+                          <button 
+                            onClick={() => { setFilterStatus('PENDING'); setView('tickets'); }} 
+                            className="w-full bg-amber-50 hover:bg-amber-100 text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 group border border-amber-100"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                              <AlertCircle className="w-4 h-4 text-amber-600" />
                             </div>
-                            <div className="w-full bg-slate-100 rounded-full h-2">
-                              <div 
-                                className="bg-amber-500 h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${tickets.length > 0 ? (stats.pending / tickets.length) * 100 : 0}%` }}
-                              ></div>
+                            <div>
+                              <span className="block font-semibold text-sm text-slate-900">Pending Review</span>
+                              <span className="text-xs text-slate-500">Tickets waiting for action</span>
                             </div>
-                          </div>
-                          <div>
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="text-xs font-medium text-slate-600">In Progress</span>
-                              <span className="text-xs font-bold text-blue-600">{stats.inProgress}</span>
+                          </button>
+                          
+                          <button 
+                            onClick={() => { setFilterPriority('P1'); setView('tickets'); }} 
+                            className="w-full bg-rose-50 hover:bg-rose-100 text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 group border border-rose-100"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                              <AlertTriangle className="w-4 h-4 text-rose-600" />
                             </div>
-                            <div className="w-full bg-slate-100 rounded-full h-2">
-                              <div 
-                                className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${tickets.length > 0 ? (stats.inProgress / tickets.length) * 100 : 0}%` }}
-                              ></div>
+                            <div>
+                              <span className="block font-semibold text-sm text-slate-900">High Priority</span>
+                              <span className="text-xs text-slate-500">Urgent issues needing attention</span>
                             </div>
-                          </div>
-                          <div>
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="text-xs font-medium text-slate-600">Completed</span>
-                              <span className="text-xs font-bold text-green-600">{stats.completed}</span>
+                          </button>
+
+                          <button 
+                            onClick={() => { setFilterStatus('IN_PROGRESS'); setView('tickets'); }} 
+                            className="w-full bg-indigo-50 hover:bg-indigo-100 text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 group border border-indigo-100"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                              <Zap className="w-4 h-4 text-indigo-600" />
                             </div>
-                            <div className="w-full bg-slate-100 rounded-full h-2">
-                              <div 
-                                className="bg-green-500 h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${tickets.length > 0 ? (stats.completed / tickets.length) * 100 : 0}%` }}
-                              ></div>
+                            <div>
+                              <span className="block font-semibold text-sm text-slate-900">In Progress</span>
+                              <span className="text-xs text-slate-500">Continue working on active tickets</span>
                             </div>
-                          </div>
+                          </button>
                         </div>
                       </div>
 
-                      {/* Quick Stats */}
+                      {/* Recent Activity */}
                       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                        <h3 className="text-sm font-bold text-slate-900 mb-4">Quick Stats</h3>
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                                <MessageSquare className="w-5 h-5 text-blue-600" />
-                              </div>
-                              <div>
-                                <p className="text-xs text-slate-500 font-medium">Total Assigned</p>
-                                <p className="text-lg font-bold text-slate-900">{tickets.length}</p>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                                <Clock className="w-5 h-5 text-amber-600" />
-                              </div>
-                              <div>
-                                <p className="text-xs text-slate-500 font-medium">Active</p>
-                                <p className="text-lg font-bold text-slate-900">{stats.pending + stats.inProgress}</p>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
-                                <CheckCircle className="w-5 h-5 text-green-600" />
-                              </div>
-                              <div>
-                                <p className="text-xs text-slate-500 font-medium">Resolved</p>
-                                <p className="text-lg font-bold text-slate-900">{stats.completed}</p>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-bold text-slate-900">Recent Updates</h3>
+                          <TrendingUp className="w-4 h-4 text-slate-400" />
+                        </div>
+                        <div className="space-y-6">
+                          {tickets.slice(0, 5).map((t, i) => (
+                            <div key={t.id} className="flex gap-3 relative group cursor-pointer" onClick={() => setSelectedTicket(t)}>
+                              {i !== tickets.slice(0, 5).length - 1 && (
+                                <div className="absolute left-[5px] top-6 bottom-[-24px] w-px bg-slate-100 group-hover:bg-slate-200 transition-colors"></div>
+                              )}
+                              <div className={`w-2.5 h-2.5 mt-1.5 rounded-full shrink-0 ring-4 ring-white ${
+                                t.status === 'COMPLETED' ? 'bg-emerald-500' :
+                                t.status === 'IN_PROGRESS' ? 'bg-blue-500' :
+                                t.status === 'PENDING' ? 'bg-amber-500' : 'bg-slate-300'
+                              }`} />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-start">
+                                  <p className="text-sm font-medium text-slate-900 line-clamp-1 group-hover:text-blue-600 transition-colors">{t.issue}</p>
+                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                    t.priority === 'P1' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                    t.priority === 'P2' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                    'bg-blue-50 text-blue-700 border-blue-100'
+                                  }`}>
+                                    {t.priority}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  Status is <span className="font-medium text-slate-700">{t.status.replace('_', ' ')}</span>
+                                </p>
+                                <p className="text-[10px] text-slate-400 mt-1">{formatRelativeTime(t.updatedAt)}</p>
                               </div>
                             </div>
-                          </div>
+                          ))}
+                          {tickets.length === 0 && (
+                            <p className="text-sm text-slate-500 text-center py-4">No recent activity</p>
+                          )}
                         </div>
                       </div>
                     </div>

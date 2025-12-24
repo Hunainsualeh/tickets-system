@@ -94,6 +94,15 @@ export async function GET(request: NextRequest) {
         ];
       }
     }
+
+    // Developers and Technical users can only see tickets assigned to them
+    if (authResult.user.role === 'DEVELOPER' || authResult.user.role === 'TECHNICAL') {
+      if (assignedToUserId && assignedToUserId !== authResult.user.userId) {
+        return NextResponse.json({ tickets: [] });
+      }
+      where.assignedToUserId = authResult.user.userId;
+    }
+
     // Admins can see all tickets (no filter applied)
 
     if (status) {

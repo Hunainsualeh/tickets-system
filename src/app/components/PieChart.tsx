@@ -102,7 +102,7 @@ export function PieChart({
       </div>
 
       <div className="flex flex-col items-center justify-center">
-        <div className="relative w-full aspect-[16/9] sm:aspect-[2/1] max-w-4xl">
+        <div className="relative w-full aspect-video sm:aspect-2/1 max-w-4xl">
           <svg viewBox="-2.5 -1.5 5 3" className="w-full h-full">
             {slices.map((slice, index) => (
               <g key={index}>

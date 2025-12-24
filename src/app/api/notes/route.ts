@@ -90,6 +90,11 @@ export async function GET(request: NextRequest) {
           userId: authResult.user.userId,
         };
       }
+    } else if (authResult.user.role === 'DEVELOPER' || authResult.user.role === 'TECHNICAL') {
+      // Developers and Technical users can only see notes for tickets assigned to them
+      where.ticket = {
+        assignedToUserId: authResult.user.userId
+      };
     }
 
     if (ticketId) {
