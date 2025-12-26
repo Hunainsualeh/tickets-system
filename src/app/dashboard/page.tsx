@@ -506,7 +506,7 @@ function UserDashboardContent() {
                               .filter(b => 
                                 !branchSearch ||
                                 b.name.toLowerCase().includes(branchSearch.toLowerCase()) || 
-                                b.branchNumber.includes(branchSearch)
+                                b.branchNumber.toLowerCase().includes(branchSearch.toLowerCase())
                               )
                               .map(b => (
                                 <div
@@ -524,7 +524,7 @@ function UserDashboardContent() {
                             {branches.filter(b => 
                                 !branchSearch ||
                                 b.name.toLowerCase().includes(branchSearch.toLowerCase()) || 
-                                b.branchNumber.includes(branchSearch)
+                                b.branchNumber.toLowerCase().includes(branchSearch.toLowerCase())
                               ).length === 0 && (
                                 <div className="px-4 py-2 text-slate-500">No branches found</div>
                               )}

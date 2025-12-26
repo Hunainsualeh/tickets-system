@@ -122,12 +122,24 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      where.OR = [
-        { issue: { contains: search } }, // Removed mode: 'insensitive' for SQLite compatibility if needed, or keep if Postgres/MySQL
-        { additionalDetails: { contains: search } },
-        { id: { contains: search } },
-        { branch: { name: { contains: search } } },
+      const searchConditions: any[] = [
+        { issue: { contains: search, mode: 'insensitive' } },
+        { additionalDetails: { contains: search, mode: 'insensitive' } },
+        { id: { contains: search, mode: 'insensitive' } },
+        { incNumber: { contains: search, mode: 'insensitive' } },
+        { branch: { name: { contains: search, mode: 'insensitive' } } },
+        { branch: { branchNumber: { contains: search, mode: 'insensitive' } } },
       ];
+
+      if (where.OR) {
+        where.AND = [
+          { OR: where.OR },
+          { OR: searchConditions }
+        ];
+        delete where.OR;
+      } else {
+        where.OR = searchConditions;
+      }
     }
 
     const tickets = await prisma.ticket.findMany({
