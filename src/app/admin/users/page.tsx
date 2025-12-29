@@ -9,7 +9,8 @@ import { Button } from '@/app/components/Button';
 import { Modal } from '@/app/components/Modal';
 import { Input } from '@/app/components/Input';
 import { StatCard } from '@/app/components/StatCard';
-import { Users, Plus, Edit, Trash2, UserPlus, Shield, UserCheck, Building2, Eye, EyeOff, Key, Code, Wrench } from 'lucide-react';
+import { Dropdown, DropdownItem } from '@/app/components/Dropdown';
+import { Users, Plus, Edit, Trash2, UserPlus, Shield, UserCheck, Building2, Eye, EyeOff, Key, Code, Wrench, Mail } from 'lucide-react';
 
 function UsersManagementContent() {
   const router = useRouter();
@@ -77,12 +78,18 @@ function UsersManagementContent() {
     setShowProfileModal(true);
     setLoadingTickets(true);
     try {
+      // Fetch fresh user details to ensure we have the latest data (including email)
+      const userRes = await apiClient.getUser(user.id);
+      if (userRes.user) {
+        setSelectedProfileUser(userRes.user);
+      }
+
       // Fetch tickets assigned to this user
       const res = await apiClient.getTickets({ assignedToUserId: user.id });
       setUserTickets(res.tickets || []);
     } catch (error) {
-      console.error('Error fetching user tickets:', error);
-      toast.error('Failed to fetch user tickets');
+      console.error('Error fetching user details or tickets:', error);
+      toast.error('Failed to fetch user details');
     } finally {
       setLoadingTickets(false);
     }
@@ -449,17 +456,23 @@ function UsersManagementContent() {
                         <td className="px-6 py-4">
                           <div 
                             onClick={() => openStatusModal(user)}
-                            className="relative w-32 h-8 bg-slate-200 rounded-full p-1 cursor-pointer select-none transition-colors hover:bg-slate-300"
+                            className="relative w-32 h-8 bg-slate-100 rounded-full p-1 cursor-pointer select-none transition-colors hover:bg-slate-200"
                           >
-                            <div className="flex justify-between items-center h-full px-2 text-[10px] font-bold">
-                              <span className={`z-10 w-1/2 text-center ${user.isActive !== false ? 'text-slate-900' : 'text-slate-500'}`}>ACTIVE</span>
-                              <span className={`z-10 w-1/2 text-center ${user.isActive === false ? 'text-slate-900' : 'text-slate-500'}`}>INACTIVE</span>
-                            </div>
                             <div 
-                              className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-full shadow-sm transition-all duration-300 ease-in-out ${
-                                user.isActive !== false ? 'left-1' : 'left-[calc(50%+2px)]'
+                              className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-200 ease-out ${
+                                user.isActive !== false 
+                                  ? 'left-1 bg-white' 
+                                  : 'left-[calc(50%)] bg-red-500'
                               }`}
                             ></div>
+                            <div className="relative z-10 grid grid-cols-2 w-full h-full text-[10px] font-bold tracking-wider">
+                              <div className={`flex items-center justify-center transition-colors duration-200 ${user.isActive !== false ? 'text-green-700' : 'text-slate-400'}`}>
+                                ACTIVE
+                              </div>
+                              <div className={`flex items-center justify-center transition-colors duration-200 ${user.isActive === false ? 'text-white' : 'text-slate-400'}`}>
+                                INACTIVE
+                              </div>
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -468,28 +481,29 @@ function UsersManagementContent() {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => openPasswordModal(user)}
-                              className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                              title="Change Password"
-                            >
-                              <Key className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => openEditModal(user)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Edit user"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(user.id, user.username)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Delete user"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                          <div className="flex justify-end">
+                            <Dropdown align="right">
+                              <DropdownItem 
+                                icon={Key} 
+                                onClick={() => openPasswordModal(user)}
+                                variant="warning"
+                              >
+                                Change Password
+                              </DropdownItem>
+                              <DropdownItem 
+                                icon={Edit} 
+                                onClick={() => openEditModal(user)}
+                              >
+                                Edit User
+                              </DropdownItem>
+                              <DropdownItem 
+                                icon={Trash2} 
+                                onClick={() => handleDelete(user.id, user.username)}
+                                variant="danger"
+                              >
+                                Delete User
+                              </DropdownItem>
+                            </Dropdown>
                           </div>
                         </td>
                       </tr>
@@ -510,289 +524,294 @@ function UsersManagementContent() {
           setTeamSearchQuery('');
         }}
         title={modalMode === 'create' ? 'Create New User' : 'Edit User'}
+        size="lg"
       >
-        <div className="space-y-5">
-          <Input
-            label="Username"
-            value={userForm.username}
-            onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
-            placeholder="Enter username"
-            required
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-5">
+            <Input
+              label="Username"
+              value={userForm.username}
+              onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
+              placeholder="Enter username"
+              required
+            />
 
-          <Input
-            label="Email"
-            type="email"
-            value={userForm.email}
-            onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-            placeholder="Enter email address"
-          />
+            <Input
+              label="Email"
+              type="email"
+              value={userForm.email}
+              onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+              placeholder="Enter email address"
+            />
 
-          <Input
-            label={modalMode === 'create' ? 'Password' : 'Password (leave empty to keep current)'}
-            type={showPassword ? 'text' : 'password'}
-            value={userForm.password}
-            onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-            placeholder="Enter password"
-            required={modalMode === 'create'}
-            rightElement={
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="hover:text-slate-700 transition-colors focus:outline-none"
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            }
-          />
+            <Input
+              label={modalMode === 'create' ? 'Password' : 'Password (leave empty to keep current)'}
+              type={showPassword ? 'text' : 'password'}
+              value={userForm.password}
+              onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+              placeholder="Enter password"
+              required={modalMode === 'create'}
+              rightElement={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="hover:text-slate-700 transition-colors focus:outline-none"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              }
+            />
 
-          {/* Improved Role Selector */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-3">Role</label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setUserForm({ ...userForm, role: 'USER' })}
-                className={`p-4 rounded-lg border-2 transition-all text-left ${
-                  userForm.role === 'USER'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-slate-200 hover:border-slate-300 bg-white'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <Users className={`w-4 h-4 ${
-                    userForm.role === 'USER' ? 'text-blue-600' : 'text-slate-500'
-                  }`} />
-                  <span className={`font-semibold ${
-                    userForm.role === 'USER' ? 'text-blue-900' : 'text-slate-700'
-                  }`}>User</span>
-                </div>
-                <p className="text-xs text-slate-500">Standard access</p>
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => setUserForm({ ...userForm, role: 'ADMIN' })}
-                className={`p-4 rounded-lg border-2 transition-all text-left ${
-                  userForm.role === 'ADMIN'
-                    ? 'border-purple-500 bg-purple-50'
-                    : 'border-slate-200 hover:border-slate-300 bg-white'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <Shield className={`w-4 h-4 ${
-                    userForm.role === 'ADMIN' ? 'text-purple-600' : 'text-slate-500'
-                  }`} />
-                  <span className={`font-semibold ${
-                    userForm.role === 'ADMIN' ? 'text-purple-900' : 'text-slate-700'
-                  }`}>Admin</span>
-                </div>
-                <p className="text-xs text-slate-500">Full access</p>
-              </button>
+            {/* Improved Role Selector */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-3">Role</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setUserForm({ ...userForm, role: 'USER' })}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    userForm.role === 'USER'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Users className={`w-4 h-4 ${
+                      userForm.role === 'USER' ? 'text-blue-600' : 'text-slate-500'
+                    }`} />
+                    <span className={`font-semibold ${
+                      userForm.role === 'USER' ? 'text-blue-900' : 'text-slate-700'
+                    }`}>User</span>
+                  </div>
+                  <p className="text-xs text-slate-500">Standard access</p>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setUserForm({ ...userForm, role: 'ADMIN' })}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    userForm.role === 'ADMIN'
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Shield className={`w-4 h-4 ${
+                      userForm.role === 'ADMIN' ? 'text-purple-600' : 'text-slate-500'
+                    }`} />
+                    <span className={`font-semibold ${
+                      userForm.role === 'ADMIN' ? 'text-purple-900' : 'text-slate-700'
+                    }`}>Admin</span>
+                  </div>
+                  <p className="text-xs text-slate-500">Full access</p>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setUserForm({ ...userForm, role: 'DEVELOPER' })}
-                className={`p-4 rounded-lg border-2 transition-all text-left ${
-                  userForm.role === 'DEVELOPER'
-                    ? 'border-amber-500 bg-amber-50'
-                    : 'border-slate-200 hover:border-slate-300 bg-white'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <Code className={`w-4 h-4 ${
-                    userForm.role === 'DEVELOPER' ? 'text-amber-600' : 'text-slate-500'
-                  }`} />
-                  <span className={`font-semibold ${
-                    userForm.role === 'DEVELOPER' ? 'text-amber-900' : 'text-slate-700'
-                  }`}>Developer</span>
-                </div>
-                <p className="text-xs text-slate-500">Technical access</p>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setUserForm({ ...userForm, role: 'DEVELOPER' })}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    userForm.role === 'DEVELOPER'
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Code className={`w-4 h-4 ${
+                      userForm.role === 'DEVELOPER' ? 'text-amber-600' : 'text-slate-500'
+                    }`} />
+                    <span className={`font-semibold ${
+                      userForm.role === 'DEVELOPER' ? 'text-amber-900' : 'text-slate-700'
+                    }`}>Developer</span>
+                  </div>
+                  <p className="text-xs text-slate-500">Technical access</p>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setUserForm({ ...userForm, role: 'TECHNICAL' })}
-                className={`p-4 rounded-lg border-2 transition-all text-left ${
-                  userForm.role === 'TECHNICAL'
-                    ? 'border-cyan-500 bg-cyan-50'
-                    : 'border-slate-200 hover:border-slate-300 bg-white'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <Wrench className={`w-4 h-4 ${
-                    userForm.role === 'TECHNICAL' ? 'text-cyan-600' : 'text-slate-500'
-                  }`} />
-                  <span className={`font-semibold ${
-                    userForm.role === 'TECHNICAL' ? 'text-cyan-900' : 'text-slate-700'
-                  }`}>Technical</span>
-                </div>
-                <p className="text-xs text-slate-500">Support access</p>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setUserForm({ ...userForm, role: 'TECHNICAL' })}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    userForm.role === 'TECHNICAL'
+                      ? 'border-cyan-500 bg-cyan-50'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Wrench className={`w-4 h-4 ${
+                      userForm.role === 'TECHNICAL' ? 'text-cyan-600' : 'text-slate-500'
+                    }`} />
+                    <span className={`font-semibold ${
+                      userForm.role === 'TECHNICAL' ? 'text-cyan-900' : 'text-slate-700'
+                    }`}>Technical</span>
+                  </div>
+                  <p className="text-xs text-slate-500">Support access</p>
+                </button>
+              </div>
             </div>
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <label className="block text-sm font-medium text-slate-700">
-                Assign to Teams
-              </label>
-              {userForm.teamIds.length > 0 && (
-                <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                  {userForm.teamIds.length} selected
-                </span>
-              )}
-            </div>
-            
-            {/* Selected Teams as Tags */}
-            {userForm.teamIds.length > 0 && (
-              <div className="mb-3 flex flex-wrap gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                {userForm.teamIds.map((teamId) => {
-                  const team = teams.find((t) => t.id === teamId);
-                  return team ? (
-                    <div
-                      key={team.id}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-full text-sm font-medium shadow-sm"
-                    >
-                      <Users className="w-3.5 h-3.5" />
-                      <span>{team.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => toggleTeam(team.id)}
-                        className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition-colors"
-                      >
-                        <svg
-                          className="w-3.5 h-3.5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  ) : null;
-                })}
-              </div>
-            )}
-
-            {/* Search Box for Teams */}
-            {teams.length > 5 && (
-              <div className="mb-3">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={teamSearchQuery}
-                    onChange={(e) => setTeamSearchQuery(e.target.value)}
-                    placeholder="Search teams..."
-                    className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <svg
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
-                </div>
-              </div>
-            )}
-
-            {/* Available Teams List */}
-            <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
-              <div className="max-h-60 overflow-y-auto">
-                {teams.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <Users className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-                    <p className="text-sm text-slate-500">No teams available</p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-slate-100">
-                    {teams
-                      .filter((team) =>
-                        team.name.toLowerCase().includes(teamSearchQuery.toLowerCase())
-                      )
-                      .map((team) => (
-                        <label
-                          key={team.id}
-                          className={`flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer transition-colors ${
-                            userForm.teamIds.includes(team.id) ? 'bg-blue-50' : ''
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={userForm.teamIds.includes(team.id)}
-                            onChange={() => toggleTeam(team.id)}
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                          />
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                              userForm.teamIds.includes(team.id)
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}>
-                              {team.name.charAt(0).toUpperCase()}
-                            </div>
-                            <span className={`text-sm font-medium truncate ${
-                              userForm.teamIds.includes(team.id) ? 'text-blue-900' : 'text-slate-700'
-                            }`}>
-                              {team.name}
-                            </span>
-                          </div>
-                          {userForm.teamIds.includes(team.id) && (
-                            <svg
-                              className="w-5 h-5 text-blue-600 shrink-0"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          )}
-                        </label>
-                      ))}
-                    {teams.filter((team) =>
-                      team.name.toLowerCase().includes(teamSearchQuery.toLowerCase())
-                    ).length === 0 && (
-                      <div className="p-4 text-center">
-                        <p className="text-sm text-slate-500">No teams found</p>
-                      </div>
-                    )}
-                  </div>
+          <div className="space-y-5">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-slate-700">
+                  Assign to Teams
+                </label>
+                {userForm.teamIds.length > 0 && (
+                  <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                    {userForm.teamIds.length} selected
+                  </span>
                 )}
               </div>
-            </div>
-            <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Select multiple teams for this user to access
-            </p>
-          </div>
+              
+              {/* Selected Teams as Tags */}
+              {userForm.teamIds.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  {userForm.teamIds.map((teamId) => {
+                    const team = teams.find((t) => t.id === teamId);
+                    return team ? (
+                      <div
+                        key={team.id}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-full text-sm font-medium shadow-sm"
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        <span>{team.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleTeam(team.id)}
+                          className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                        >
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : null;
+                  })}
+                </div>
+              )}
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="ghost" onClick={() => setShowModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit}>
-              {modalMode === 'create' ? 'Create User' : 'Update User'}
-            </Button>
+              {/* Search Box for Teams */}
+              {teams.length > 5 && (
+                <div className="mb-3">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={teamSearchQuery}
+                      onChange={(e) => setTeamSearchQuery(e.target.value)}
+                      placeholder="Search teams..."
+                      className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <svg
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              )}
+
+              {/* Available Teams List */}
+              <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+                <div className="max-h-60 overflow-y-auto">
+                  {teams.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <Users className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                      <p className="text-sm text-slate-500">No teams available</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {teams
+                        .filter((team) =>
+                          team.name.toLowerCase().includes(teamSearchQuery.toLowerCase())
+                        )
+                        .map((team) => (
+                          <label
+                            key={team.id}
+                            className={`flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer transition-colors ${
+                              userForm.teamIds.includes(team.id) ? 'bg-blue-50' : ''
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={userForm.teamIds.includes(team.id)}
+                              onChange={() => toggleTeam(team.id)}
+                              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                            />
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                                userForm.teamIds.includes(team.id)
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-slate-100 text-slate-600'
+                              }`}>
+                                {team.name.charAt(0).toUpperCase()}
+                              </div>
+                              <span className={`text-sm font-medium truncate ${
+                                userForm.teamIds.includes(team.id) ? 'text-blue-900' : 'text-slate-700'
+                              }`}>
+                                {team.name}
+                              </span>
+                            </div>
+                            {userForm.teamIds.includes(team.id) && (
+                              <svg
+                                className="w-5 h-5 text-blue-600 shrink-0"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            )}
+                          </label>
+                        ))}
+                      {teams.filter((team) =>
+                        team.name.toLowerCase().includes(teamSearchQuery.toLowerCase())
+                      ).length === 0 && (
+                        <div className="p-4 text-center">
+                          <p className="text-sm text-slate-500">No teams found</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Select multiple teams for this user to access
+              </p>
+            </div>
           </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 mt-6">
+          <Button variant="ghost" onClick={() => setShowModal(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit}>
+            {modalMode === 'create' ? 'Create User' : 'Update User'}
+          </Button>
         </div>
       </Modal>
 
@@ -930,123 +949,154 @@ function UsersManagementContent() {
         size="lg"
       >
         {selectedProfileUser && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {/* User Header */}
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl font-bold">
-                  {selectedProfileUser.username.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900">{selectedProfileUser.username}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      selectedProfileUser.role === 'ADMIN'
-                        ? 'bg-purple-100 text-purple-700'
-                        : selectedProfileUser.role === 'DEVELOPER'
-                        ? 'bg-amber-100 text-amber-700'
-                        : selectedProfileUser.role === 'TECHNICAL'
-                        ? 'bg-cyan-100 text-cyan-700'
-                        : 'bg-green-100 text-green-700'
-                    }`}>
-                      {selectedProfileUser.role === 'ADMIN' && <Shield className="w-3 h-3" />}
-                      {selectedProfileUser.role === 'DEVELOPER' && <Code className="w-3 h-3" />}
-                      {selectedProfileUser.role === 'TECHNICAL' && <Wrench className="w-3 h-3" />}
-                      {selectedProfileUser.role}
-                    </span>
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      selectedProfileUser.isActive !== false
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      {selectedProfileUser.isActive !== false ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-2">
+            <div className="relative pt-2">
+              <div className="absolute top-0 right-0 flex gap-2">
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
+                  className="h-10 w-10 p-0 text-slate-400 hover:text-blue-600"
                   onClick={() => {
                     setShowProfileModal(false);
                     openEditModal(selectedProfileUser);
                   }}
+                  title="Edit User"
                 >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit
+                  <Edit className="w-5 h-5" />
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
+                  className="h-10 w-10 p-0 text-slate-400 hover:text-blue-600"
                   onClick={() => {
                     setShowProfileModal(false);
                     openPasswordModal(selectedProfileUser);
                   }}
+                  title="Change Password"
                 >
-                  <Key className="w-4 h-4 mr-2" />
-                  Password
+                  <Key className="w-5 h-5" />
                 </Button>
+              </div>
+
+              <div className="flex flex-col items-center sm:flex-row sm:items-start gap-6">
+                <div className="w-20 h-20 rounded-full bg-linear-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-blue-200">
+                  {selectedProfileUser.username.charAt(0).toUpperCase()}
+                </div>
+                
+                <div className="flex-1 text-center sm:text-left space-y-3">
+                  <div>
+                    <div className="flex items-center justify-center sm:justify-start gap-3 mb-1">
+                      <h3 className="text-2xl font-bold text-slate-900">{selectedProfileUser.username}</h3>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
+                        selectedProfileUser.role === 'ADMIN'
+                          ? 'bg-purple-50 text-purple-700 border-purple-200'
+                          : selectedProfileUser.role === 'DEVELOPER'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : selectedProfileUser.role === 'TECHNICAL'
+                          ? 'bg-cyan-50 text-cyan-700 border-cyan-200'
+                          : 'bg-green-50 text-green-700 border-green-200'
+                      }`}>
+                        {selectedProfileUser.role}
+                      </span>
+                    </div>
+                    {selectedProfileUser.email && (
+                      <div className="flex items-center justify-center sm:justify-start gap-2 text-slate-500">
+                        <Mail className="w-4 h-4" />
+                        <span>{selectedProfileUser.email}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Active/Inactive Toggle */}
+                  <div 
+                    onClick={() => {
+                      setShowProfileModal(false);
+                      openStatusModal(selectedProfileUser);
+                    }}
+                    className="relative w-32 h-8 bg-slate-100 rounded-full p-1 cursor-pointer select-none transition-colors hover:bg-slate-200 mx-auto sm:mx-0"
+                  >
+                    <div 
+                      className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-200 ease-out ${
+                        selectedProfileUser.isActive !== false 
+                          ? 'left-1 bg-white' 
+                          : 'left-[calc(50%)] bg-red-500'
+                      }`}
+                    ></div>
+                    <div className="relative z-10 grid grid-cols-2 w-full h-full text-[10px] font-bold tracking-wider">
+                      <div className={`flex items-center justify-center transition-colors duration-200 ${selectedProfileUser.isActive !== false ? 'text-green-700' : 'text-slate-400'}`}>
+                        ACTIVE
+                      </div>
+                      <div className={`flex items-center justify-center transition-colors duration-200 ${selectedProfileUser.isActive === false ? 'text-white' : 'text-slate-400'}`}>
+                        INACTIVE
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <div className="text-sm text-slate-500 mb-1">Created Tickets</div>
+            <div className="grid grid-cols-3 divide-x divide-slate-100 border-y border-slate-100 py-6">
+              <div className="text-center px-4">
                 <div className="text-2xl font-bold text-slate-900">{selectedProfileUser._count?.tickets || 0}</div>
+                <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-1">Created</div>
               </div>
-              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <div className="text-sm text-slate-500 mb-1">Assigned Tickets</div>
+              <div className="text-center px-4">
                 <div className="text-2xl font-bold text-slate-900">{selectedProfileUser._count?.assignedTickets || 0}</div>
+                <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-1">Assigned</div>
               </div>
-              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <div className="text-sm text-slate-500 mb-1">Teams</div>
+              <div className="text-center px-4">
                 <div className="text-2xl font-bold text-slate-900">{selectedProfileUser.teams?.length || 0}</div>
+                <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-1">Teams</div>
               </div>
             </div>
 
             {/* Assigned Tickets List */}
             <div>
-              <h4 className="text-lg font-semibold text-slate-900 mb-3">Assigned Tickets</h4>
+              <h4 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-4">Recent Activity</h4>
               {loadingTickets ? (
                 <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                 </div>
               ) : userTickets.length > 0 ? (
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        <th className="px-4 py-2 text-left font-medium text-slate-500">ID</th>
-                        <th className="px-4 py-2 text-left font-medium text-slate-500">Issue</th>
-                        <th className="px-4 py-2 text-left font-medium text-slate-500">Status</th>
-                        <th className="px-4 py-2 text-left font-medium text-slate-500">Priority</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {userTickets.map((ticket) => (
-                        <tr key={ticket.id} className="hover:bg-slate-50">
-                          <td className="px-4 py-2 font-mono text-slate-600">#{ticket.incNumber || ticket.id.slice(0, 8)}</td>
-                          <td className="px-4 py-2 text-slate-900">{ticket.issue}</td>
-                          <td className="px-4 py-2">
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700`}>
-                              {ticket.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2">
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700`}>
-                              {ticket.priority}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-3">
+                  {userTickets.map((ticket) => (
+                    <div key={ticket.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors group">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="font-mono text-xs text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                          #{ticket.incNumber || ticket.id.slice(0, 8)}
+                        </span>
+                        <span className="text-sm font-medium text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                          {ticket.issue}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                          ticket.priority === 'HIGH' || ticket.priority === 'URGENT' 
+                            ? 'bg-red-100 text-red-700' 
+                            : ticket.priority === 'MEDIUM'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {ticket.priority}
+                        </span>
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                          ticket.status === 'OPEN' 
+                            ? 'bg-green-100 text-green-700'
+                            : ticket.status === 'IN_PROGRESS'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {ticket.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
-                <div className="text-center py-8 bg-slate-50 rounded-lg border border-slate-200 border-dashed">
-                  <p className="text-slate-500">No tickets assigned to this user.</p>
+                <div className="text-center py-8">
+                  <p className="text-sm text-slate-400">No tickets assigned to this user.</p>
                 </div>
               )}
             </div>

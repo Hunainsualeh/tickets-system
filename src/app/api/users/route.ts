@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         username: true,
+        email: true,
         role: true,
         isActive: true,
         teamId: true,

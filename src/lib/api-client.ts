@@ -79,6 +79,10 @@ class ApiClient {
     return this.request('/api/users');
   }
 
+  async getUser(id: string) {
+    return this.request(`/api/users/${id}`);
+  }
+
   async createUser(data: { username: string; password: string; role?: string; teamIds?: string[] }) {
     return this.request('/api/users', {
       method: 'POST',

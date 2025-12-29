@@ -121,6 +121,11 @@ function UserDashboardContent() {
         if (response.user) {
           setUser(response.user);
           localStorage.setItem('user', JSON.stringify(response.user));
+
+          // If user is in teams, default to team view so they see tickets immediately
+          if (response.user.teams && response.user.teams.length > 0) {
+            setScope('team');
+          }
         }
         if (response.companyName) {
           setCompanyName(response.companyName);
