@@ -206,10 +206,11 @@ interface NewRequestEmailProps {
   username: string;
   projectId?: string;
   requestId: string;
+  requestNumber?: string | null;
   requestUrl: string;
 }
 
-export function generateNewRequestEmailHtml({ title, description, username, projectId, requestId, requestUrl }: NewRequestEmailProps): string {
+export function generateNewRequestEmailHtml({ title, description, username, projectId, requestId, requestNumber, requestUrl }: NewRequestEmailProps): string {
   return `
 <!DOCTYPE html>
 <html>
@@ -228,7 +229,7 @@ export function generateNewRequestEmailHtml({ title, description, username, proj
     .meta-row { display: flex; justify-content: space-between; margin-bottom: 24px; border-bottom: 1px solid #e5e7eb; padding-bottom: 24px; }
     .meta-item { flex: 1; }
     .meta-label { color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 4px; }
-    .meta-value { color: #111827; font-weight: 600; font-size: 14px; }
+    .meta-value { color: #111827; font-weight: 600; font-size: 14px; font-family: 'Monaco', 'Consolas', monospace; }
     .section-title { color: #374151; font-weight: 700; font-size: 14px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
     .description-box { background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; color: #4b5563; font-size: 15px; line-height: 1.6; margin-bottom: 24px; }
     .button { display: block; width: 100%; background-color: #4f46e5; color: #ffffff !important; text-align: center; padding: 14px 0; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 16px; transition: background-color 0.2s; }
@@ -249,7 +250,7 @@ export function generateNewRequestEmailHtml({ title, description, username, proj
         <div class="meta-row">
           <div class="meta-item">
             <div class="meta-label">Request ID</div>
-            <div class="meta-value">#${requestId.slice(-6).toUpperCase()}</div>
+            <div class="meta-value">#${requestNumber || requestId.slice(-6).toUpperCase()}</div>
           </div>
           <div class="meta-item" style="text-align: right;">
             <div class="meta-label">Project</div>
@@ -307,6 +308,7 @@ interface TicketEmailProps {
   message: string;
   ticket: {
     id: string;
+    incNumber?: string | null;
     issue: string;
     status: string;
     priority: string;
@@ -594,7 +596,7 @@ export function generateTicketEmailHtml({
         <!-- Ticket Stub -->
         <td class="ticket-stub">
           <div class="detail-label" style="margin-bottom: 8px;">Ticket ID</div>
-          <div class="ticket-id-box">#${ticket.id.slice(-6).toUpperCase()}</div>
+          <div class="ticket-id-box">#${ticket.incNumber || ticket.id.slice(-6).toUpperCase()}</div>
           
           <div style="margin-bottom: 32px;">
              <span class="status-badge">${ticket.status}</span>

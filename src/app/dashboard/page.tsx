@@ -233,6 +233,22 @@ function UserDashboardContent() {
     return () => clearTimeout(timer);
   }, [searchQuery, scope, selectedTeamId, user]);
 
+  const handleRequestClick = async (request: any) => {
+    try {
+      // Set partial request first to show modal immediately
+      setSelectedRequest(request);
+      
+      // Fetch full details including history
+      const response = await apiClient.getRequest(request.id);
+      if (response?.request) {
+        setSelectedRequest(response.request);
+      }
+    } catch (error) {
+      console.error('Error fetching request details:', error);
+      toast.error('Failed to load request details');
+    }
+  };
+
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -1093,7 +1109,7 @@ function UserDashboardContent() {
                         <RequestListCard
                           key={request.id}
                           request={request}
-                          onClick={() => setSelectedRequest(request)}
+                          onClick={() => handleRequestClick(request)}
                         />
                       ))}
                     </div>
@@ -1804,7 +1820,7 @@ function UserDashboardContent() {
                   </div>
                   <div className="space-y-3">
                     {requests.slice(0, 5).map(request => (
-                      <div key={request.id} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer border border-slate-100" onClick={() => setSelectedRequest(request)}>
+                      <div key={request.id} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer border border-slate-100" onClick={() => handleRequestClick(request)}>
                         <div className="flex items-center gap-4 flex-1 min-w-0">
                           <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600 shrink-0 text-sm font-semibold">
                             {request.user?.username?.charAt(0).toUpperCase()}

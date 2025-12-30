@@ -48,26 +48,31 @@ export const RequestDetail: React.FC<RequestDetailProps> = ({
               <h2 className="text-lg font-bold text-slate-900 truncate">{request.title}</h2>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-500">
-              <span className="font-mono">#{request.id.slice(0, 8)}</span>
+              <span className="font-mono font-bold text-slate-700">#{request.requestNumber || request.id.slice(0, 8).toUpperCase()}</span>
               <span>•</span>
               <span>{formatRelativeTime(request.createdAt)}</span>
             </div>
           </div>
-          <Badge variant={getStatusColor(request.status)} size="sm">
-            {request.status.replace('_', ' ')}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-slate-600" />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="space-y-6">
+        <div className="space-y-8">
           {/* Description */}
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 block">
               Description
             </label>
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
                 {request.description}
               </p>
@@ -75,7 +80,7 @@ export const RequestDetail: React.FC<RequestDetailProps> = ({
           </div>
 
           {/* Details Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {/* User Info */}
             {request.user && (
               <div>
@@ -83,9 +88,9 @@ export const RequestDetail: React.FC<RequestDetailProps> = ({
                   <User className="w-3 h-3" />
                   Submitted By
                 </label>
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-bold">
                       {request.user.username?.charAt(0).toUpperCase()}
                     </div>
                     <div>
@@ -105,7 +110,7 @@ export const RequestDetail: React.FC<RequestDetailProps> = ({
                 <Calendar className="w-3 h-3" />
                 Created Date
               </label>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                 <p className="text-sm font-medium text-slate-900">{formatDate(request.createdAt)}</p>
                 <p className="text-xs text-slate-500 mt-1">{formatRelativeTime(request.createdAt)}</p>
               </div>
@@ -118,7 +123,7 @@ export const RequestDetail: React.FC<RequestDetailProps> = ({
                   <Briefcase className="w-3 h-3" />
                   Project ID
                 </label>
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                   <p className="text-sm font-medium text-slate-900 font-mono">{request.projectId}</p>
                 </div>
               </div>
@@ -130,7 +135,7 @@ export const RequestDetail: React.FC<RequestDetailProps> = ({
                 <Tag className="w-3 h-3" />
                 Status
               </label>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                 <Badge variant={getStatusColor(request.status)}>
                   {request.status.replace('_', ' ')}
                 </Badge>
@@ -141,7 +146,7 @@ export const RequestDetail: React.FC<RequestDetailProps> = ({
           {/* Attachments */}
           {request.attachments && request.attachments.length > 0 && (
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
                 <Paperclip className="w-3 h-3" />
                 Attachments ({request.attachments.length})
               </label>
@@ -152,7 +157,7 @@ export const RequestDetail: React.FC<RequestDetailProps> = ({
                     href={attachment.fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 transition-all group"
+                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 transition-all group bg-white shadow-sm"
                   >
                     <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
                       <FileText className="w-5 h-5" />
@@ -165,6 +170,30 @@ export const RequestDetail: React.FC<RequestDetailProps> = ({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
                   </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Timeline */}
+          {request.history && request.history.length > 0 && (
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 block">
+                Timeline
+              </label>
+              <div className="relative pl-4 border-l-2 border-slate-200 space-y-8 ml-2">
+                {request.history.map((item: any) => (
+                  <div key={item.id} className="relative">
+                    <div className="absolute -left-[21px] top-1.5 w-3 h-3 rounded-full bg-white border-2 border-slate-300 ring-2 ring-slate-50"></div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-slate-900">
+                        {item.note || `Status changed to ${item.status}`}
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        {formatDate(item.createdAt)}
+                      </span>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

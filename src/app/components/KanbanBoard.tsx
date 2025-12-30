@@ -50,7 +50,7 @@ function KanbanCard({ request, onClick, isAdmin, onDragStart }: KanbanCardProps)
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-mono text-slate-400">#{request.id.substring(0, 8)}</span>
+        <span className="text-xs font-mono text-slate-400">#{request.requestNumber || request.id.substring(0, 8)}</span>
         <Badge variant={getPriorityVariant(request.status)} size="sm">
           {getPriorityLabel(request.status)}
         </Badge>

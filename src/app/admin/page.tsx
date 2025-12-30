@@ -2271,7 +2271,12 @@ function AdminDashboardContent() {
                                   }}
                                 />
                               </TableCell>
-                              <TableCell className="font-medium">{ticket.issue}</TableCell>
+                              <TableCell className="font-medium">
+                                <div className="flex flex-col">
+                                  <span>{ticket.issue}</span>
+                                  <span className="text-xs text-slate-400 font-mono">#{ticket.incNumber || ticket.id.slice(0, 8)}</span>
+                                </div>
+                              </TableCell>
                               <TableCell>{ticket.branch?.name || '-'}</TableCell>
                               <TableCell>
                                 <Badge variant={getPriorityColor(ticket.priority)}>{ticket.priority}</Badge>
@@ -2480,7 +2485,12 @@ function AdminDashboardContent() {
                               }}
                             />
                           </TableCell>
-                          <TableCell className="font-medium">{request.title}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex flex-col">
+                              <span>{request.title}</span>
+                              <span className="text-xs text-slate-400 font-mono">#{request.requestNumber || request.id.slice(0, 8)}</span>
+                            </div>
+                          </TableCell>
                           <TableCell>{request.user?.username}</TableCell>
                           <TableCell>
                             {request.projectId ? (

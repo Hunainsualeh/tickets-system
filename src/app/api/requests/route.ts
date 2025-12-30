@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { notifyAdmins } from '@/lib/notifications';
 import { sendAdminNotification } from '@/lib/email';
 import { generateNewRequestEmailHtml } from '@/lib/email-templates';
+import { generateCustomId } from '@/lib/id-generator';
 
 // GET all requests
 export async function GET(request: NextRequest) {
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     // Regular users can only see requests from users in their teams
     if (authResult.user.role === 'USER') {
-      const userTeamIds = currentUser?.teams.map(ut => ut.teamId) || [];
+      const userTeamIds = currentUser?.teams?.map(ut => ut.teamId) || [];
       
       if (userTeamIds.length > 0) {
         if (scope === 'me') {
@@ -94,6 +95,11 @@ export async function GET(request: NextRequest) {
             uploadedAt: 'desc',
           },
         },
+        history: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -128,6 +134,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fetch User details for ID generation
+    const userWithTeams = await prisma.user.findUnique({
+      where: { id: authResult.user.userId },
+      select: {
+        username: true,
+        teams: {
+          take: 1,
+          select: {
+            team: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const teamName = userWithTeams?.teams[0]?.team?.name;
+    const requestNumber = generateCustomId(
+      teamName,
+      userWithTeams?.username || 'Unknown',
+      'REQ',
+      'REQUEST'
+    );
+
     const newRequest = await prisma.request.create({
       data: {
         userId: authResult.user.userId,
@@ -135,6 +167,13 @@ export async function POST(request: NextRequest) {
         description,
         projectId: projectId || null,
         status: 'PENDING',
+        requestNumber,
+        history: {
+          create: {
+            status: 'PENDING',
+            note: 'Request created',
+          }
+        }
       },
       include: {
         user: {
@@ -151,36 +190,43 @@ export async function POST(request: NextRequest) {
           },
         },
         attachments: true,
+        history: true,
       },
     });
 
-    // Notify admins about new request
-    await notifyAdmins(
-      'New Request Created',
-      `${newRequest.user.username} created a new request: ${title.substring(0, 50)}${title.length > 50 ? '...' : ''}`,
-      'INFO',
-      `/admin/requests/${newRequest.id}`
-    );
+    // Notify admins about new request (non-blocking)
+    try {
+      await notifyAdmins(
+        'New Request Created',
+        `${newRequest.user.username} created a new request: ${title.substring(0, 50)}${title.length > 50 ? '...' : ''}`,
+        'INFO',
+        `/admin/requests/${newRequest.id}`
+      );
 
-    // Send email to admin
-    const emailHtml = generateNewRequestEmailHtml({
-      title: newRequest.title,
-      description: newRequest.description,
-      username: newRequest.user.username,
-      projectId: newRequest.projectId || undefined,
-      requestId: newRequest.id,
-      requestUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/requests/${newRequest.id}`
-    });
+      // Send email to admin
+      const emailHtml = generateNewRequestEmailHtml({
+        title: newRequest.title,
+        description: newRequest.description,
+        username: newRequest.user.username,
+        projectId: newRequest.projectId || undefined,
+        requestId: newRequest.id,
+        requestUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/requests/${newRequest.id}`,
+        requestNumber: newRequest.requestNumber || undefined
+      });
 
-    await sendAdminNotification(
-      `New Request Created: ${newRequest.title}`,
-      `A new request has been created by ${newRequest.user.username}.\n\n` +
-      `Title: ${newRequest.title}\n` +
-      `Description: ${newRequest.description}\n` +
-      `Project ID: ${newRequest.projectId || 'N/A'}\n` +
-      `Link: ${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/requests/${newRequest.id}`,
-      emailHtml
-    );
+      await sendAdminNotification(
+        `New Request Created: ${newRequest.title}`,
+        `A new request has been created by ${newRequest.user.username}.\n\n` +
+        `Title: ${newRequest.title}\n` +
+        `Description: ${newRequest.description}\n` +
+        `Project ID: ${newRequest.projectId || 'N/A'}\n` +
+        `Link: ${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/requests/${newRequest.id}`,
+        emailHtml
+      );
+    } catch (notifyError) {
+      console.error('Failed to send notifications for new request:', notifyError);
+      // Continue execution - don't fail the request just because notification failed
+    }
 
     return NextResponse.json({ request: newRequest }, { status: 201 });
   } catch (error) {

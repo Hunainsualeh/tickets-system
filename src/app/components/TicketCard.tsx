@@ -44,6 +44,9 @@ export function TicketCard({ ticket, onClick, onStatusChange, onDelete, isAdmin 
                   ASSIGNED TO YOU
                 </span>
               )}
+              <span className="text-xs text-slate-500 font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
+                #{ticket.incNumber || ticket.id.slice(0, 8)}
+              </span>
               <span className="text-xs text-slate-400 font-mono shrink-0">
                 {new Date(ticket.createdAt).toLocaleDateString()}
               </span>

@@ -68,6 +68,74 @@ export function TicketDetail({
     { key: 'PAID', label: 'Paid' },
   ];
 
+  // Status color mapping matching the dropdown colors
+  const statusColors: Record<string, { bg: string; border: string; text: string; ring: string; gradient: string }> = {
+    PENDING: { 
+      bg: 'bg-amber-500', 
+      border: 'border-amber-500', 
+      text: 'text-amber-600',
+      ring: 'ring-amber-100',
+      gradient: '#f59e0b'
+    },
+    ACKNOWLEDGED: { 
+      bg: 'bg-slate-400', 
+      border: 'border-slate-400', 
+      text: 'text-slate-500',
+      ring: 'ring-slate-100',
+      gradient: '#94a3b8'
+    },
+    IN_PROGRESS: { 
+      bg: 'bg-yellow-500', 
+      border: 'border-yellow-500', 
+      text: 'text-yellow-600',
+      ring: 'ring-yellow-100',
+      gradient: '#eab308'
+    },
+    COMPLETED: { 
+      bg: 'bg-emerald-500', 
+      border: 'border-emerald-500', 
+      text: 'text-emerald-600',
+      ring: 'ring-emerald-100',
+      gradient: '#10b981'
+    },
+    ESCALATED: { 
+      bg: 'bg-red-500', 
+      border: 'border-red-500', 
+      text: 'text-red-600',
+      ring: 'ring-red-100',
+      gradient: '#ef4444'
+    },
+    CLOSED: { 
+      bg: 'bg-slate-500', 
+      border: 'border-slate-500', 
+      text: 'text-slate-600',
+      ring: 'ring-slate-100',
+      gradient: '#64748b'
+    },
+    INVOICE: { 
+      bg: 'bg-orange-500', 
+      border: 'border-orange-500', 
+      text: 'text-orange-600',
+      ring: 'ring-orange-100',
+      gradient: '#f97316'
+    },
+    PAID: { 
+      bg: 'bg-teal-500', 
+      border: 'border-teal-500', 
+      text: 'text-teal-600',
+      ring: 'ring-teal-100',
+      gradient: '#14b8a6'
+    },
+  };
+
+  // Get color for a specific status stage
+  const getStageColor = (stageKey: string) => {
+    return statusColors[stageKey] || statusColors.PENDING;
+  };
+
+  // Get the current status color
+  const currentStatusColor = getStageColor(ticket.status);
+
   const statusStages = isAdmin 
     ? allStatusStages
     : [
@@ -164,6 +232,9 @@ export function TicketDetail({
                         <Badge variant={getPriorityColor(ticket.priority)} size="sm" className="shadow-sm ring-1 ring-inset ring-black/5">
                             {ticket.priority}
                         </Badge>
+                        <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                            #{ticket.incNumber || ticket.id.slice(0, 8)}
+                        </span>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
                             <span className="text-slate-400 text-sm flex items-center gap-1.5 font-medium">
                                 <Clock className="w-3.5 h-3.5" />
@@ -195,12 +266,18 @@ export function TicketDetail({
             {/* --- THE REDESIGNED PROGRESS TRACK --- */}
             <div className="hidden lg:block relative px-4 mx-4">
                 {/* 1. Gray Background Track */}
-                <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 rounded-full -translate-y-1/2 z-0"></div>
+                <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-200 rounded-full -translate-y-1/2 z-0"></div>
                 
-                {/* 2. Blue Active Progress Bar */}
+                {/* 2. Gradient Active Progress Bar - color transitions from first to current status */}
                 <div 
-                    className="absolute top-1/2 left-0 h-1 bg-blue-600 rounded-full -translate-y-1/2 z-0 transition-all duration-700 ease-out shadow-[0_0_10px_rgba(37,99,235,0.3)]"
-                    style={{ width: `${progressPercentage}%` }}
+                    className="absolute top-1/2 left-0 h-1.5 rounded-full -translate-y-1/2 z-0 transition-all duration-700 ease-out"
+                    style={{ 
+                        width: `${progressPercentage}%`,
+                        background: currentStageIndex > 0 
+                            ? `linear-gradient(to right, ${getStageColor(statusStages[0].key).gradient}, ${currentStatusColor.gradient})`
+                            : currentStatusColor.gradient,
+                        boxShadow: `0 0 12px ${currentStatusColor.gradient}40`
+                    }}
                 ></div>
 
                 {/* 3. The Nodes */}
@@ -208,21 +285,25 @@ export function TicketDetail({
                     {statusStages.map((stage, index) => {
                         const isCompleted = index < currentStageIndex;
                         const isActive = index === currentStageIndex;
+                        const stageColor = getStageColor(stage.key);
 
                         return (
                             <div key={stage.key} className="flex flex-col items-center group cursor-default relative">
                                 {/* The Dot */}
-                                <div className={`
-                                    w-8 h-8 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 z-10
-                                    ${isCompleted 
-                                        ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-200' 
-                                        : isActive 
-                                            ? 'bg-white border-blue-600 text-blue-600 scale-125 ring-4 ring-blue-50 shadow-lg' 
-                                            : 'bg-white border-slate-200 text-slate-300'
-                                    }
-                                `}>
+                                <div 
+                                    className={`
+                                        w-8 h-8 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 z-10
+                                        ${isCompleted 
+                                            ? `${stageColor.bg} ${stageColor.border} text-white shadow-md` 
+                                            : isActive 
+                                                ? `bg-white ${stageColor.border} ${stageColor.text} scale-125 ring-4 ${stageColor.ring} shadow-lg` 
+                                                : 'bg-white border-slate-200 text-slate-300'
+                                        }
+                                    `}
+                                    style={isCompleted ? { boxShadow: `0 4px 12px ${stageColor.gradient}40` } : {}}
+                                >
                                     {isCompleted ? <Check className="w-4 h-4 stroke-3" /> : 
-                                     isActive ? <div className="w-2.5 h-2.5 bg-blue-600 rounded-full animate-pulse" /> :
+                                     isActive ? <div className={`w-2.5 h-2.5 ${stageColor.bg} rounded-full animate-pulse`} /> :
                                      <Circle className="w-2.5 h-2.5 fill-slate-100 text-transparent" />
                                     }
                                 </div>
@@ -230,7 +311,7 @@ export function TicketDetail({
                                 {/* The Label */}
                                 <span className={`
                                     absolute top-12 text-[11px] font-bold uppercase tracking-wider text-center w-32 transition-colors
-                                    ${isActive ? 'text-blue-700 translate-y-1' : isCompleted ? 'text-slate-600' : 'text-slate-300'}
+                                    ${isActive ? `${stageColor.text} translate-y-1` : isCompleted ? 'text-slate-600' : 'text-slate-300'}
                                 `}>
                                     {stage.label}
                                 </span>

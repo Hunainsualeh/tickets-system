@@ -246,49 +246,53 @@ export async function PUT(request: NextRequest, context: Params) {
       };
 
       const statusConfig = statusMessages[status] || { title: 'Ticket Status Updated', type: 'INFO' };
-      await notifyUser(
-        ticket.userId,
-        statusConfig.title,
-        note || `Your ticket status has been updated to ${status}${adminNote ? ` - ${adminNote}` : ''}`,
-        statusConfig.type,
-        `/dashboard?view=tickets&ticketId=${ticket.id}`
-      );
 
-      // Send email to user
-      const ticketUser = await prisma.user.findUnique({
-        where: { id: ticket.userId },
-        select: { email: true, username: true }
-      });
+      // Only notify user if status is NOT INVOICE or PAID
+      if (status !== 'INVOICE' && status !== 'PAID') {
+        await notifyUser(
+          ticket.userId,
+          statusConfig.title,
+          note || `Your ticket status has been updated to ${status}${adminNote ? ` - ${adminNote}` : ''}`,
+          statusConfig.type,
+          `/dashboard?view=tickets&ticketId=${ticket.id}`
+        );
 
-      if (ticketUser?.email) {
-        const emailHtml = generateTicketEmailHtml({
-          headline: statusConfig.title,
-          recipientName: ticketUser.username || 'User',
-          message: `Your ticket status has been updated to ${status}.`,
-          ticket: {
-            id: ticket.id,
-            issue: ticket.issue,
-            status: ticket.status,
-            priority: ticket.priority,
-            createdAt: ticket.createdAt,
-            assignedTo: ticket.assignedTo,
-            branch: ticket.branch,
-            additionalDetails: ticket.additionalDetails,
-          },
-          notes: (note ? `Note: ${note}\n` : '') + (adminNote ? `Admin Note: ${adminNote}` : ''),
-          link: `${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard?view=tickets&ticketId=${ticket.id}`
+        // Send email to user
+        const ticketUser = await prisma.user.findUnique({
+          where: { id: ticket.userId },
+          select: { email: true, username: true }
         });
 
-        await sendEmail(
-          ticketUser.email,
-          `${statusConfig.title}: ${ticket.issue}`,
-          `Hello ${ticketUser.username},\n\n` +
-          `Your ticket status has been updated to ${status}.\n` +
-          `Note: ${note || 'No additional notes'}\n` +
-          (adminNote ? `Admin Note: ${adminNote}\n` : '') +
-          `\nView your ticket: ${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard?view=tickets&ticketId=${ticket.id}`,
-          emailHtml
-        );
+        if (ticketUser?.email) {
+          const emailHtml = generateTicketEmailHtml({
+            headline: statusConfig.title,
+            recipientName: ticketUser.username || 'User',
+            message: `Your ticket status has been updated to ${status}.`,
+            ticket: {
+              id: ticket.id,
+              issue: ticket.issue,
+              status: ticket.status,
+              priority: ticket.priority,
+              createdAt: ticket.createdAt,
+              assignedTo: ticket.assignedTo,
+              branch: ticket.branch,
+              additionalDetails: ticket.additionalDetails,
+            },
+            notes: (note ? `Note: ${note}\n` : '') + (adminNote ? `Admin Note: ${adminNote}` : ''),
+            link: `${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard?view=tickets&ticketId=${ticket.id}`
+          });
+
+          await sendEmail(
+            ticketUser.email,
+            `${statusConfig.title}: ${ticket.issue}`,
+            `Hello ${ticketUser.username},\n\n` +
+            `Your ticket status has been updated to ${status}.\n` +
+            `Note: ${note || 'No additional notes'}\n` +
+            (adminNote ? `Admin Note: ${adminNote}\n` : '') +
+            `\nView your ticket: ${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard?view=tickets&ticketId=${ticket.id}`,
+            emailHtml
+          );
+        }
       }
 
       // Send email to assigned user if it's not the current user

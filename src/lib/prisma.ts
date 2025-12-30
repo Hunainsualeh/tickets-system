@@ -7,6 +7,11 @@ const globalForPrisma = global as unknown as { prisma: PrismaClient };
 function createPrismaClient() {
   console.log('Creating new Prisma Client instance...');
   const connectionString = process.env.DATABASE_URL;
+  
+  if (!connectionString) {
+    console.warn('⚠️ DATABASE_URL is not defined in environment variables. Database connection will likely fail.');
+  }
+
   const pool = new Pool({ 
     connectionString,
     ssl: process.env.NODE_ENV === 'production' ? true : { rejectUnauthorized: false }

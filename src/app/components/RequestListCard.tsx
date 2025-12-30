@@ -38,6 +38,9 @@ export function RequestListCard({ request, onClick }: RequestListCardProps) {
       <div className="flex items-start justify-between gap-4 pl-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-2">
+            <span className="text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+              #{request.requestNumber || request.id.slice(0, 8)}
+            </span>
             <h3 className="font-semibold text-slate-900 truncate text-lg">{request.title}</h3>
             <Badge variant={getStatusColor(request.status)} size="sm">
               {request.status.replace('_', ' ')}

@@ -19,6 +19,7 @@ export async function GET(request: NextRequest, context: Params) {
 
   try {
     const params = await context.params;
+    
     const requestData = await prisma.request.findUnique({
       where: { id: params.id },
       include: {
@@ -40,6 +41,11 @@ export async function GET(request: NextRequest, context: Params) {
             uploadedAt: 'desc',
           },
         },
+        history: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
     });
 
@@ -51,20 +57,36 @@ export async function GET(request: NextRequest, context: Params) {
     if (authResult.user.role === 'USER') {
       const currentUser = await prisma.user.findUnique({
         where: { id: authResult.user.userId },
-        select: { teamId: true },
+        select: { 
+          teamId: true,
+          teams: { select: { teamId: true } }
+        },
       });
 
       const requestUser = await prisma.user.findUnique({
         where: { id: requestData.userId },
-        select: { teamId: true },
+        select: { 
+          teamId: true,
+          teams: { select: { teamId: true } }
+        },
       });
+
+      const currentUserTeamIds = [
+        currentUser?.teamId,
+        ...(currentUser?.teams?.map(t => t.teamId) || [])
+      ].filter(Boolean) as string[];
+
+      const requestUserTeamIds = [
+        requestUser?.teamId,
+        ...(requestUser?.teams?.map(t => t.teamId) || [])
+      ].filter(Boolean) as string[];
 
       // Allow access if:
       // 1. It's the user's own request, OR
-      // 2. Both users are in the same team (and team is not null)
+      // 2. They share at least one team
       const hasAccess = 
         requestData.userId === authResult.user.userId ||
-        (currentUser?.teamId && requestUser?.teamId && currentUser.teamId === requestUser.teamId);
+        currentUserTeamIds.some(id => requestUserTeamIds.includes(id));
 
       if (!hasAccess) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -98,6 +120,15 @@ export async function PUT(request: NextRequest, context: Params) {
     // Status updates are admin only
     if (status && authResult.user.role === 'ADMIN') {
       updateData.status = status;
+
+      // Create history record
+      await prisma.requestHistory.create({
+        data: {
+          requestId: params.id,
+          status: status,
+          note: `Status updated to ${status}`,
+        }
+      });
     }
 
     // Users can update their own request details if it's still pending
@@ -118,6 +149,27 @@ export async function PUT(request: NextRequest, context: Params) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // If no changes, return the existing request with full details
+    if (Object.keys(updateData).length === 0) {
+      const fullRequest = await prisma.request.findUnique({
+        where: { id: params.id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              role: true,
+              teamId: true,
+              teams: { include: { team: true } },
+            },
+          },
+          attachments: true,
+          history: { orderBy: { createdAt: 'desc' } },
+        },
+      });
+      return NextResponse.json({ request: fullRequest });
+    }
+
     const updatedRequest = await prisma.request.update({
       where: { id: params.id },
       data: updateData,
@@ -136,6 +188,11 @@ export async function PUT(request: NextRequest, context: Params) {
           },
         },
         attachments: true,
+        history: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
     });
 

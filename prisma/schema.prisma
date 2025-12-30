@@ -120,13 +120,26 @@ model Request {
   title       String
   description String
   projectId   String?
+  requestNumber String?
   status      RequestStatus       @default(PENDING)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
   attachments RequestAttachment[]
+  history     RequestHistory[]
   user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("requests")
+}
+
+model RequestHistory {
+  id        String        @id @default(cuid())
+  requestId String
+  status    RequestStatus
+  note      String?
+  createdAt DateTime      @default(now())
+  request   Request       @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("request_history")
 }
 
 model RequestAttachment {

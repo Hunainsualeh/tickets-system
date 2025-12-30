@@ -208,6 +208,36 @@ class ApiClient {
       body: JSON.stringify({ note }),
     });
   }
+
+  // Requests
+  async getRequests(filters?: { status?: string; search?: string; scope?: string; teamId?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.scope) params.append('scope', filters.scope);
+    if (filters?.teamId) params.append('teamId', filters.teamId);
+    
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/api/requests${query}`);
+  }
+
+  async getRequest(id: string) {
+    return this.request(`/api/requests/${id}`);
+  }
+
+  async createRequest(data: any) {
+    return this.request('/api/requests', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateRequest(id: string, data: any) {
+    return this.request(`/api/requests/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_URL);

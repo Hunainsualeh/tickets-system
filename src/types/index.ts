@@ -97,6 +97,14 @@ export interface Attachment {
   uploadedAt: string;
 }
 
+export interface RequestHistory {
+  id: string;
+  requestId: string;
+  status: string;
+  note?: string;
+  createdAt: string;
+}
+
 export interface RequestAttachment {
   id: string;
   requestId: string;
@@ -113,11 +121,13 @@ export interface Request {
   title: string;
   description: string;
   projectId?: string | null;
+  requestNumber?: string | null;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED';
   createdAt: string;
   updatedAt: string;
   user?: User;
   attachments?: RequestAttachment[];
+  history?: RequestHistory[];
 }
 
 export interface Notification {

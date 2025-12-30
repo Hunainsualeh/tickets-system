@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { notifyAdmins, notifyUser } from '@/lib/notifications';
 import { sendAdminNotification } from '@/lib/email';
 import { generateTicketEmailHtml } from '@/lib/email-templates';
+import { generateCustomId } from '@/lib/id-generator';
 
 // GET all tickets
 export async function GET(request: NextRequest) {
@@ -230,20 +231,53 @@ export async function POST(request: NextRequest) {
 
     // Determine team ID: use provided teamId, or get user's first team
     let ticketTeamId = teamId || null;
-    if (!ticketTeamId) {
+    let teamName: string | undefined;
+
+    if (ticketTeamId) {
+      const team = await prisma.team.findUnique({
+        where: { id: ticketTeamId },
+        select: { name: true }
+      });
+      teamName = team?.name;
+    } else {
       const userWithTeams = await prisma.user.findUnique({
         where: { id: ticketUserId },
         select: {
           teams: {
             take: 1,
             select: {
-              teamId: true,
+              team: {
+                select: {
+                  id: true,
+                  name: true
+                }
+              }
             },
           },
         },
       });
-      ticketTeamId = userWithTeams?.teams[0]?.teamId || null;
+      ticketTeamId = userWithTeams?.teams[0]?.team?.id || null;
+      teamName = userWithTeams?.teams[0]?.team?.name;
     }
+
+    // Fetch Branch Number and Creator Name for ID generation
+    const [branch, creator] = await Promise.all([
+      prisma.branch.findUnique({
+        where: { id: branchId },
+        select: { branchNumber: true }
+      }),
+      prisma.user.findUnique({
+        where: { id: ticketUserId },
+        select: { username: true }
+      })
+    ]);
+
+    const incNumber = generateCustomId(
+      teamName,
+      creator?.username || 'Unknown',
+      branch?.branchNumber || '000',
+      'TICKET'
+    );
 
     const ticketData: any = {
         userId: ticketUserId,
@@ -253,6 +287,7 @@ export async function POST(request: NextRequest) {
         additionalDetails,
         status: 'PENDING',
         teamId: ticketTeamId,
+        incNumber,
         localContactName,
         localContactEmail,
         localContactPhone,
