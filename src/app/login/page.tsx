@@ -84,7 +84,6 @@ export default function LoginPage() {
                 </div>
                 <span>Secure<span className="text-blue-400">Support</span></span>
             </div>
-            <p className="text-slate-400 text-sm font-medium tracking-wide uppercase ml-1">Banking Grade Ticketing</p>
         </div>
 
         {/* Hero Text */}
