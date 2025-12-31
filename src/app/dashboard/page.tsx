@@ -123,7 +123,7 @@ function UserDashboardContent() {
           localStorage.setItem('user', JSON.stringify(response.user));
 
           // If user is in teams, default to team view so they see tickets immediately
-          if (response.user.teams && response.user.teams.length > 0) {
+          if ((response.user.teams && response.user.teams.length > 0) || response.user.teamId) {
             setScope('team');
           }
         }
@@ -864,7 +864,7 @@ function UserDashboardContent() {
                 <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
                   {/* Left Side: View Toggle & Team Selector */}
                   <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-                    {user?.teams && (user as any).teams.length > 0 && (
+                    {((user?.teams && (user as any).teams.length > 0) || (user as any)?.teamId) && (
                       <div className="flex flex-wrap items-center gap-3">
                         <div className="inline-flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
                           <button
@@ -1018,7 +1018,7 @@ function UserDashboardContent() {
                       <span className="font-semibold text-slate-700">{companyName}</span>
                     </div>
                   )}
-                  {(user?.teams && (user as any).teams.length > 0) && (
+                  {((user?.teams && (user as any).teams.length > 0) || (user as any)?.teamId) && (
                     <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
                       <button
                         onClick={() => setScope('me')}

@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const search = searchParams.get('search');
     const scope = searchParams.get('scope');
+    const teamId = searchParams.get('teamId');
 
     const where: any = {};
 
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
     const currentUser = await prisma.user.findUnique({
       where: { id: authResult.user.userId },
       select: {
+        teamId: true,
         teams: {
           select: {
             teamId: true,
@@ -37,22 +39,52 @@ export async function GET(request: NextRequest) {
 
     // Regular users can only see requests from users in their teams
     if (authResult.user.role === 'USER') {
-      const userTeamIds = currentUser?.teams?.map(ut => ut.teamId) || [];
+      let userTeamIds = currentUser?.teams?.map(ut => ut.teamId) || [];
+      
+      // Fallback to legacy teamId if no teams found
+      if (userTeamIds.length === 0 && currentUser?.teamId) {
+        userTeamIds = [currentUser.teamId];
+      }
       
       if (userTeamIds.length > 0) {
         if (scope === 'me') {
           where.userId = authResult.user.userId;
         } else {
-          // User belongs to teams - show requests from all team members
-          where.user = {
-            teams: {
-              some: {
-                teamId: {
-                  in: userTeamIds,
+          // Filter by specific team if teamId is provided
+          if (teamId) {
+            if (userTeamIds.includes(teamId)) {
+              // Show requests from users in THIS team
+              where.user = {
+                OR: [
+                  { teams: { some: { teamId: teamId } } },
+                  { teamId: teamId }
+                ]
+              };
+            } else {
+              // User not allowed to see this team
+              return NextResponse.json({ requests: [] });
+            }
+          } else {
+            // User belongs to teams - show requests from all team members
+            where.user = {
+              OR: [
+                {
+                  teams: {
+                    some: {
+                      teamId: {
+                        in: userTeamIds,
+                      },
+                    },
+                  },
                 },
-              },
-            },
-          };
+                {
+                  teamId: {
+                    in: userTeamIds
+                  }
+                }
+              ]
+            };
+          }
         }
       } else {
         // User not in any team - show only their own requests

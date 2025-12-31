@@ -31,8 +31,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Handle legacy teamId if teams is empty
+    let userWithTeams = { ...user };
+    if (user.teams.length === 0 && user.teamId) {
+      const team = await prisma.team.findUnique({
+        where: { id: user.teamId },
+      });
+      if (team) {
+        // Construct a fake UserTeam object
+        userWithTeams.teams = [{
+          id: 'legacy',
+          userId: user.id,
+          teamId: team.id,
+          createdAt: new Date(),
+          team: team
+        }] as any;
+      }
+    }
+
     return NextResponse.json({ 
-      user,
+      user: userWithTeams,
       companyName: "Valley National Bank" 
     });
   } catch (error) {

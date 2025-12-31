@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     const currentUser = await prisma.user.findUnique({
       where: { id: authResult.user.userId },
       select: {
+        teamId: true,
         teams: {
           select: {
             teamId: true,
@@ -41,7 +42,12 @@ export async function GET(request: NextRequest) {
 
     // Regular users can only see tickets from users in their teams
     if (authResult.user.role === 'USER') {
-      const userTeamIds = currentUser?.teams.map(ut => ut.teamId) || [];
+      let userTeamIds = currentUser?.teams.map(ut => ut.teamId) || [];
+      
+      // Fallback to legacy teamId if no teams found
+      if (userTeamIds.length === 0 && currentUser?.teamId) {
+        userTeamIds = [currentUser.teamId];
+      }
       
       if (userTeamIds.length > 0) {
         if (scope === 'me') {
@@ -54,7 +60,23 @@ export async function GET(request: NextRequest) {
           if (teamId) {
             if (userTeamIds.includes(teamId)) {
               // Strict filtering: Only show tickets explicitly assigned to this team
-              where.teamId = teamId;
+              // OR unassigned tickets created by members of this team
+              where.OR = [
+                { teamId: teamId },
+                {
+                  AND: [
+                    { teamId: null },
+                    {
+                      user: {
+                        OR: [
+                          { teams: { some: { teamId: teamId } } },
+                          { teamId: teamId }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ];
             } else {
               // User not allowed to see this team
               where.teamId = { in: [] };
@@ -73,13 +95,22 @@ export async function GET(request: NextRequest) {
                   { teamId: null },
                   {
                     user: {
-                      teams: {
-                        some: {
-                          teamId: {
-                            in: userTeamIds,
+                      OR: [
+                        {
+                          teams: {
+                            some: {
+                              teamId: {
+                                in: userTeamIds,
+                              },
+                            },
                           },
                         },
-                      },
+                        {
+                          teamId: {
+                            in: userTeamIds
+                          }
+                        }
+                      ]
                     },
                   },
                 ],
@@ -381,3 +412,45 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// DELETE bulk tickets (Admin only)
+export async function DELETE(request: NextRequest) {
+  const authResult = requireAuth(request);
+  
+  if (authResult instanceof NextResponse) {
+    return authResult;
+  }
+
+  // Only admins can bulk delete
+  if (authResult.user.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  try {
+    const { ids } = await request.json();
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json(
+        { error: 'Ticket IDs are required' },
+        { status: 400 }
+      );
+    }
+
+    await prisma.ticket.deleteMany({
+      where: {
+        id: {
+          in: ids,
+        },
+      },
+    });
+
+    return NextResponse.json({ message: 'Tickets deleted successfully' });
+  } catch (error) {
+    console.error('Bulk delete tickets error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+

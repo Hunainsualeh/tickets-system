@@ -97,7 +97,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
         { icon: LayoutGrid, label: 'Dashboard', href: '/dashboard', key: 'overview' },
         { icon: ClipboardList, label: 'My Tickets', href: '/dashboard?view=tickets', key: 'tickets' },
         { icon: BarChart3, label: 'Analytics', href: '/dashboard?view=analytics', key: 'analytics' },
-        { icon: FileSpreadsheet, label: 'Reports', href: '/dashboard?view=reports', key: 'reports' },
         { icon: FileText, label: 'Requests', href: '/dashboard?view=requests', key: 'requests' },
         { icon: Users, label: 'Profile', href: '/dashboard?view=profile', key: 'profile' },
       ];
