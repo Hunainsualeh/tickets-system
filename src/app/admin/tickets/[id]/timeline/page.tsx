@@ -144,7 +144,9 @@ export default function TicketTimelinePage() {
     } catch (error) {
       console.error('Error fetching ticket:', error);
     } finally {
-      setLoading(false);
+      if (localStorage.getItem('token')) {
+        setLoading(false);
+      }
     }
   };
 

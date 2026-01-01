@@ -203,16 +203,8 @@ function UserDashboardContent() {
       const [branchesRes, ticketsRes, requestsRes, notesRes] = await Promise.all([
         apiClient.getBranches(),
         apiClient.getTickets(filters),
-        fetch(`/api/requests?scope=${scope}${selectedTeamId && scope === 'team' ? `&teamId=${selectedTeamId}` : ''}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        }).then(res => res.json()),
-        fetch(`/api/notes?scope=${scope}${selectedTeamId && scope === 'team' ? `&teamId=${selectedTeamId}` : ''}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        }).then(res => res.json()),
+        apiClient.getRequests({ scope, teamId: selectedTeamId && scope === 'team' ? selectedTeamId : undefined }),
+        apiClient.getNotes({ scope, teamId: selectedTeamId && scope === 'team' ? selectedTeamId : undefined }),
       ]);
 
       setBranches(branchesRes.branches);
@@ -222,7 +214,9 @@ function UserDashboardContent() {
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
-      setLoading(false);
+      if (localStorage.getItem('token')) {
+        setLoading(false);
+      }
     }
   };
 

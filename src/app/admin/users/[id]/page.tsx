@@ -39,28 +39,18 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   const fetchUserDetail = async (id: string) => {
     try {
       // Fetch user details
-      const userRes = await fetch(`/api/users/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      const userData = await userRes.json();
-      setUserDetail(userData.user);
+      const userRes = await apiClient.getUser(id as string);
+      setUserDetail(userRes.user);
 
       // Fetch user's tickets
-      const ticketsRes = await fetch(`/api/tickets`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      const ticketsData = await ticketsRes.json();
-      // Filter tickets for this user
-      const userTickets = ticketsData.tickets.filter((t: any) => t.userId === id);
-      setTickets(userTickets);
+      const ticketsRes = await apiClient.getTickets({ userId: id as string });
+      setTickets(ticketsRes.tickets);
     } catch (error) {
       console.error('Error fetching user details:', error);
     } finally {
-      setLoading(false);
+      if (localStorage.getItem('token')) {
+        setLoading(false);
+      }
     }
   };
 

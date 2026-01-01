@@ -119,8 +119,8 @@ export default function LoginPage() {
                 </div>
             </div>
 
-            <div className="text-center lg:text-left">
-                <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Welcome Back</h2>
+            <div className="text-center">
+                <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Welcome to Valley</h2>
                 <p className="text-slate-500 mt-2">Please enter your credentials to access your account.</p>
             </div>
 
@@ -135,7 +135,7 @@ export default function LoginPage() {
               <div className="space-y-5">
                 <div className="relative group">
                   <label className="block text-sm font-semibold text-slate-700 mb-2 ml-1">Username</label>
-                  <div className="relative">
+                  <div className="relative transition-all duration-200 focus-within:scale-[1.01]">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors pointer-events-none">
                         <User className="w-5 h-5" />
                     </div>
@@ -144,15 +144,17 @@ export default function LoginPage() {
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         placeholder="Enter your username"
-                        className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+                        className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 shadow-sm"
                         required
                     />
                   </div>
                 </div>
 
                 <div className="relative group">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2 ml-1">Password</label>
-                  <div className="relative">
+                  <div className="flex justify-between items-center mb-2 ml-1">
+                    <label className="block text-sm font-semibold text-slate-700">Password</label>
+                  </div>
+                  <div className="relative transition-all duration-200 focus-within:scale-[1.01]">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors pointer-events-none">
                         <Lock className="w-5 h-5" />
                     </div>
@@ -161,13 +163,13 @@ export default function LoginPage() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Enter your password"
-                        className="w-full pl-12 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+                        className="w-full pl-12 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 shadow-sm"
                         required
                     />
                     <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none p-1 rounded-lg hover:bg-slate-100"
                     >
                         {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
@@ -178,15 +180,15 @@ export default function LoginPage() {
               <Button 
                 type="submit" 
                 disabled={loading}
-                className="w-full rounded-full! py-4 text-lg font-semibold shadow-lg shadow-blue-600/20 hover:shadow-blue-600/30 hover:-translate-y-0.5 transition-all duration-200"
+                className="w-full rounded-full! py-4 text-lg font-bold shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40 hover:-translate-y-0.5 active:translate-y-0 active:shadow-blue-600/20 transition-all duration-200 bg-linear-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600"
               >
                 {loading ? (
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center justify-center gap-2">
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Signing in...
                   </span>
                 ) : (
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center justify-center gap-2">
                     Sign In <ArrowRight className="w-5 h-5" />
                   </span>
                 )}

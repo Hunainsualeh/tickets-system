@@ -229,21 +229,9 @@ function AdminDashboardContent() {
         apiClient.getUsers(),
         apiClient.getBranches({ page: branchesPage, limit: branchesPerPage }),
         apiClient.getTickets({ search: searchQuery }),
-        fetch('/api/teams', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        }).then(res => res.json()),
-        fetch('/api/requests', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        }).then(res => res.json()),
-        fetch('/api/notes', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        }).then(res => res.json()),
+        apiClient.getTeams(),
+        apiClient.getRequests(),
+        apiClient.getNotes(),
         apiClient.getMe(),
       ]);
 
@@ -260,7 +248,9 @@ function AdminDashboardContent() {
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
-      setLoading(false);
+      if (localStorage.getItem('token')) {
+        setLoading(false);
+      }
     }
   };
 

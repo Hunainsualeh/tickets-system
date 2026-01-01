@@ -126,7 +126,10 @@ function UsersManagementContent() {
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
-      setLoading(false);
+      // Only stop loading if we still have a token (didn't get logged out)
+      if (localStorage.getItem('token')) {
+        setLoading(false);
+      }
     }
   };
 

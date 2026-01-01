@@ -23,6 +23,8 @@ class ApiClient {
     this.token = null;
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
     }
   }
 
@@ -42,6 +44,12 @@ class ApiClient {
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        this.clearToken();
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+      }
       const error = await response.json().catch(() => ({ error: 'Request failed' }));
       console.error('API Request Failed:', endpoint, error);
       throw new Error(error.details || error.error || 'Request failed');
@@ -221,6 +229,15 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ note }),
     });
+  }
+
+  async getNotes(filters?: { scope?: string; teamId?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.scope) params.append('scope', filters.scope);
+    if (filters?.teamId) params.append('teamId', filters.teamId);
+    
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/api/notes${query}`);
   }
 
   // Requests
