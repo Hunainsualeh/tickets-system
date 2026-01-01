@@ -569,7 +569,7 @@ export default function TicketTimelinePage() {
                         </div>
                         <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
                           <p className="text-xs text-slate-500 mb-1">Branch</p>
-                          <p className="font-medium text-slate-900 text-sm">{ticket.branch?.name}</p>
+                          <p className="font-medium text-slate-900 text-sm">{ticket.branch?.name || ticket.manualBranchName}</p>
                         </div>
                       </div>
                     </div>

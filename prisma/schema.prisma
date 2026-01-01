@@ -64,7 +64,8 @@ model Branch {
 model Ticket {
   id                String          @id @default(cuid())
   userId            String
-  branchId          String
+  branchId          String?
+  manualBranchName  String?
   priority          Priority
   issue             String
   additionalDetails String?
@@ -81,7 +82,7 @@ model Ticket {
   attachments       Attachment[]
   statusHistory     StatusHistory[]
   notes             TicketNote[]
-  branch            Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  branch            Branch?         @relation(fields: [branchId], references: [id], onDelete: Cascade)
   team              Team?           @relation(fields: [teamId], references: [id])
   user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   assignedTo        User?           @relation("AssignedTickets", fields: [assignedToUserId], references: [id])

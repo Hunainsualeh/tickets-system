@@ -54,7 +54,8 @@ export interface TicketNote {
 export interface Ticket {
   id: string;
   userId: string;
-  branchId: string;
+  branchId?: string | null;
+  manualBranchName?: string | null;
   teamId?: string | null;
   incNumber?: string | null;
   priority: 'P1' | 'P2' | 'P3';

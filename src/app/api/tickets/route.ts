@@ -244,9 +244,18 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { branchId, priority, issue, additionalDetails, userId, teamId, localContactName, localContactEmail, localContactPhone, timezone, assignedToUserId } = await request.json();
+    let { branchId, newBranchName, priority, issue, additionalDetails, userId, teamId, localContactName, localContactEmail, localContactPhone, timezone, assignedToUserId } = await request.json();
 
-    if (!branchId || !priority || !issue) {
+    let finalBranchId = branchId;
+    let manualBranchName = null;
+
+    // Handle manual branch creation
+    if (branchId === 'OTHER' && newBranchName) {
+      finalBranchId = null;
+      manualBranchName = newBranchName;
+    }
+
+    if ((!finalBranchId && !manualBranchName) || !priority || !issue) {
       return NextResponse.json(
         { error: 'Branch, priority, and issue are required' },
         { status: 400 }
@@ -293,10 +302,10 @@ export async function POST(request: NextRequest) {
 
     // Fetch Branch Number and Creator Name for ID generation
     const [branch, creator] = await Promise.all([
-      prisma.branch.findUnique({
-        where: { id: branchId },
+      finalBranchId ? prisma.branch.findUnique({
+        where: { id: finalBranchId },
         select: { branchNumber: true }
-      }),
+      }) : Promise.resolve(null),
       prisma.user.findUnique({
         where: { id: ticketUserId },
         select: { username: true }
@@ -306,13 +315,14 @@ export async function POST(request: NextRequest) {
     const incNumber = generateCustomId(
       teamName,
       creator?.username || 'Unknown',
-      branch?.branchNumber || '000',
+      branch?.branchNumber || 'MAN',
       'TICKET'
     );
 
     const ticketData: any = {
         userId: ticketUserId,
-        branchId,
+        branchId: finalBranchId,
+        manualBranchName,
         priority,
         issue,
         additionalDetails,
@@ -387,6 +397,7 @@ export async function POST(request: NextRequest) {
         createdAt: ticket.createdAt,
         assignedTo: ticket.assignedTo,
         branch: ticket.branch,
+        manualBranchName: ticket.manualBranchName,
         additionalDetails: ticket.additionalDetails,
       },
       link: `${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/tickets/${ticket.id}`
@@ -398,7 +409,7 @@ export async function POST(request: NextRequest) {
       `Priority: ${ticket.priority}\n` +
       `Issue: ${ticket.issue}\n` +
       `Details: ${ticket.additionalDetails || 'N/A'}\n` +
-      `Branch: ${ticket.branch.name}\n` +
+      `Branch: ${ticket.branch?.name || ticket.manualBranchName || 'N/A'}\n` +
       `Link: ${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/tickets/${ticket.id}`,
       emailHtml
     );

@@ -48,7 +48,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ tickets, req
       const matchesSearch = 
         ticket.issue.toLowerCase().includes(searchQuery.toLowerCase()) ||
         ticket.incNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ticket.branch?.name.toLowerCase().includes(searchQuery.toLowerCase());
+        (ticket.branch?.name || ticket.manualBranchName || '').toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchesStatus = statusFilter === 'ALL' || ticket.status === statusFilter;
       const matchesPriority = priorityFilter === 'ALL' || ticket.priority === priorityFilter;

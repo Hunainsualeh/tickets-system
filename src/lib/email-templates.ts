@@ -315,6 +315,7 @@ interface TicketEmailProps {
     createdAt: Date | string;
     assignedTo?: { username: string } | null;
     branch?: { name: string } | null;
+    manualBranchName?: string | null;
     additionalDetails?: string | null;
   };
   notes?: string;
@@ -565,7 +566,7 @@ export function generateTicketEmailHtml({
               </td>
               <td class="detail-cell" width="50%">
                 <div class="detail-label">Branch</div>
-                <div class="detail-value">${ticket.branch?.name || 'N/A'}</div>
+                <div class="detail-value">${ticket.branch?.name || ticket.manualBranchName || 'N/A'}</div>
               </td>
             </tr>
             ${ticket.assignedTo ? `

@@ -10,6 +10,7 @@ import { Modal } from '@/app/components/Modal';
 import { Input } from '@/app/components/Input';
 import { StatCard } from '@/app/components/StatCard';
 import { Dropdown, DropdownItem } from '@/app/components/Dropdown';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/Table';
 import { Users, Plus, Edit, Trash2, UserPlus, Shield, UserCheck, Building2, Eye, EyeOff, Key, Code, Wrench, Mail } from 'lucide-react';
 
 function UsersManagementContent() {
@@ -357,160 +358,146 @@ function UsersManagementContent() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-4">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <tr>
+                    <TableHead className="w-12">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        checked={users.length > 0 && selectedUserIds.length === users.length}
+                        onChange={toggleAllUsers}
+                      />
+                    </TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Teams</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Tickets</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </tr>
+                </TableHeader>
+                <TableBody>
+                  {users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
                         <input
                           type="checkbox"
                           className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                          checked={users.length > 0 && selectedUserIds.length === users.length}
-                          onChange={toggleAllUsers}
+                          checked={selectedUserIds.includes(user.id)}
+                          onChange={() => toggleUserSelection(user.id)}
                         />
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                        User
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                        Role
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                        Teams
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                        Tickets
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {users.map((user) => (
-                      <tr key={user.id} className="hover:bg-slate-50">
-                        <td className="px-6 py-4">
-                          <input
-                            type="checkbox"
-                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            checked={selectedUserIds.includes(user.id)}
-                            onChange={() => toggleUserSelection(user.id)}
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <div 
-                            className="flex items-center gap-3 cursor-pointer group"
-                            onClick={() => openProfileModal(user)}
-                          >
-                            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold group-hover:bg-blue-600 transition-colors">
-                              {user.username.charAt(0).toUpperCase()}
+                      </TableCell>
+                      <TableCell>
+                        <div 
+                          className="flex items-center gap-3 cursor-pointer group"
+                          onClick={() => openProfileModal(user)}
+                        >
+                          <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold group-hover:bg-blue-600 transition-colors">
+                            {user.username.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="font-medium text-slate-900 group-hover:text-blue-600 transition-colors">
+                              {user.username}
                             </div>
-                            <div>
-                              <div className="font-medium text-slate-900 group-hover:text-blue-600 transition-colors">
-                                {user.username}
-                              </div>
-                              <div className="text-sm text-slate-500">
-                                Joined {new Date(user.createdAt).toLocaleDateString()}
-                              </div>
+                            <div className="text-sm text-slate-500">
+                              Joined {new Date(user.createdAt).toLocaleDateString()}
                             </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              user.role === 'ADMIN'
-                                ? 'bg-purple-100 text-purple-700'
-                                : user.role === 'DEVELOPER'
-                                ? 'bg-amber-100 text-amber-700'
-                                : user.role === 'TECHNICAL'
-                                ? 'bg-cyan-100 text-cyan-700'
-                                : 'bg-green-100 text-green-700'
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.role === 'ADMIN'
+                              ? 'bg-purple-100 text-purple-700'
+                              : user.role === 'DEVELOPER'
+                              ? 'bg-amber-100 text-amber-700'
+                              : user.role === 'TECHNICAL'
+                              ? 'bg-cyan-100 text-cyan-700'
+                              : 'bg-green-100 text-green-700'
+                          }`}
+                        >
+                          {user.role === 'ADMIN' && <Shield className="w-3 h-3" />}
+                          {user.role === 'DEVELOPER' && <Code className="w-3 h-3" />}
+                          {user.role === 'TECHNICAL' && <Wrench className="w-3 h-3" />}
+                          {user.role}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {user.teams && user.teams.length > 0 ? (
+                            user.teams.map((ut: any) => (
+                              <span
+                                key={ut.team.id}
+                                className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700"
+                              >
+                                {ut.team.name}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-sm text-slate-400">No teams</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div 
+                          onClick={() => openStatusModal(user)}
+                          className="relative w-32 h-8 bg-slate-100 rounded-full p-1 cursor-pointer select-none transition-colors hover:bg-slate-200"
+                        >
+                          <div 
+                            className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-200 ease-out ${
+                              user.isActive !== false 
+                                ? 'left-1 bg-white' 
+                                : 'left-[calc(50%)] bg-red-500'
                             }`}
-                          >
-                            {user.role === 'ADMIN' && <Shield className="w-3 h-3" />}
-                            {user.role === 'DEVELOPER' && <Code className="w-3 h-3" />}
-                            {user.role === 'TECHNICAL' && <Wrench className="w-3 h-3" />}
-                            {user.role}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-wrap gap-1">
-                            {user.teams && user.teams.length > 0 ? (
-                              user.teams.map((ut: any) => (
-                                <span
-                                  key={ut.team.id}
-                                  className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700"
-                                >
-                                  {ut.team.name}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-sm text-slate-400">No teams</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div 
-                            onClick={() => openStatusModal(user)}
-                            className="relative w-32 h-8 bg-slate-100 rounded-full p-1 cursor-pointer select-none transition-colors hover:bg-slate-200"
-                          >
-                            <div 
-                              className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-200 ease-out ${
-                                user.isActive !== false 
-                                  ? 'left-1 bg-white' 
-                                  : 'left-[calc(50%)] bg-red-500'
-                              }`}
-                            ></div>
-                            <div className="relative z-10 grid grid-cols-2 w-full h-full text-[10px] font-bold tracking-wider">
-                              <div className={`flex items-center justify-center transition-colors duration-200 ${user.isActive !== false ? 'text-green-700' : 'text-slate-400'}`}>
-                                ACTIVE
-                              </div>
-                              <div className={`flex items-center justify-center transition-colors duration-200 ${user.isActive === false ? 'text-white' : 'text-slate-400'}`}>
-                                INACTIVE
-                              </div>
+                          ></div>
+                          <div className="relative z-10 grid grid-cols-2 w-full h-full text-[10px] font-bold tracking-wider">
+                            <div className={`flex items-center justify-center transition-colors duration-200 ${user.isActive !== false ? 'text-green-700' : 'text-slate-400'}`}>
+                              ACTIVE
+                            </div>
+                            <div className={`flex items-center justify-center transition-colors duration-200 ${user.isActive === false ? 'text-white' : 'text-slate-400'}`}>
+                              INACTIVE
                             </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-slate-600">
-                            {user._count?.tickets || 0} tickets
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex justify-end">
-                            <Dropdown align="right">
-                              <DropdownItem 
-                                icon={Key} 
-                                onClick={() => openPasswordModal(user)}
-                                variant="warning"
-                              >
-                                Change Password
-                              </DropdownItem>
-                              <DropdownItem 
-                                icon={Edit} 
-                                onClick={() => openEditModal(user)}
-                              >
-                                Edit User
-                              </DropdownItem>
-                              <DropdownItem 
-                                icon={Trash2} 
-                                onClick={() => handleDelete(user.id, user.username)}
-                                variant="danger"
-                              >
-                                Delete User
-                              </DropdownItem>
-                            </Dropdown>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-slate-600">
+                          {user._count?.tickets || 0} tickets
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end">
+                          <Dropdown align="right">
+                            <DropdownItem 
+                              icon={Key} 
+                              onClick={() => openPasswordModal(user)}
+                              variant="warning"
+                            >
+                              Change Password
+                            </DropdownItem>
+                            <DropdownItem 
+                              icon={Edit} 
+                              onClick={() => openEditModal(user)}
+                            >
+                              Edit User
+                            </DropdownItem>
+                            <DropdownItem 
+                              icon={Trash2} 
+                              onClick={() => handleDelete(user.id, user.username)}
+                              variant="danger"
+                            >
+                              Delete User
+                            </DropdownItem>
+                          </Dropdown>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </div>

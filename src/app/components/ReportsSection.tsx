@@ -107,7 +107,7 @@ export const ReportsSection: React.FC<ReportsSectionProps> = ({ tickets, request
           Priority: t.priority,
           'Created At': formatDate(t.createdAt),
           Assignee: t.assignedTo?.username || 'Unassigned',
-          Branch: t.branch?.name || 'N/A',
+          Branch: t.branch?.name || t.manualBranchName || 'N/A',
           Team: t.team?.name || 'N/A'
         }));
         break;

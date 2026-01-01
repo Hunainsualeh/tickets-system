@@ -69,7 +69,7 @@ export function TicketCard({ ticket, onClick, onStatusChange, onDelete, isAdmin 
       <div className="bg-slate-50 rounded-lg p-3 mb-3 space-y-2">
         <div className="flex items-start gap-2 text-sm text-slate-600">
           <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-slate-400" />
-          <span className="line-clamp-2">{ticket.branch?.name}</span>
+          <span className="line-clamp-2">{ticket.branch?.name || ticket.manualBranchName}</span>
         </div>
         {ticket.team && (
           <div className="flex items-center gap-2 text-sm text-slate-600">

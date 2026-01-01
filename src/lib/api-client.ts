@@ -121,6 +121,20 @@ class ApiClient {
     });
   }
 
+  async createBranchesBulk(data: any[]) {
+    return this.request('/api/branches/bulk', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteBranchesBulk(ids: string[], deleteAll: boolean = false, search?: string) {
+    return this.request('/api/branches/bulk', {
+      method: 'DELETE',
+      body: JSON.stringify({ ids, deleteAll, search }),
+    });
+  }
+
   async updateBranch(id: string, data: any) {
     return this.request(`/api/branches/${id}`, {
       method: 'PUT',

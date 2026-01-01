@@ -247,7 +247,7 @@ export function TicketDetail({
                             )}
                         </div>
                         <span className="text-slate-300 hidden sm:inline">•</span>
-                        <span className="text-slate-500 text-sm font-medium">{ticket.branch?.name || 'General Support'}</span>
+                        <span className="text-slate-500 text-sm font-medium">{ticket.branch?.name || ticket.manualBranchName || 'General Support'}</span>
                     </div>
                     
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight tracking-tight">
@@ -471,7 +471,7 @@ export function TicketDetail({
                             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Ticket Info</h3>
                                 <div className="space-y-4">
-                                    <InfoCard label="Branch" value={ticket.branch?.name} icon={<Briefcase className="w-4 h-4" />} />
+                                    <InfoCard label="Branch" value={ticket.branch?.name || ticket.manualBranchName || undefined} icon={<Briefcase className="w-4 h-4" />} />
                                     <InfoCard label="Team" value={ticket.team?.name} icon={<Shield className="w-4 h-4" />} />
                                     <InfoCard label="Contact" value={ticket.user?.username} icon={<UserIcon className="w-4 h-4" />} />
                                     {(ticket.assignedToUser || ticket.assignedTo) && (
@@ -687,7 +687,7 @@ export function TicketDetail({
 
 // --- Helper Components ---
 
-function InfoCard({ label, value, icon }: { label: string, value?: string, icon?: React.ReactNode }) {
+function InfoCard({ label, value, icon }: { label: string, value?: string | null, icon?: React.ReactNode }) {
     return (
         <div className="flex items-center gap-4 group p-2 rounded-xl hover:bg-slate-50 transition-colors -mx-2">
             <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">

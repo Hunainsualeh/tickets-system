@@ -56,6 +56,8 @@ function AdminDashboardContent() {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [isUserSearchExpanded, setIsUserSearchExpanded] = useState(false);
+  const [ticketSearchQuery, setTicketSearchQuery] = useState('');
+  const [isTicketSearchExpanded, setIsTicketSearchExpanded] = useState(false);
   const [isEditingBranch, setIsEditingBranch] = useState(false);
   const [editingBranchId, setEditingBranchId] = useState<string | null>(null);
   
@@ -86,6 +88,8 @@ function AdminDashboardContent() {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
   const [selectedTicketIds, setSelectedTicketIds] = useState<string[]>([]);
+  const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
+  const [selectAllMatchingBranches, setSelectAllMatchingBranches] = useState(false);
   const [requestsViewMode, setRequestsViewMode] = useState<'kanban' | 'list'>('kanban');
   const [ticketsViewMode, setTicketsViewMode] = useState<'kanban' | 'list'>('list');
 
@@ -108,7 +112,7 @@ function AdminDashboardContent() {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [statusUpdate, setStatusUpdate] = useState({ ticketId: '', status: '', adminNote: '' });
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'user' | 'branch' | 'ticket' | 'team' | 'request'; name?: string } | null>(null);
-  const [bulkDeleteType, setBulkDeleteType] = useState<'tickets' | 'requests' | 'users' | null>(null);
+  const [bulkDeleteType, setBulkDeleteType] = useState<'tickets' | 'requests' | 'users' | 'branches' | null>(null);
 
   // Form states
   const [userForm, setUserForm] = useState({ username: '', password: '', role: 'USER', teamIds: [] as string[] });
@@ -136,7 +140,21 @@ function AdminDashboardContent() {
   const filteredTickets = tickets.filter(ticket => {
     const matchesPriority = ticketFilterPriority === 'ALL' || ticket.priority === ticketFilterPriority;
     const matchesStatus = ticketFilterStatus === 'ALL' || ticket.status === ticketFilterStatus;
-    return matchesPriority && matchesStatus;
+    
+    // Search functionality with normalization (case-insensitive)
+    const searchLower = ticketSearchQuery.toLowerCase().trim();
+    const matchesSearch = !searchLower || 
+      (ticket.issue?.toLowerCase().includes(searchLower)) ||
+      (ticket.branch?.name?.toLowerCase().includes(searchLower)) ||
+      (ticket.manualBranchName?.toLowerCase().includes(searchLower)) ||
+      (ticket.incNumber?.toLowerCase().includes(searchLower)) ||
+      (ticket.id?.toLowerCase().includes(searchLower)) ||
+      (ticket.user?.username?.toLowerCase().includes(searchLower)) ||
+      (ticket.assignedTo?.username?.toLowerCase().includes(searchLower)) ||
+      (ticket.priority?.toLowerCase().includes(searchLower)) ||
+      (ticket.status?.toLowerCase().replace('_', ' ').includes(searchLower));
+    
+    return matchesPriority && matchesStatus && matchesSearch;
   });
 
   useEffect(() => {
@@ -372,6 +390,11 @@ function AdminDashboardContent() {
           if (!response.ok) throw new Error('Failed to delete users');
           toast.success(`${selectedUserIds.length} users deleted successfully`);
           setSelectedUserIds([]);
+        } else if (bulkDeleteType === 'branches') {
+          await apiClient.deleteBranchesBulk(selectedBranchIds, selectAllMatchingBranches, branchSearchQuery);
+          toast.success(`${selectAllMatchingBranches ? 'All matching' : selectedBranchIds.length} branches deleted successfully`);
+          setSelectedBranchIds([]);
+          setSelectAllMatchingBranches(false);
         }
         fetchData();
       } catch (error: any) {
@@ -445,11 +468,28 @@ function AdminDashboardContent() {
         const data = XLSX.utils.sheet_to_json(ws);
         
         // Map data to branch structure if needed
-        const mappedData = data.map((row: any) => ({
-          name: row['Location'] || row['location'] || row['Branch Name'] || row['name'],
-          branchNumber: (row['Branch Number'] || row['branch number'] || row['branchNumber'])?.toString(),
-          category: (row['Location Type'] || row['location type'] || row['category'] || 'BRANCH').toUpperCase(),
-        })).filter((b: any) => b.name && b.branchNumber); // Filter out invalid rows
+        const mappedData = data.map((row: any) => {
+          let category = (row['Location Type'] || row['location type'] || row['category'] || 'BRANCH').toUpperCase();
+          
+          // Normalize category to match Prisma enum
+          category = category.replace(/\s+/g, '_'); // Replace spaces with underscores
+          
+          // Validate against known enum values
+          const validCategories = ['BRANCH', 'BACK_OFFICE', 'HYBRID', 'DATA_CENTER'];
+          if (!validCategories.includes(category)) {
+            // Try to map common variations
+            if (category.includes('BACK')) category = 'BACK_OFFICE';
+            else if (category.includes('DATA')) category = 'DATA_CENTER';
+            else if (category.includes('HYBRID')) category = 'HYBRID';
+            else category = 'BRANCH'; // Default fallback
+          }
+
+          return {
+            name: row['Location'] || row['location'] || row['Branch Name'] || row['name'],
+            branchNumber: (row['Branch Number'] || row['branch number'] || row['branchNumber'])?.toString(),
+            category,
+          };
+        }).filter((b: any) => b.name && b.branchNumber); // Filter out invalid rows
         
         setParsedBranches(mappedData);
       } catch (error) {
@@ -466,27 +506,10 @@ function AdminDashboardContent() {
     if (parsedBranches.length === 0) return;
 
     try {
-      let successCount = 0;
-      let errorCount = 0;
+      const result = await apiClient.createBranchesBulk(parsedBranches);
       
-      // Show loading state if needed, or just process
-      // For better UX, we could show a progress bar, but for now simple toast is fine
+      toast.success(result.message || `Successfully processed ${parsedBranches.length} branches`);
       
-      for (const branch of parsedBranches) {
-        try {
-           await apiClient.createBranch(branch);
-           successCount++;
-        } catch (err) {
-           console.error("Failed to create branch", branch, err);
-           errorCount++;
-        }
-      }
-      
-      if (errorCount === 0) {
-        toast.success(`Successfully created ${successCount} branch${successCount > 1 ? 'es' : ''}`);
-      } else {
-        toast.warning(`Created ${successCount} branch${successCount > 1 ? 'es' : ''}, ${errorCount} failed`);
-      }
       setCreateView(null);
       setParsedBranches([]);
       setBranchCreateTab('manual');
@@ -629,6 +652,11 @@ function AdminDashboardContent() {
 
   const handleBulkDeleteTickets = async () => {
     setBulkDeleteType('tickets');
+    setShowDeleteModal(true);
+  };
+
+  const handleBulkDeleteBranches = async () => {
+    setBulkDeleteType('branches');
     setShowDeleteModal(true);
   };
 
@@ -1962,20 +1990,76 @@ function AdminDashboardContent() {
                   </button>
                 )}
               </div>
-              <Button onClick={() => {
-                setIsEditingBranch(false);
-                setBranchForm({ name: '', branchNumber: '', category: 'BRANCH' });
-                setCreateView('branch');
-              }}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Branch
-              </Button>
+              {selectedBranchIds.length > 0 ? (
+                <Button 
+                  variant="danger" 
+                  onClick={handleBulkDeleteBranches}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Selected ({selectAllMatchingBranches ? 'All' : selectedBranchIds.length})
+                </Button>
+              ) : (
+                <Button onClick={() => {
+                  setIsEditingBranch(false);
+                  setBranchForm({ name: '', branchNumber: '', category: 'BRANCH' });
+                  setCreateView('branch');
+                }}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Branch
+                </Button>
+              )}
             </div>
+
+            {selectedBranchIds.length > 0 && (
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4 flex items-center justify-center text-sm text-blue-700">
+                {!selectAllMatchingBranches ? (
+                  <span>
+                    All <strong>{selectedBranchIds.length}</strong> branches on this page are selected. 
+                    {totalBranchesCount > selectedBranchIds.length && (
+                      <button 
+                        className="ml-2 font-semibold underline hover:text-blue-800"
+                        onClick={() => setSelectAllMatchingBranches(true)}
+                      >
+                        Select all {totalBranchesCount} branches
+                      </button>
+                    )}
+                  </span>
+                ) : (
+                  <span>
+                    All <strong>{totalBranchesCount}</strong> branches are selected.
+                    <button 
+                      className="ml-2 font-semibold underline hover:text-blue-800"
+                      onClick={() => {
+                        setSelectAllMatchingBranches(false);
+                        setSelectedBranchIds([]);
+                      }}
+                    >
+                      Clear selection
+                    </button>
+                  </span>
+                )}
+              </div>
+            )}
 
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
               <Table>
                 <TableHeader>
                   <tr>
+                    <TableHead className="w-12">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        checked={branches.length > 0 && selectedBranchIds.length === branches.length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedBranchIds(branches.map(b => b.id));
+                          } else {
+                            setSelectedBranchIds([]);
+                            setSelectAllMatchingBranches(false);
+                          }
+                        }}
+                      />
+                    </TableHead>
                     <TableHead>Branch Number</TableHead>
                     <TableHead>Location Type</TableHead>
                     <TableHead>Location</TableHead>
@@ -1986,6 +2070,7 @@ function AdminDashboardContent() {
                   {loading ? (
                     Array.from({ length: 5 }).map((_, index) => (
                       <TableRow key={index} className="animate-pulse">
+                        <TableCell><div className="h-4 w-4 bg-slate-200 rounded"></div></TableCell>
                         <TableCell><div className="h-4 bg-slate-200 rounded w-24"></div></TableCell>
                         <TableCell><div className="h-6 bg-slate-200 rounded-full w-20"></div></TableCell>
                         <TableCell><div className="h-4 bg-slate-200 rounded w-48"></div></TableCell>
@@ -1994,6 +2079,21 @@ function AdminDashboardContent() {
                     ))
                   ) : branches.map((branch) => (
                     <TableRow key={branch.id} onClick={() => setSelectedBranch(branch)} className="cursor-pointer hover:bg-slate-50">
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          checked={selectedBranchIds.includes(branch.id) || selectAllMatchingBranches}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedBranchIds([...selectedBranchIds, branch.id]);
+                            } else {
+                              setSelectedBranchIds(selectedBranchIds.filter(id => id !== branch.id));
+                              setSelectAllMatchingBranches(false);
+                            }
+                          }}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{branch.branchNumber}</TableCell>
                       <TableCell>
                         <Badge>{branch.category}</Badge>
@@ -2092,12 +2192,35 @@ function AdminDashboardContent() {
             </div>
 
             {/* Filters and Actions Toolbar */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-end items-end sm:items-center mb-4">
+            <div className="flex flex-col sm:flex-row gap-3 justify-end items-stretch sm:items-center mb-4">
+              {/* Search Bar - Expandable */}
+              <div className={`relative flex justify-end transition-all duration-300 ease-in-out ${isTicketSearchExpanded ? 'w-full sm:w-64' : 'w-10'}`}>
+                {isTicketSearchExpanded ? (
+                  <div className="w-full animate-in fade-in zoom-in-95 duration-200">
+                    <SearchBar
+                      placeholder="Search tickets..."
+                      value={ticketSearchQuery}
+                      onChange={setTicketSearchQuery}
+                      autoFocus
+                      onBlur={() => !ticketSearchQuery && setIsTicketSearchExpanded(false)}
+                    />
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setIsTicketSearchExpanded(true)}
+                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 transition-all shadow-sm"
+                  >
+                    <Search className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Filters Button */}
               <div className="relative">
                 <Button 
                   variant="outline" 
                   onClick={() => setShowFilters(!showFilters)}
-                  className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                  className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 h-10"
                 >
                   <Filter className="w-4 h-4 mr-2" />
                   Filters
@@ -2156,13 +2279,15 @@ function AdminDashboardContent() {
                   </div>
                 )}
               </div>
+
+              {/* Create/Delete Button */}
               {selectedTicketIds.length > 0 ? (
-                <Button variant="danger" onClick={handleBulkDeleteTickets} className="w-full sm:w-auto">
+                <Button variant="danger" onClick={handleBulkDeleteTickets} className="h-10">
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete Selected ({selectedTicketIds.length})
                 </Button>
               ) : (
-                <Button onClick={() => setCreateView('ticket')} variant="outline" className="w-full sm:w-auto">
+                <Button onClick={() => setCreateView('ticket')} variant="outline" className="h-10">
                   <Plus className="w-4 h-4 mr-2" />
                   Create Ticket
                 </Button>
@@ -2176,6 +2301,7 @@ function AdminDashboardContent() {
                   <Button 
                     variant="outline" 
                     onClick={() => setTicketsViewMode(ticketsViewMode === 'kanban' ? 'list' : 'kanban')}
+                    className="h-10"
                   >
                     {ticketsViewMode === 'kanban' ? (
                       <>
@@ -2277,7 +2403,7 @@ function AdminDashboardContent() {
                                   <span className="text-xs text-slate-400 font-mono">#{ticket.incNumber || ticket.id.slice(0, 8)}</span>
                                 </div>
                               </TableCell>
-                              <TableCell>{ticket.branch?.name || '-'}</TableCell>
+                              <TableCell>{ticket.branch?.name || ticket.manualBranchName || '-'}</TableCell>
                               <TableCell>
                                 <Badge variant={getPriorityColor(ticket.priority)}>{ticket.priority}</Badge>
                               </TableCell>

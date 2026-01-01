@@ -44,6 +44,9 @@ export function PieChart({
     return [x, y];
   };
 
+  // Filter out zero values and get only non-zero slices
+  const nonZeroData = data.map((value, index) => ({ value, index })).filter(d => d.value > 0);
+  
   const slices = data.map((value, index) => {
     const percent = value / total;
     const startPercent = cumulativePercent;
@@ -55,12 +58,25 @@ export function PieChart({
 
     const largeArcFlag = percent > 0.5 ? 1 : 0;
 
-    const pathData = [
-      `M 0 0`,
-      `L ${startX} ${startY}`,
-      `A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY}`,
-      `L 0 0`,
-    ].join(' ');
+    // Handle edge case: single category at 100% or near 100%
+    let pathData: string;
+    if (percent >= 0.9999) {
+      // Full circle - use two arcs to create a complete circle
+      pathData = [
+        `M 0 -1`,
+        `A 1 1 0 1 1 0 1`,
+        `A 1 1 0 1 1 0 -1`,
+      ].join(' ');
+    } else if (percent === 0) {
+      pathData = '';
+    } else {
+      pathData = [
+        `M 0 0`,
+        `L ${startX} ${startY}`,
+        `A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY}`,
+        `L 0 0`,
+      ].join(' ');
+    }
 
     // Calculate label position
     const midPercent = startPercent + percent / 2;
@@ -135,11 +151,20 @@ export function PieChart({
 
             {/* Labels and Lines */}
             {slices.map((slice, index) => {
-               // Only show labels for slices > 3% to avoid clutter
-               if (slice.percent < 0.03) return null;
+               // Only show labels for slices > 3% to avoid clutter, but always show if it's the only slice
+               if (slice.percent < 0.03 || slice.value === 0) return null;
+               
+               // For single category (100%), position the label on the right side
+               const isSingleCategory = nonZeroData.length === 1;
 
                const isHovered = hoverIndex === index;
-               const { x1, y1, x2, y2, x3, y3, textAnchor } = slice.labelCoords;
+               
+               // Use fixed position for single category, otherwise use calculated coords
+               const labelCoords = isSingleCategory ? {
+                 x1: 0.85, y1: 0, x2: 1.2, y2: 0, x3: 1.4, y3: 0, textAnchor: 'start' as const
+               } : slice.labelCoords;
+               
+               const { x1, y1, x2, y2, x3, y3, textAnchor } = labelCoords;
                
                return (
                 <g key={`label-${index}`} className="pointer-events-none" style={{ opacity: hoverIndex !== null && !isHovered ? 0.2 : 1, transition: 'opacity 0.3s' }}>
