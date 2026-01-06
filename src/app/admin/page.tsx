@@ -110,7 +110,7 @@ function AdminDashboardContent() {
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [statusUpdate, setStatusUpdate] = useState({ ticketId: '', status: '', adminNote: '' });
+  const [statusUpdate, setStatusUpdate] = useState({ ticketId: '', status: '', adminNote: '', sendToTeam: true });
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'user' | 'branch' | 'ticket' | 'team' | 'request'; name?: string } | null>(null);
   const [bulkDeleteType, setBulkDeleteType] = useState<'tickets' | 'requests' | 'users' | 'branches' | null>(null);
 
@@ -608,7 +608,7 @@ function AdminDashboardContent() {
   };
 
   const handleUpdateTicketStatus = (ticketId: string, status: string) => {
-    setStatusUpdate({ ticketId, status, adminNote: '' });
+    setStatusUpdate({ ticketId, status, adminNote: '', sendToTeam: true });
     setShowStatusModal(true);
   };
 
@@ -617,11 +617,12 @@ function AdminDashboardContent() {
       await apiClient.updateTicket(statusUpdate.ticketId, {
         status: statusUpdate.status,
         adminNote: statusUpdate.adminNote || undefined,
+        sendToTeam: statusUpdate.sendToTeam,
       });
       toast.success('Ticket status updated successfully');
       window.dispatchEvent(new Event('refresh-notifications'));
       setShowStatusModal(false);
-      setStatusUpdate({ ticketId: '', status: '', adminNote: '' });
+      setStatusUpdate({ ticketId: '', status: '', adminNote: '', sendToTeam: true });
       fetchData();
       // Refresh selected ticket if viewing
       if (selectedTicket && selectedTicket.id === statusUpdate.ticketId) {
@@ -3104,6 +3105,19 @@ function AdminDashboardContent() {
             rows={4}
             className="bg-white"
           />
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="sendToTeam"
+              checked={(statusUpdate as any).sendToTeam !== false}
+              onChange={(e) => setStatusUpdate({ ...statusUpdate, sendToTeam: e.target.checked } as any)}
+              className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+            />
+            <label htmlFor="sendToTeam" className="text-sm font-medium text-slate-700">
+              Send notification email to entire team
+            </label>
+          </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <Button type="button" variant="ghost" onClick={() => setShowStatusModal(false)}>

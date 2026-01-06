@@ -151,13 +151,14 @@ export async function POST(request: NextRequest) {
       const welcomeHtml = generateWelcomeEmailHtml({
         username: user.username,
         role: user.role,
+        teams: user.teams.map(ut => ut.team.name),
         loginUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/login`
       });
 
       await sendEmail(
         user.email,
-        'Welcome to Ticket System',
-        `Hello ${user.username},\n\nWelcome to the Ticket System. Your account has been created.\n\nUsername: ${user.username}\nRole: ${user.role}\n\nLog in here: ${process.env.NEXT_PUBLIC_APP_URL || ''}/login`,
+        'Welcome to BCS Enterprise Technical Support Portal',
+        `Hello ${user.username},\n\nWelcome to BCS Enterprise Technical Support Portal. Your account has been created.\n\nUsername: ${user.username}\n\nLog in here: ${process.env.NEXT_PUBLIC_APP_URL || ''}/login`,
         welcomeHtml
       );
     }

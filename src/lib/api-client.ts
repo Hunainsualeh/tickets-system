@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ||
   (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
 
 class ApiClient {
@@ -41,6 +41,7 @@ class ApiClient {
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       ...options,
       headers,
+      credentials: 'include', // Include cookies for authentication
     });
 
     if (!response.ok) {
@@ -119,7 +120,7 @@ class ApiClient {
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.search) queryParams.append('search', params.search);
-    
+
     const queryString = queryParams.toString();
     return this.request(`/api/branches${queryString ? `?${queryString}` : ''}`);
   }
@@ -197,7 +198,7 @@ class ApiClient {
     if (filters?.teamId) params.append('teamId', filters.teamId);
     if (filters?.assignedToUserId) params.append('assignedToUserId', filters.assignedToUserId);
     if (filters?.userId) params.append('userId', filters.userId);
-    
+
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request(`/api/tickets${query}`);
   }
@@ -237,7 +238,7 @@ class ApiClient {
     const params = new URLSearchParams();
     if (filters?.scope) params.append('scope', filters.scope);
     if (filters?.teamId) params.append('teamId', filters.teamId);
-    
+
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request(`/api/notes${query}`);
   }
@@ -249,7 +250,7 @@ class ApiClient {
     if (filters?.search) params.append('search', filters.search);
     if (filters?.scope) params.append('scope', filters.scope);
     if (filters?.teamId) params.append('teamId', filters.teamId);
-    
+
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request(`/api/requests${query}`);
   }

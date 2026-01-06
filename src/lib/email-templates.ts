@@ -2,11 +2,16 @@
 
 interface WelcomeEmailProps {
   username: string;
-  role: string;
+  role?: string;
   loginUrl: string;
+  teams?: string[];
 }
 
-export function generateWelcomeEmailHtml({ username, role, loginUrl }: WelcomeEmailProps): string {
+export function generateWelcomeEmailHtml({ username, role, loginUrl, teams = [] }: WelcomeEmailProps): string {
+  const teamsList = teams.length > 0 
+    ? teams.map(t => `<div class="value" style="margin-top: 4px;">• ${t}</div>`).join('')
+    : '<div class="value">No teams assigned</div>';
+
   return `
 <!DOCTYPE html>
 <html>
@@ -39,16 +44,16 @@ export function generateWelcomeEmailHtml({ username, role, loginUrl }: WelcomeEm
       </div>
       
       <p>Hello ${username},</p>
-      <p>Welcome to the Ticket System. You have been granted access with the following details:</p>
+      <p>Welcome to BCS Enterprise Technical Support Portal. You have been granted access with the following details:</p>
       
       <div class="info-box">
         <div class="info-row">
           <span class="label">Username</span>
           <span class="value">${username}</span>
         </div>
-        <div class="info-row">
-          <span class="label">Role</span>
-          <span class="value">${role}</span>
+        <div class="info-row" style="flex-direction: column; align-items: flex-start;">
+          <span class="label">Assigned Teams</span>
+          ${teamsList}
         </div>
       </div>
       
@@ -57,7 +62,7 @@ export function generateWelcomeEmailHtml({ username, role, loginUrl }: WelcomeEm
       <a href="${loginUrl}" class="button">Log In to Dashboard</a>
     </div>
     <div class="footer">
-      <p>&copy; ${new Date().getFullYear()} Ticket System. All rights reserved.</p>
+      <p>&copy; 2026 Biz Core solutions. All rights reserved.</p>
     </div>
   </div>
 </body>
@@ -118,7 +123,7 @@ export function generateNewUserAdminEmailHtml({ username, email, role, adminUrl 
       <a href="${adminUrl}" class="button">Manage Users</a>
     </div>
     <div class="footer">
-      <p>Ticket System Admin Notification</p>
+      <p>&copy; 2026 Biz Core solutions. All rights reserved.</p>
     </div>
   </div>
 </body>
@@ -192,7 +197,7 @@ export function generateUserUpdatedEmailHtml({ username, email, role, changes, a
       <a href="${adminUrl}" class="button">Manage Users</a>
     </div>
     <div class="footer">
-      <p>Ticket System Admin Notification</p>
+      <p>&copy; 2026 Biz Core solutions. All rights reserved.</p>
     </div>
   </div>
 </body>
@@ -270,7 +275,7 @@ export function generateNewRequestEmailHtml({ title, description, username, proj
       </div>
     </div>
     <div class="footer">
-      <p>Ticket System Admin Notification</p>
+      <p>&copy; 2026 Biz Core solutions. All rights reserved.</p>
     </div>
   </div>
 </body>
@@ -545,7 +550,7 @@ export function generateTicketEmailHtml({
       <tr>
         <!-- Main Ticket Body -->
         <td class="ticket-main">
-          <span class="bank-name">Valley National Bank</span>
+          <span class="bank-name">Biz Core Solutions</span>
           <h1 class="header-title">${headline}</h1>
           
           <div class="greeting">Hello ${recipientName},</div>
@@ -613,7 +618,7 @@ export function generateTicketEmailHtml({
     
     <div class="footer">
       <p>This is an automated message. Please do not reply to this email.</p>
-      <p>&copy; ${new Date().getFullYear()} Valley National Bank. All rights reserved.</p>
+      <p>&copy; 2026 Biz Core solutions. All rights reserved.</p>
     </div>
   </div>
 </body>

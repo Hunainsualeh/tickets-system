@@ -148,7 +148,7 @@ export async function PUT(request: NextRequest, context: Params) {
       }
     }
 
-    const { status, note, adminNote, priority, issue, additionalDetails, assignedToUserId } = await request.json();
+    const { status, note, adminNote, priority, issue, additionalDetails, assignedToUserId, sendToTeam } = await request.json();
 
     const updateData: any = {};
     
@@ -257,17 +257,52 @@ export async function PUT(request: NextRequest, context: Params) {
           `/dashboard?view=tickets&ticketId=${ticket.id}`
         );
 
-        // Send email to user
+        // Determine recipients
+        const recipients: { email: string; username: string }[] = [];
+
+        // Always fetch ticket owner details
         const ticketUser = await prisma.user.findUnique({
           where: { id: ticket.userId },
-          select: { email: true, username: true }
+          select: { email: true, username: true, teamId: true }
         });
-
+        
         if (ticketUser?.email) {
+          recipients.push({ email: ticketUser.email, username: ticketUser.username });
+        }
+
+        // If sendToTeam is true, fetch team members
+        if (sendToTeam && (ticket.teamId || ticketUser?.teamId)) {
+            // Priority: ticket.teamId, then ticketUser.teamId
+            const targetTeamId = ticket.teamId || ticketUser?.teamId;
+            
+            if (targetTeamId) {
+                const teamMembers = await prisma.user.findMany({
+                    where: {
+                        teams: {
+                            some: {
+                                teamId: targetTeamId
+                            }
+                        },
+                        isActive: true,
+                        email: { not: null }
+                    },
+                    select: { email: true, username: true, id: true }
+                });
+                
+                for (const member of teamMembers) {
+                    if (member.email && member.id !== ticket.userId && !recipients.some(r => r.email === member.email)) {
+                        recipients.push({ email: member.email, username: member.username });
+                    }
+                }
+            }
+        }
+
+        // Send emails
+        for (const recipient of recipients) {
           const emailHtml = generateTicketEmailHtml({
             headline: statusConfig.title,
-            recipientName: ticketUser.username || 'User',
-            message: `Your ticket status has been updated to ${status}.`,
+            recipientName: recipient.username || 'User',
+            message: `Ticket status has been updated to ${status}.`,
             ticket: {
               id: ticket.id,
               issue: ticket.issue,
@@ -283,13 +318,13 @@ export async function PUT(request: NextRequest, context: Params) {
           });
 
           await sendEmail(
-            ticketUser.email,
+            recipient.email,
             `${statusConfig.title}: ${ticket.issue}`,
-            `Hello ${ticketUser.username},\n\n` +
-            `Your ticket status has been updated to ${status}.\n` +
+            `Hello ${recipient.username},\n\n` +
+            `Ticket status has been updated to ${status}.\n` +
             `Note: ${note || 'No additional notes'}\n` +
             (adminNote ? `Admin Note: ${adminNote}\n` : '') +
-            `\nView your ticket: ${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard?view=tickets&ticketId=${ticket.id}`,
+            `\nView ticket: ${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard?view=tickets&ticketId=${ticket.id}`,
             emailHtml
           );
         }
