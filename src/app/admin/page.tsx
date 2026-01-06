@@ -245,8 +245,15 @@ function AdminDashboardContent() {
       if (meRes.companyName) {
         setCompanyName(meRes.companyName);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching data:', error);
+      // If authentication fails (401), clear local storage and redirect to login
+      if (error?.response?.status === 401 || error?.message?.includes('Unauthorized')) {
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        router.push('/login');
+        return;
+      }
     } finally {
       if (localStorage.getItem('token')) {
         setLoading(false);

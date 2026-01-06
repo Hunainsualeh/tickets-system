@@ -132,8 +132,15 @@ function UserDashboardContent() {
         if (response.companyName) {
           setCompanyName(response.companyName);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching user data:', error);
+        // If authentication fails (401), clear local storage and redirect to login
+        if (error?.response?.status === 401 || error?.message?.includes('Unauthorized')) {
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          router.push('/login');
+          return;
+        }
       }
     };
     fetchUserData();

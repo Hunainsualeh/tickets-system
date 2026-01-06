@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
         username: true,
         role: true,
         teamId: true,
+        isActive: true,
         createdAt: true,
         updatedAt: true,
         teams: {
@@ -27,8 +28,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!user || user.isActive === false) {
+      // Clear the invalid auth cookie
+      const response = NextResponse.json(
+        { error: user?.isActive === false ? 'User is inactive' : 'User not found' },
+        { status: 401 }
+      );
+      response.cookies.delete('auth-token');
+      return response;
     }
 
     // Handle legacy teamId if teams is empty
