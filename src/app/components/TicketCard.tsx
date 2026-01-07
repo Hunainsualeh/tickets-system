@@ -1,7 +1,7 @@
 import React from 'react';
 import { Badge } from './Badge';
 import { MessageSquare, AlertTriangle, MoreVertical, MapPin, Building2, User } from 'lucide-react';
-import { formatDate, getPriorityLabel, getStatusColor } from '@/lib/utils';
+import { formatDate, getPriorityLabel, getStatusColor, getDisplayStatus } from '@/lib/utils';
 import { Button } from './Button';
 
 interface TicketCardProps {
@@ -14,12 +14,7 @@ interface TicketCardProps {
 }
 
 export function TicketCard({ ticket, onClick, onStatusChange, onDelete, isAdmin = false, currentUser }: TicketCardProps) {
-  let displayStatus = ticket.status;
-  if (!isAdmin) {
-     if (['INVOICE', 'PAID'].includes(ticket.status)) {
-         displayStatus = 'CLOSED';
-     }
-  }
+  const displayStatus = getDisplayStatus(ticket.status, currentUser?.role);
 
   const isAssignedToMe = currentUser && ticket.assignedToUserId === currentUser.id;
 
@@ -69,7 +64,11 @@ export function TicketCard({ ticket, onClick, onStatusChange, onDelete, isAdmin 
       <div className="bg-slate-50 rounded-lg p-3 mb-3 space-y-2">
         <div className="flex items-start gap-2 text-sm text-slate-600">
           <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-slate-400" />
-          <span className="line-clamp-2">{ticket.branch?.name || ticket.manualBranchName}</span>
+          <span className="line-clamp-2">
+            {ticket.branch 
+              ? `${ticket.branch.name} ${ticket.branch.branchNumber ? `(#${ticket.branch.branchNumber})` : ''}` 
+              : ticket.manualBranchName}
+          </span>
         </div>
         {ticket.team && (
           <div className="flex items-center gap-2 text-sm text-slate-600">

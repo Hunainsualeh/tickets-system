@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { LayoutGrid, Users, Store, ClipboardList, LogOut, Menu, X, Settings, HelpCircle, Bell, Calendar, FileText, MessageSquare, Briefcase, Landmark, BarChart3, ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react';
+import { LayoutGrid, Users, Store, ClipboardList, LogOut, Menu, X, Settings, HelpCircle, Bell, Calendar, FileText, MessageSquare, Briefcase, Landmark, BarChart3, ChevronLeft, ChevronRight, FileSpreadsheet, Clock } from 'lucide-react';
 import { Button } from './Button';
 import { Modal } from './Modal';
 import { apiClient } from '@/lib/api-client';
@@ -85,12 +85,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
         { icon: ClipboardList, label: 'Tickets', key: 'tickets', href: '/admin?tab=tickets' },
         { icon: BarChart3, label: 'Analytics', key: 'analytics', href: '/admin?tab=analytics' },
         { icon: FileSpreadsheet, label: 'Reports', key: 'reports', href: '/admin?tab=reports' },
+        { icon: Clock, label: 'Time Tracking', key: 'time-tracking', href: '/admin?tab=time-tracking' },
         { icon: FileText, label: 'Requests', key: 'requests', href: '/admin?tab=requests' },
       ]
     : userRole === 'DEVELOPER' || userRole === 'TECHNICAL'
     ? [
         { icon: LayoutGrid, label: 'Dashboard', href: '/dashboard', key: 'overview' },
         { icon: ClipboardList, label: 'Assigned Tickets', href: '/dashboard?view=tickets', key: 'tickets' },
+        { icon: Clock, label: 'Time Tracking', href: '/dashboard?view=time-tracking', key: 'time-tracking' },
         { icon: Users, label: 'Profile', href: '/dashboard?view=profile', key: 'profile' },
       ]
     : [
@@ -130,7 +132,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
             {!isCollapsed && (
               <div className="overflow-hidden">
                 <p className="text-sm font-bold text-slate-900 truncate">{username}</p>
-                <p className="text-xs text-slate-500 font-medium capitalize">{userRole?.toLowerCase()}</p>
+                <p className="text-xs text-slate-500 font-medium capitalize">
+                  {userRole === 'TECHNICAL' ? 'Field Support Specialist' : userRole?.toLowerCase()}
+                </p>
               </div>
             )}
           </div>

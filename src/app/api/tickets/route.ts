@@ -244,7 +244,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    let { branchId, newBranchName, priority, issue, additionalDetails, userId, teamId, localContactName, localContactEmail, localContactPhone, timezone, assignedToUserId } = await request.json();
+    let { branchId, newBranchName, priority, issue, additionalDetails, userId, teamId, localContactName, localContactEmail, localContactPhone, timezone, assignedToUserId, incNumber: providedIncNumber } = await request.json();
 
     let finalBranchId = branchId;
     let manualBranchName = null;
@@ -312,7 +312,7 @@ export async function POST(request: NextRequest) {
       })
     ]);
 
-    const incNumber = generateCustomId(
+    const incNumber = providedIncNumber || generateCustomId(
       teamName,
       creator?.username || 'Unknown',
       branch?.branchNumber || 'MAN',
@@ -391,6 +391,7 @@ export async function POST(request: NextRequest) {
       message: `A new ticket has been created by ${ticketWithUser.user.username}.`,
       ticket: {
         id: ticket.id,
+        incNumber: ticket.incNumber,
         issue: ticket.issue,
         status: ticket.status,
         priority: ticket.priority,
@@ -399,6 +400,9 @@ export async function POST(request: NextRequest) {
         branch: ticket.branch,
         manualBranchName: ticket.manualBranchName,
         additionalDetails: ticket.additionalDetails,
+        localContactName: ticket.localContactName,
+        localContactEmail: ticket.localContactEmail,
+        localContactPhone: ticket.localContactPhone,
       },
       link: `${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/tickets/${ticket.id}`
     });

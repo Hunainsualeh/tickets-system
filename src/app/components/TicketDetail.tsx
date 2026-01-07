@@ -20,9 +20,23 @@ import {
   User as UserIcon,
   Shield,
   LayoutGrid,
-  Check
+  Check,
+  Mail,
+  Phone,
+  Hash,
+  Building2,
+  Activity
 } from 'lucide-react';
-import { formatRelativeTime, getPriorityColor, formatDateInTimezone } from '@/lib/utils';
+import { 
+  formatRelativeTime, 
+  getPriorityColor, 
+  formatDateInTimezone, 
+  getDisplayStatus,
+  getStatusColor // Added back
+} from '@/lib/utils';
+import { apiClient } from '@/lib/api-client';
+import { Loader2 } from 'lucide-react';
+import { TimeTracker } from './TimeTracker';
 
 interface TicketDetailProps {
   ticket: Ticket;
@@ -50,11 +64,19 @@ export function TicketDetail({
   onAssignUser
 }: TicketDetailProps) {
   const [newNote, setNewNote] = useState('');
-  const [activeTab, setActiveTab] = useState<'details' | 'notes' | 'attachments'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'notes' | 'attachments' | 'history'>('details');
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [pendingAssignmentUserId, setPendingAssignmentUserId] = useState<string | null>(null);
+  const [statusHistory, setStatusHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  
+  // Status Confirmation Modal State
+  const [confirmStatusModal, setConfirmStatusModal] = useState<{isOpen: boolean, status: string | null}>({isOpen: false, status: null});
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false); // Add isAssigning state
 
   const isAdmin = currentUser?.role === 'ADMIN';
+  const isInternal = isAdmin || currentUser?.role === 'DEVELOPER' || currentUser?.role === 'TECHNICAL';
 
   // --- Configuration ---
   const allStatusStages = [
@@ -133,36 +155,79 @@ export function TicketDetail({
     return statusColors[stageKey] || statusColors.PENDING;
   };
 
-  // Get the current status color
-  const currentStatusColor = getStageColor(ticket.status);
+  // --- DERIVE DISPLAY STATUS ---
+  let displayStatus = getDisplayStatus(ticket.status, currentUser?.role);
 
+  // For internal roles (Dev/Tech), prefer the latest status from history if available
+  // This ensures they see their internal updates that don't affect the main ticket status
+  if (isInternal && ticket.statusHistory && ticket.statusHistory.length > 0) {
+      displayStatus = ticket.statusHistory[0].status;
+  }
+
+  // Get the current status color
+  const currentStatusColor = getStageColor(displayStatus);
+
+  // Filter statuses based on role
+  // Admin: All statuses
+  // Internal (Dev/Tech): All except financial (Invoice/Paid)
+  // User: Simplified view
   const statusStages = isAdmin 
     ? allStatusStages
-    : [
-        { key: 'PENDING', label: 'Opened' },
-        { key: 'ACKNOWLEDGED', label: 'Acknowledged' },
-        { key: 'IN_PROGRESS', label: 'In Progress' },
-        { key: 'COMPLETED', label: 'Resolved' },
-        { key: 'CLOSED', label: 'Closed' },
-      ];
+    : isInternal 
+      ? allStatusStages.filter(s => s.key !== 'INVOICE' && s.key !== 'PAID')
+      : [
+          { key: 'PENDING', label: 'Opened' },
+          { key: 'ACKNOWLEDGED', label: 'Acknowledged' },
+          { key: 'IN_PROGRESS', label: 'In Progress' },
+          { key: 'COMPLETED', label: 'Resolved' },
+          { key: 'CLOSED', label: 'Closed' },
+        ];
 
-  let currentStageIndex = statusStages.findIndex(s => s.key === ticket.status);
+  let currentStageIndex = statusStages.findIndex(s => s.key === displayStatus);
   
-  // Handle hidden statuses for users by mapping them to visible stages
+  // Safe fallback
   if (currentStageIndex === -1) {
-      if (['INVOICE', 'PAID'].includes(ticket.status)) {
-          // Map Invoice/Paid to Closed for users
-          const closedIndex = statusStages.findIndex(s => s.key === 'CLOSED');
-          currentStageIndex = closedIndex !== -1 ? closedIndex : statusStages.length - 1;
-      } else if (ticket.status === 'ESCALATED' && !isAdmin) {
-          // Map Escalated to In Progress for users
-          const inProgressIndex = statusStages.findIndex(s => s.key === 'IN_PROGRESS');
-          currentStageIndex = inProgressIndex !== -1 ? inProgressIndex : 1;
-      }
+     currentStageIndex = statusStages.length - 1; 
   }
   
   // Calculate progress percentage for the bar
   const progressPercentage = Math.max(0, Math.min(100, (currentStageIndex / (statusStages.length - 1)) * 100));
+
+  const fetchHistory = async () => {
+    if (!isInternal || statusHistory.length > 0) return;
+    setLoadingHistory(true);
+    try {
+        // Use apiClient or fetch directly. Assuming there's no direct API for specific history yet, 
+        // we might fallback to ticket.statusHistory if loaded, or fetch it.
+        // For now, let's assume valid data might come from `onViewHistory` or we add a fetch.
+        // We'll simulate or simple fetching if available.
+        // Actually, let's verify if `ticket` object already has history or if we need to fetch.
+        // If the backend `getTicket` included statusHistory, we can use it.
+        // If not, we might need to add it to the backend or use a separate endpoint.
+        // Let's assume we can fetch it via `/api/tickets/:id` or if passed in props.
+        if ((ticket as any).statusHistory) {
+            setStatusHistory((ticket as any).statusHistory);
+        } else {
+             // Fallback fetch if not in initial props
+             const res = await fetch(`/api/tickets/${ticket.id}`);
+             const data = await res.json();
+             if (data.ticket && data.ticket.statusHistory) {
+                 setStatusHistory(data.ticket.statusHistory);
+             }
+        }
+    } catch (e) {
+        console.error("Failed to load history", e);
+    } finally {
+        setLoadingHistory(false);
+    }
+  };
+
+  const handleTabChange = (tab: typeof activeTab) => {
+      setActiveTab(tab);
+      if (tab === 'history') {
+          fetchHistory();
+      }
+  };
 
   const handleSubmitNote = async () => {
     if (!newNote.trim()) return;
@@ -175,15 +240,24 @@ export function TicketDetail({
     setShowAssignModal(true);
   };
 
-  const confirmAssignment = () => {
+  const confirmAssignment = async () => {
     if (onAssignUser) {
-      onAssignUser(pendingAssignmentUserId);
+        setIsAssigning(true);
+        try {
+            await onAssignUser(pendingAssignmentUserId);
+            // Optionally we can wait for prop update or just close modal assuming success if no error thrown
+            setShowAssignModal(false);
+            setPendingAssignmentUserId(null);
+        } catch (error) {
+            console.error("Assignment failed", error);
+        } finally {
+            setIsAssigning(false);
+        }
     }
-    setShowAssignModal(false);
-    setPendingAssignmentUserId(null);
   };
 
   const cancelAssignment = () => {
+    if (isAssigning) return;
     setShowAssignModal(false);
     setPendingAssignmentUserId(null);
   };
@@ -247,7 +321,12 @@ export function TicketDetail({
                             )}
                         </div>
                         <span className="text-slate-300 hidden sm:inline">•</span>
-                        <span className="text-slate-500 text-sm font-medium">{ticket.branch?.name || ticket.manualBranchName || 'General Support'}</span>
+                        <span className="text-slate-500 text-sm font-medium">
+                            {ticket.branch 
+                                ? `${ticket.branch.name} ${ticket.branch.branchNumber ? `(#${ticket.branch.branchNumber})` : ''}` 
+                                : ticket.manualBranchName || 'General Support'
+                            }
+                        </span>
                     </div>
                     
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight tracking-tight">
@@ -258,7 +337,7 @@ export function TicketDetail({
                 {/* Mobile/Quick Status Badge */}
                 <div className="lg:hidden self-start">
                     <Badge className="text-sm py-1.5 px-4 bg-slate-900 text-white">
-                        {ticket.status.replace(/_/g, ' ')}
+                        {displayStatus.replace(/_/g, ' ')}
                     </Badge>
                 </div>
             </div>
@@ -327,11 +406,18 @@ export function TicketDetail({
         {/* --- Content Area --- */}
         <div className="flex flex-col">
             
+            {/* Time Tracker for Internal Roles - Placed prominently but not intrusive */}
+            {isInternal && (
+                <div className="px-6 sm:px-10 pt-6">
+                    <TimeTracker ticketId={ticket.id} currentUser={currentUser} />
+                </div>
+            )}
+
             {/* --- Modern Tab Navigation --- */}
             <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-200 px-6 sm:px-10">
                 <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar py-4">
                     <button
-                        onClick={() => setActiveTab('details')}
+                        onClick={() => handleTabChange('details')}
                         className={`
                             group flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap
                             ${activeTab === 'details' 
@@ -345,7 +431,7 @@ export function TicketDetail({
                     </button>
 
                     <button
-                        onClick={() => setActiveTab('notes')}
+                        onClick={() => handleTabChange('notes')}
                         className={`
                             group flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap
                             ${activeTab === 'notes' 
@@ -364,7 +450,7 @@ export function TicketDetail({
                     </button>
 
                     <button
-                        onClick={() => setActiveTab('attachments')}
+                        onClick={() => handleTabChange('attachments')}
                         className={`
                             group flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap
                             ${activeTab === 'attachments' 
@@ -381,6 +467,22 @@ export function TicketDetail({
                             </span>
                         )}
                     </button>
+
+                    {isInternal && (
+                        <button
+                            onClick={() => handleTabChange('history')}
+                            className={`
+                                group flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap
+                                ${activeTab === 'history' 
+                                    ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200' 
+                                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                                }
+                            `}
+                        >
+                            <Activity className={`w-4 h-4 ${activeTab === 'history' ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                            Internal Logs
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -400,6 +502,104 @@ export function TicketDetail({
                                     {ticket.additionalDetails || ticket.issue}
                                 </div>
                             </div>
+                            
+                            {/* Management Actions - Moved to main column to fill space and be more accessible */}
+                            {(onUpdateStatus || onAssignUser) && (
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                        <Shield className="w-4 h-4" /> Management
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {onAssignUser && availableUsers.length > 0 && (
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-700 block mb-2">Assign To</label>
+                                                <CustomSelect
+                                                    value={ticket.assignedToUserId || ''}
+                                                    onChange={handleAssignmentChange}
+                                                    options={[
+                                                        { value: '', label: 'Unassigned' },
+                                                        ...availableUsers
+                                                            .filter(u => ['ADMIN', 'DEVELOPER', 'TECHNICAL'].includes(u.role))
+                                                            .map(user => ({
+                                                                value: user.id,
+                                                                label: `${user.username} (${user.role === 'TECHNICAL' ? 'Field Support Specialist' : user.role})`
+                                                            }))
+                                                    ]}
+                                                    placeholder="Select user to assign"
+                                                    searchable={true}
+                                                />
+                                            </div>
+                                        )}
+                                        {onUpdateStatus && isInternal && (
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-700 block mb-2">Change Status</label>
+                                                <StatusSelect 
+                                                    value={displayStatus} 
+                                                    onChange={(newStatus) => setConfirmStatusModal({ isOpen: true, status: newStatus })} 
+                                                    options={statusStages.map(s => ({ value: s.key, label: s.label }))}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+        {/* Status Confirmation Modal */}
+        <Modal
+            isOpen={confirmStatusModal.isOpen}
+            onClose={() => !isUpdatingStatus && setConfirmStatusModal({ isOpen: false, status: null })}
+            title="Confirm Status Change"
+        >
+            <div className="space-y-4">
+                <p className="text-slate-600">
+                    Are you sure you want to change the status to <span className="font-bold text-slate-900">{confirmStatusModal.status?.replace(/_/g, ' ')}</span>?
+                    {isAdmin ? (
+                        <span className="block mt-4 text-sm text-blue-700 bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-start gap-2">
+                            <span className="text-lg leading-none">ℹ️</span>
+                            <span className="leading-tight pt-0.5">This will update the ticket status for the User and trigger email notifications.</span>
+                        </span>
+                    ) : (
+                        <span className="block mt-4 text-sm text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-100 flex items-start gap-2">
+                             <span className="text-lg leading-none">🔒</span>
+                             <span className="leading-tight pt-0.5">This change will be logged internally but will not be visible on the User's ticket view.</span>
+                        </span>
+                    )}
+                </p>
+                <div className="flex justify-end gap-3 mt-6">
+                    <Button 
+                        variant="ghost" 
+                        onClick={() => setConfirmStatusModal({ isOpen: false, status: null })}
+                        disabled={isUpdatingStatus}
+                    >
+                        Cancel
+                    </Button>
+                    <Button 
+                        variant="primary" 
+                        disabled={isUpdatingStatus}
+                        onClick={async () => {
+                            if (confirmStatusModal.status && onUpdateStatus) {
+                                setIsUpdatingStatus(true);
+                                try {
+                                    await onUpdateStatus(confirmStatusModal.status);
+                                    setConfirmStatusModal({ isOpen: false, status: null });
+                                } catch (error) {
+                                    console.error(error);
+                                } finally {
+                                    setIsUpdatingStatus(false);
+                                }
+                            }
+                        }}
+                    >
+                        {isUpdatingStatus ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                {isAdmin ? 'Updating User...' : 'Updating Internal...'}
+                            </>
+                        ) : 'Confirm Update'}
+                    </Button>
+                </div>
+            </div>
+        </Modal>
 
                             {/* Mobile View of Timeline (Vertical List) */}
                             <div className="lg:hidden bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
@@ -424,65 +624,55 @@ export function TicketDetail({
 
                         {/* Sidebar Info */}
                         <div className="space-y-6">
-                            {/* Admin Actions */}
-                            {(onUpdateStatus || onAssignUser) && (
-                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Admin Actions</h3>
-                                    <div className="space-y-4">
-                                        {onAssignUser && availableUsers.length > 0 && (
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-700 block mb-2">Assign To</label>
-                                                <CustomSelect
-                                                    value={ticket.assignedToUserId || ''}
-                                                    onChange={handleAssignmentChange}
-                                                    options={[
-                                                        { value: '', label: 'Unassigned' },
-                                                        ...availableUsers
-                                                            .filter(u => ['ADMIN', 'DEVELOPER', 'TECHNICAL'].includes(u.role))
-                                                            .map(user => ({
-                                                                value: user.id,
-                                                                label: `${user.username} (${user.role})`
-                                                            }))
-                                                    ]}
-                                                    placeholder="Select user to assign"
-                                                    searchable={true}
-                                                />
-                                                {ticket.assignedToUserId && (
-                                                    <p className="mt-2 text-xs text-slate-600 font-medium">
-                                                        Assigned to: {(ticket.assignedToUser || ticket.assignedTo)?.username}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        )}
-                                        {onUpdateStatus && (
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-700 block mb-2">Change Status</label>
-                                                <StatusSelect 
-                                                    value={ticket.status} 
-                                                    onChange={onUpdateStatus} 
-                                                    options={allStatusStages.map(s => ({ value: s.key, label: s.label }))}
-                                                />
-                                            </div>
+                            {/* Ticket Information Card - Primary Metadata */}
+                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                                <div>
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                        <Briefcase className="w-4 h-4" /> Ticket Details
+                                    </h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-x-6 gap-y-2">
+                                        <InfoCard 
+                                            label="INC Number" 
+                                            value={ticket.incNumber || '-'} 
+                                            icon={<Hash className="w-4 h-4" />} 
+                                        />
+                                        <InfoCard 
+                                            label="Branch" 
+                                            value={ticket.branch 
+                                                ? `${ticket.branch.name} ${ticket.branch.branchNumber ? `(#${ticket.branch.branchNumber})` : ''}` 
+                                                : ticket.manualBranchName || undefined
+                                            } 
+                                            icon={<Building2 className="w-4 h-4" />} 
+                                        />
+                                        <InfoCard label="Team" value={ticket.team?.name} icon={<Shield className="w-4 h-4" />} />
+                                        <InfoCard label="Creator" value={ticket.user?.username} icon={<UserIcon className="w-4 h-4" />} />
+                                        {(ticket.assignedToUser || ticket.assignedTo) && (
+                                            <InfoCard 
+                                                label="Assigned To" 
+                                                value={`${(ticket.assignedToUser || ticket.assignedTo)?.username} (${(ticket.assignedToUser || ticket.assignedTo)?.role === 'TECHNICAL' ? 'Field Support Specialist' : (ticket.assignedToUser || ticket.assignedTo)?.role})`} 
+                                                icon={<UserIcon className="w-4 h-4" />} 
+                                            />
                                         )}
                                     </div>
                                 </div>
-                            )}
 
-                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Ticket Info</h3>
-                                <div className="space-y-4">
-                                    <InfoCard label="Branch" value={ticket.branch?.name || ticket.manualBranchName || undefined} icon={<Briefcase className="w-4 h-4" />} />
-                                    <InfoCard label="Team" value={ticket.team?.name} icon={<Shield className="w-4 h-4" />} />
-                                    <InfoCard label="Contact" value={ticket.user?.username} icon={<UserIcon className="w-4 h-4" />} />
-                                    {(ticket.assignedToUser || ticket.assignedTo) && (
-                                        <InfoCard 
-                                            label="Assigned To" 
-                                            value={`${(ticket.assignedToUser || ticket.assignedTo)?.username} (${(ticket.assignedToUser || ticket.assignedTo)?.role})`} 
-                                            icon={<Shield className="w-4 h-4" />} 
-                                        />
-                                    )}
-                                </div>
+                                {/* Divider if Local Contact exists */}
+                                {(ticket.localContactName || ticket.localContactEmail || ticket.localContactPhone) && (
+                                    <>
+                                        <div className="border-t border-slate-100 pt-6">
+                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                <Phone className="w-4 h-4" /> Local Contact
+                                            </h3>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-x-6 gap-y-2">
+                                                {ticket.localContactName && <InfoCard label="Name" value={ticket.localContactName} icon={<UserIcon className="w-4 h-4" />} />}
+                                                {ticket.localContactEmail && <InfoCard label="Email" value={ticket.localContactEmail} icon={<Mail className="w-4 h-4" />} />}
+                                                {ticket.localContactPhone && <InfoCard label="Phone" value={ticket.localContactPhone} icon={<Phone className="w-4 h-4" />} />}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
+
                         </div>
                     </div>
                 )}
@@ -530,7 +720,7 @@ export function TicketDetail({
                                                                   note.user?.role === 'TECHNICAL' ? 'bg-cyan-100 text-cyan-700' :
                                                                   'bg-slate-100 text-slate-700'}
                                                             `}>
-                                                                {note.user?.role || 'USER'}
+                                                                {note.user?.role === 'TECHNICAL' ? 'FIELD SUPPORT SPECIALIST' : (note.user?.role || 'USER')}
                                                             </span>
                                                             <span className="text-xs text-slate-400">• {formatRelativeTime(note.createdAt)}</span>
                                                         </div>
@@ -636,49 +826,130 @@ export function TicketDetail({
                          )}
                     </div>
                 )}
+                {/* 4. History Tab (Internal Only) */}
+                {activeTab === 'history' && isInternal && (
+                    <div className="max-w-4xl mx-auto animate-in slide-in-from-bottom-2 duration-300">
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-900">Internal Logs</h3>
+                                    <p className="text-sm text-slate-500 mt-1">Status changes and administrative actions</p>
+                                </div>
+                                <Button size="sm" variant="ghost" onClick={fetchHistory} disabled={loadingHistory}>
+                                    <History className={`w-4 h-4 ${loadingHistory ? 'animate-spin' : ''}`} />
+                                </Button>
+                            </div>
+                            
+                            <div className="divide-y divide-slate-100">
+                                {loadingHistory ? (
+                                    <div className="p-8 text-center text-slate-500">Loading history...</div>
+                                ) : statusHistory.length > 0 ? (
+                                    statusHistory.map((item: any) => (
+                                        <div key={item.id} className="p-6 hover:bg-slate-50 transition-colors">
+                                            <div className="flex gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                                                    <Activity className="w-5 h-5 text-slate-500" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-slate-900">
+                                                        Status changed to <Badge variant={getStatusColor(item.status)} size="sm">{item.status.replace(/_/g, ' ')}</Badge>
+                                                    </p>
+                                                    {item.note && (
+                                                        <p className="text-sm text-slate-600 mt-1">{item.note}</p>
+                                                    )}
+                                                     {item.adminNote && (
+                                                        <p className="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-100 mt-2 inline-block">
+                                                            Admin Note: {item.adminNote}
+                                                        </p>
+                                                    )}
+                                                    <p className="text-xs text-slate-400 mt-2">
+                                                        {formatRelativeTime(item.createdAt)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="p-12 text-center text-slate-500">
+                                        No internal history available.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
       </div>
 
-      {/* Assignment Confirmation Modal */}
+      {/* Assignment Confirmation Modal - Redesigned */}
       <Modal
         isOpen={showAssignModal}
         onClose={cancelAssignment}
         title="Confirm Assignment"
       >
-        <div className="space-y-4">
-          <p className="text-slate-700">
-            {pendingAssignmentUserId ? (
-              <>
-                Are you sure you want to assign this ticket to <span className="font-bold text-slate-900">{getPendingAssignedUser()?.username}</span>?
-              </>
-            ) : (
-              <>
-                Are you sure you want to <span className="font-bold text-slate-900">unassign</span> this ticket?
-              </>
-            )}
-          </p>
-          {pendingAssignmentUserId && getPendingAssignedUser() && (
-            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
-                  {getPendingAssignedUser()?.username[0].toUpperCase()}
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-900">{getPendingAssignedUser()?.username}</p>
-                  <p className="text-sm text-slate-600">{getPendingAssignedUser()?.role}</p>
-                </div>
-              </div>
+        {/* Background decoration inside Modal content to mimic signup style */}
+        <div className="relative overflow-hidden p-1 -m-1"> 
+        {/* Using a wrapper to contain the absolute positioned blobs if needed, or just let them sit behind content */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none opacity-30">
+                <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-blue-100/50 blur-3xl"></div>
+                <div className="absolute top-[40%] -right-[10%] w-[40%] h-[40%] rounded-full bg-indigo-100/50 blur-3xl"></div>
             </div>
-          )}
-          <div className="flex justify-end gap-3 pt-4">
-            <Button variant="ghost" onClick={cancelAssignment}>
-              Cancel
-            </Button>
-            <Button onClick={confirmAssignment}>
-              Confirm
-            </Button>
-          </div>
+
+            <div className="relative z-10 space-y-6">
+                <div className="text-center">
+                    <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-100 shadow-sm">
+                         <UserIcon className="w-8 h-8 text-blue-600" />
+                    </div>
+                
+                    <p className="text-slate-600 text-lg">
+                        {pendingAssignmentUserId ? (
+                        <>
+                            Assign ticket to <br/>
+                            <span className="font-bold text-slate-900 text-xl">{getPendingAssignedUser()?.username}</span>?
+                        </>
+                        ) : (
+                        <>
+                            Are you sure you want to <span className="font-bold text-slate-900">unassign</span> this ticket?
+                        </>
+                        )}
+                    </p>
+                </div>
+                
+                {pendingAssignmentUserId && getPendingAssignedUser() && (
+                    <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                        {getPendingAssignedUser()?.username[0].toUpperCase()}
+                        </div>
+                        <div>
+                        <p className="font-bold text-slate-900 text-lg">{getPendingAssignedUser()?.username}</p>
+                        <p className="text-sm text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full inline-block mt-0.5">
+                            {getPendingAssignedUser()?.role === 'TECHNICAL' ? 'Field Support Specialist' : getPendingAssignedUser()?.role}
+                        </p>
+                        </div>
+                    </div>
+                    </div>
+                )}
+                
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100/50">
+                    <Button variant="ghost" onClick={cancelAssignment} disabled={isAssigning}>
+                        Cancel
+                    </Button>
+                    <Button 
+                        onClick={confirmAssignment} 
+                        disabled={isAssigning}
+                        className="bg-blue-600 hover:bg-blue-700 text-white min-w-[120px] shadow-lg shadow-blue-600/20"
+                    >
+                        {isAssigning ? (
+                            <span className="flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Assigning...</span>
+                            </span>
+                        ) : 'Confirm'}
+                    </Button>
+                </div>
+            </div>
         </div>
       </Modal>
     </div>

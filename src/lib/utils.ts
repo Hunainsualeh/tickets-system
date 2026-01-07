@@ -44,6 +44,22 @@ export const formatDate = (dateString: string) => {
   }).format(date);
 };
 
+export const getDisplayStatus = (status: string, role?: string) => {
+  const isInternal = ['ADMIN', 'DEVELOPER', 'TECHNICAL'].includes(role || '');
+  
+  // Internal users see the raw status
+  if (isInternal) {
+    return status;
+  }
+  
+  // External users see mapped statuses
+  if (status === 'ESCALATED') return 'IN_PROGRESS';
+  if (status === 'INVOICE') return 'COMPLETED';
+  if (status === 'PAID') return 'CLOSED';
+  
+  return status;
+};
+
 export const formatDateInTimezone = (dateString: string, timezone: string) => {
   try {
     const date = new Date(dateString);

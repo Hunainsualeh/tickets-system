@@ -154,8 +154,12 @@ export async function PUT(request: NextRequest, context: Params) {
     
     // Status updates are allowed for ADMIN, DEVELOPER, TECHNICAL
     const allowedRoles = ['ADMIN', 'DEVELOPER', 'TECHNICAL'];
+    // For DEVELOPER and TECHNICAL, status changes are logged but do NOT update the main ticket status
+    // Only ADMIN can change the actual ticket status visible to users
     if (status && allowedRoles.includes(authResult.user.role)) {
-      updateData.status = status;
+      if (authResult.user.role === 'ADMIN') {
+        updateData.status = status;
+      }
     }
 
     // Priority updates are admin only
@@ -209,22 +213,30 @@ export async function PUT(request: NextRequest, context: Params) {
           }
         },
         branch: true,
+        statusHistory: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
     });
 
     // Create status history entry if status was updated
     if (status && allowedRoles.includes(authResult.user.role)) {
+      const isInternalUpdate = authResult.user.role === 'DEVELOPER' || authResult.user.role === 'TECHNICAL';
+      
       await prisma.statusHistory.create({
         data: {
           ticketId: ticket.id,
           status,
-          note: note || `Status updated to ${status}`,
+          note: note || `Status updated to ${status}${isInternalUpdate ? ' (Internal)' : ''}`,
           ...(adminNote && { adminNote }),
         },
       });
 
       // Auto-acknowledge message
-      if (status === 'ACKNOWLEDGED') {
+      // Only do this if the status was actually updated on the ticket (Admin)
+      if (status === 'ACKNOWLEDGED' && authResult.user.role === 'ADMIN') {
         await prisma.statusHistory.create({
           data: {
             ticketId: ticket.id,
@@ -247,8 +259,13 @@ export async function PUT(request: NextRequest, context: Params) {
 
       const statusConfig = statusMessages[status] || { title: 'Ticket Status Updated', type: 'INFO' };
 
-      // Only notify user if status is NOT INVOICE or PAID
-      if (status !== 'INVOICE' && status !== 'PAID') {
+      const updaterRole = authResult.user.role;
+
+      // Only notify user if status was actually updated on the ticket (i.e. Admin did it)
+      // AND status is not INVOICE or PAID
+      const isPublicUpdate = updaterRole === 'ADMIN' && status !== 'INVOICE' && status !== 'PAID';
+
+      if (isPublicUpdate) {
         await notifyUser(
           ticket.userId,
           statusConfig.title,
@@ -305,13 +322,18 @@ export async function PUT(request: NextRequest, context: Params) {
             message: `Ticket status has been updated to ${status}.`,
             ticket: {
               id: ticket.id,
+              incNumber: ticket.incNumber,
               issue: ticket.issue,
               status: ticket.status,
               priority: ticket.priority,
               createdAt: ticket.createdAt,
               assignedTo: ticket.assignedTo,
               branch: ticket.branch,
+              manualBranchName: ticket.manualBranchName,
               additionalDetails: ticket.additionalDetails,
+              localContactName: ticket.localContactName,
+              localContactEmail: ticket.localContactEmail,
+              localContactPhone: ticket.localContactPhone,
             },
             notes: (note ? `Note: ${note}\n` : '') + (adminNote ? `Admin Note: ${adminNote}` : ''),
             link: `${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard?view=tickets&ticketId=${ticket.id}`
@@ -328,6 +350,50 @@ export async function PUT(request: NextRequest, context: Params) {
             emailHtml
           );
         }
+      } else if (isInternalUpdate && status !== 'INVOICE' && status !== 'PAID') {
+         // Internal Update (Developer/Technical): Notify Admins Only
+         const admins = await prisma.user.findMany({
+            where: { role: 'ADMIN', email: { not: null }, isActive: true },
+            select: { email: true, username: true }
+        });
+
+        for (const admin of admins) {
+             if (admin.email) {
+                 const emailHtml = generateTicketEmailHtml({
+                    headline: `Internal Status Update - ${statusConfig.title}`,
+                    recipientName: admin.username || 'Admin',
+                    message: `Ticket status updated to ${status} by ${authResult.user.username} (${updaterRole === 'TECHNICAL' ? 'Field Support Specialist' : 'Developer'}). This is an internal update not visible to the client via email.`,
+                    ticket: {
+                      id: ticket.id,
+                      incNumber: ticket.incNumber,
+                      issue: ticket.issue,
+                      status: ticket.status,
+                      priority: ticket.priority,
+                      createdAt: ticket.createdAt,
+                      assignedTo: ticket.assignedTo,
+                      branch: ticket.branch,
+                      manualBranchName: ticket.manualBranchName,
+                      additionalDetails: ticket.additionalDetails,
+                      localContactName: ticket.localContactName,
+                      localContactEmail: ticket.localContactEmail,
+                      localContactPhone: ticket.localContactPhone,
+                    },
+                    notes: (note ? `Note: ${note}\n` : '') + (adminNote ? `Admin Note: ${adminNote}` : ''),
+                    link: `${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard?view=tickets&ticketId=${ticket.id}`
+                  });
+                  
+                  await sendEmail(
+                    admin.email,
+                    `[Internal] ${statusConfig.title} - Ticket #${ticket.incNumber || ticket.id.slice(0, 8)}`,
+                    `Hello ${admin.username},\n\n` +
+                    `Internal Update: Ticket status updated to ${status}.\n` +
+                    `Updated by: ${authResult.user.username}\n` + 
+                    `Note: ${note || 'No notes'}\n\n` +
+                    `View ticket: ${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard?view=tickets&ticketId=${ticket.id}`,
+                    emailHtml
+                  );
+             }
+        }
       }
 
       // Send email to assigned user if it's not the current user
@@ -338,13 +404,18 @@ export async function PUT(request: NextRequest, context: Params) {
           message: `Ticket status has been updated to ${status}.`,
           ticket: {
             id: ticket.id,
+            incNumber: ticket.incNumber,
             issue: ticket.issue,
             status: ticket.status,
             priority: ticket.priority,
             createdAt: ticket.createdAt,
             assignedTo: ticket.assignedTo,
             branch: ticket.branch,
+            manualBranchName: ticket.manualBranchName,
             additionalDetails: ticket.additionalDetails,
+            localContactName: ticket.localContactName,
+            localContactEmail: ticket.localContactEmail,
+            localContactPhone: ticket.localContactPhone,
           },
           notes: (note ? `Note: ${note}\n` : '') + (adminNote ? `Admin Note: ${adminNote}` : ''),
           link: `${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard?view=tickets&ticketId=${ticket.id}`
@@ -396,3 +467,6 @@ export async function DELETE(request: NextRequest, context: Params) {
     );
   }
 }
+
+// Allow PATCH as alias for PUT for partial updates
+export const PATCH = PUT;

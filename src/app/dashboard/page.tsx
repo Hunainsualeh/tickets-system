@@ -17,7 +17,7 @@ import { Sidebar } from '@/app/components/Sidebar';
 import { StatRow } from '@/app/components/StatRow';
 import { SearchBar } from '@/app/components/SearchBar';
 import { Pagination } from '@/app/components/Pagination';
-import { getStatusColor, getPriorityColor, getPriorityLabel, formatDate, formatRelativeTime } from '@/lib/utils';
+import { getStatusColor, getPriorityColor, getPriorityLabel, formatDate, formatRelativeTime, getDisplayStatus } from '@/lib/utils';
 import { Plus, CheckCircle, Clock, AlertCircle, MessageSquare, XCircle, Search, Filter, Building2, Copy, User as UserIcon, Shield, Lock, Eye, Calendar, BarChart3, MoreVertical, Phone, Video, Paperclip, Smile, Mic, FileText, Activity, List, Zap, TrendingUp, CheckSquare, AlertTriangle } from 'lucide-react';
 import { Suspense } from 'react';
 import { SuccessModal } from '@/app/components/SuccessModal';
@@ -32,6 +32,8 @@ import { RequestListCard } from '@/app/components/RequestListCard';
 import NotificationBell from '@/app/components/NotificationBell';
 import { TicketCard } from '@/app/components/TicketCard';
 import { TicketDetail } from '@/app/components/TicketDetail';
+import { TimeStats } from '@/app/components/TimeStats';
+import { TimeClock } from '@/app/components/TimeClock';
 
 function UserDashboardContent() {
   const router = useRouter();
@@ -44,7 +46,7 @@ function UserDashboardContent() {
   const [requests, setRequests] = useState<any[]>([]);
   const [notes, setNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'dashboard' | 'create' | 'tickets' | 'profile' | 'requests' | 'create-request' | 'notes' | 'analytics' | 'reports'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'create' | 'tickets' | 'profile' | 'requests' | 'create-request' | 'notes' | 'analytics' | 'reports' | 'time-tracking'>('dashboard');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedNote, setSelectedNote] = useState<any | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
@@ -81,7 +83,10 @@ function UserDashboardContent() {
   }, [view]);
 
   const filteredTickets = tickets.filter(ticket => {
-    if (filterStatus && filterStatus !== 'ALL' && ticket.status !== filterStatus) return false;
+    if (filterStatus && filterStatus !== 'ALL') {
+      const displayStatus = getDisplayStatus(ticket.status, user?.role);
+      if (displayStatus !== filterStatus) return false;
+    }
     if (filterPriority && filterPriority !== 'ALL' && ticket.priority !== filterPriority) return false;
     return true;
   });
@@ -149,7 +154,7 @@ function UserDashboardContent() {
   // Update view from URL params
   useEffect(() => {
     const viewParam = searchParams.get('view');
-    if (viewParam && ['dashboard', 'create', 'tickets', 'profile', 'requests', 'create-request', 'notes', 'analytics'].includes(viewParam)) {
+    if (viewParam && ['dashboard', 'create', 'tickets', 'profile', 'requests', 'create-request', 'notes', 'analytics', 'time-tracking'].includes(viewParam)) {
       setView(viewParam as any);
     } else {
       setView('dashboard');
@@ -409,11 +414,11 @@ function UserDashboardContent() {
 
   const stats = {
     total: tickets.length,
-    open: tickets.filter((t) => ['PENDING', 'ACKNOWLEDGED', 'IN_PROGRESS'].includes(t.status)).length,
-    pending: tickets.filter((t) => t.status === 'PENDING').length,
-    inProgress: tickets.filter((t) => ['ACKNOWLEDGED', 'IN_PROGRESS'].includes(t.status)).length,
-    completed: tickets.filter((t) => t.status === 'COMPLETED').length,
-    closed: tickets.filter((t) => ['COMPLETED', 'CLOSED', 'INVOICE', 'PAID'].includes(t.status)).length,
+    open: tickets.filter((t) => ['PENDING', 'ACKNOWLEDGED', 'IN_PROGRESS'].includes(getDisplayStatus(t.status, user?.role))).length,
+    pending: tickets.filter((t) => getDisplayStatus(t.status, user?.role) === 'PENDING').length,
+    inProgress: tickets.filter((t) => ['ACKNOWLEDGED', 'IN_PROGRESS'].includes(getDisplayStatus(t.status, user?.role))).length,
+    completed: tickets.filter((t) => getDisplayStatus(t.status, user?.role) === 'COMPLETED').length,
+    closed: tickets.filter((t) => ['COMPLETED', 'CLOSED'].includes(getDisplayStatus(t.status, user?.role))).length,
     // Request Stats
     totalRequests: requests.length,
     pendingRequests: requests.filter((r) => r.status === 'PENDING').length,
@@ -443,6 +448,39 @@ function UserDashboardContent() {
               ticket={selectedTicket}
               currentUser={user}
               onBack={() => setSelectedTicket(null)}
+              onUpdateStatus={async (status) => {
+                try {
+                  const response = await fetch(`/api/tickets/${selectedTicket.id}`, {
+                    method: 'PATCH',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    },
+                    body: JSON.stringify({ status }),
+                  });
+                  
+                  if (!response.ok) throw new Error('Failed to update status');
+
+                  const data = await response.json();
+                  
+                  // Update with fresh data from server (includes new history)
+                  if (data.ticket) {
+                     setSelectedTicket(data.ticket);
+                  } else if (selectedTicket) {
+                    // Fallback optimistic update
+                    setSelectedTicket({
+                        ...selectedTicket,
+                        status: status as any,
+                    });
+                  }
+                  
+                  toast.success('Status updated successfully');
+                  fetchData();
+                } catch (error) {
+                  console.error('Error updating status:', error);
+                  toast.error('Failed to update status');
+                }
+              }}
               onAddNote={async (note) => {
                 if (!selectedTicket) return;
                 setIsAddingNote(true);
@@ -742,7 +780,7 @@ function UserDashboardContent() {
                   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                     <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
                       <h3 className="font-semibold text-slate-900">Personal Information</h3>
-                      <Badge variant="info">{user?.role}</Badge>
+                      <Badge variant="info">{user?.role === 'TECHNICAL' ? 'Field Support Specialist' : user?.role}</Badge>
                     </div>
                     <div className="p-6">
                       <div className="flex items-center gap-6 mb-8">
@@ -765,7 +803,7 @@ function UserDashboardContent() {
                         <div>
                           <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Role</label>
                           <div className="text-slate-900 font-medium bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-                            {user?.role}
+                            {user?.role === 'TECHNICAL' ? 'Field Support Specialist' : user?.role}
                           </div>
                         </div>
                       </div>
@@ -1276,6 +1314,10 @@ function UserDashboardContent() {
               </div>
             </div>
             )
+          ) : view === 'time-tracking' && user ? (
+             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+               <TimeStats currentUser={user} />
+             </div>
           ) : (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {/* Header */}
@@ -1299,71 +1341,52 @@ function UserDashboardContent() {
 
               {user?.role === 'DEVELOPER' || user?.role === 'TECHNICAL' ? (
                 // Enhanced Dashboard for DEVELOPER/TECHNICAL
-                <div className="space-y-8">
-                  {/* Stats Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-6">
+                  {/* Stats Cards Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Time Clock Card */}
+                    <TimeClock userId={user.id} />
+                    
                     {/* Total Assigned */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
-                      <div className="flex justify-between items-start mb-4">
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
+                      <div className="flex justify-between items-start mb-3">
                         <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
                           <List className="w-5 h-5 text-blue-600" />
                         </div>
-                        <span className="flex items-center text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded-full">
+                        <span className="text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded-full">
                           Total
                         </span>
                       </div>
-                      <div>
-                        <h3 className="text-3xl font-bold text-slate-900 mb-1">{stats.total}</h3>
-                        <p className="text-sm text-slate-500 font-medium">Assigned Tickets</p>
-                      </div>
+                      <h3 className="text-2xl font-bold text-slate-900">{stats.total}</h3>
+                      <p className="text-sm text-slate-500 font-medium mt-1">Assigned Tickets</p>
                     </div>
 
                     {/* Pending Action */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
-                      <div className="flex justify-between items-start mb-4">
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
+                      <div className="flex justify-between items-start mb-3">
                         <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
                           <AlertCircle className="w-5 h-5 text-amber-600" />
                         </div>
-                        <span className="flex items-center text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-full">
+                        <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-full">
                           Needs Action
                         </span>
                       </div>
-                      <div>
-                        <h3 className="text-3xl font-bold text-slate-900 mb-1">{stats.pending}</h3>
-                        <p className="text-sm text-slate-500 font-medium">Pending Review</p>
-                      </div>
+                      <h3 className="text-2xl font-bold text-slate-900">{stats.pending}</h3>
+                      <p className="text-sm text-slate-500 font-medium mt-1">Pending Review</p>
                     </div>
 
                     {/* In Progress */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-                          <Activity className="w-5 h-5 text-indigo-600" />
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+                          <Activity className="w-5 h-5 text-emerald-600" />
                         </div>
-                        <span className="flex items-center text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-1 rounded-full">
+                        <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full">
                           Active
                         </span>
                       </div>
-                      <div>
-                        <h3 className="text-3xl font-bold text-slate-900 mb-1">{stats.inProgress}</h3>
-                        <p className="text-sm text-slate-500 font-medium">In Progress</p>
-                      </div>
-                    </div>
-
-                    {/* Resolved */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
-                          <CheckCircle className="w-5 h-5 text-emerald-600" />
-                        </div>
-                        <span className="flex items-center text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full">
-                          Resolved
-                        </span>
-                      </div>
-                      <div>
-                        <h3 className="text-3xl font-bold text-slate-900 mb-1">{stats.completed + stats.closed}</h3>
-                        <p className="text-sm text-slate-500 font-medium">Completed</p>
-                      </div>
+                      <h3 className="text-2xl font-bold text-slate-900">{stats.inProgress}</h3>
+                      <p className="text-sm text-slate-500 font-medium mt-1">In Progress</p>
                     </div>
                   </div>
 
@@ -1528,15 +1551,17 @@ function UserDashboardContent() {
                           <TrendingUp className="w-4 h-4 text-slate-400" />
                         </div>
                         <div className="space-y-6">
-                          {tickets.slice(0, 5).map((t, i) => (
+                          {tickets.slice(0, 5).map((t, i) => {
+                            const displayStatus = getDisplayStatus(t.status, user?.role);
+                            return (
                             <div key={t.id} className="flex gap-3 relative group cursor-pointer" onClick={() => setSelectedTicket(t)}>
                               {i !== tickets.slice(0, 5).length - 1 && (
                                 <div className="absolute left-[5px] top-6 -bottom-6 w-px bg-slate-100 group-hover:bg-slate-200 transition-colors"></div>
                               )}
                               <div className={`w-2.5 h-2.5 mt-1.5 rounded-full shrink-0 ring-4 ring-white ${
-                                t.status === 'COMPLETED' ? 'bg-emerald-500' :
-                                t.status === 'IN_PROGRESS' ? 'bg-blue-500' :
-                                t.status === 'PENDING' ? 'bg-amber-500' : 'bg-slate-300'
+                                displayStatus === 'COMPLETED' ? 'bg-emerald-500' :
+                                displayStatus === 'IN_PROGRESS' ? 'bg-blue-500' :
+                                displayStatus === 'PENDING' ? 'bg-amber-500' : 'bg-slate-300'
                               }`} />
                               <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-start">
@@ -1550,12 +1575,12 @@ function UserDashboardContent() {
                                   </span>
                                 </div>
                                 <p className="text-xs text-slate-500 mt-0.5">
-                                  Status is <span className="font-medium text-slate-700">{t.status.replace('_', ' ')}</span>
+                                  Status is <span className="font-medium text-slate-700">{displayStatus.replace('_', ' ')}</span>
                                 </p>
                                 <p className="text-[10px] text-slate-400 mt-1">{formatRelativeTime(t.updatedAt)}</p>
                               </div>
                             </div>
-                          ))}
+                          )})}
                           {tickets.length === 0 && (
                             <p className="text-sm text-slate-500 text-center py-4">No recent activity</p>
                           )}
@@ -1683,7 +1708,7 @@ function UserDashboardContent() {
                         })}
                         data2={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((_, i) => {
                           const dayIndex = i === 6 ? 0 : i + 1;
-                          return tickets.filter(t => new Date(t.createdAt).getDay() === dayIndex && t.status === 'COMPLETED').length;
+                          return tickets.filter(t => new Date(t.createdAt).getDay() === dayIndex && getDisplayStatus(t.status, user?.role) === 'COMPLETED').length;
                         })}
                         legend1="Created"
                         legend2="Completed"

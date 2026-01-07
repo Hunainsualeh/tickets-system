@@ -319,9 +319,12 @@ interface TicketEmailProps {
     priority: string;
     createdAt: Date | string;
     assignedTo?: { username: string } | null;
-    branch?: { name: string } | null;
+    branch?: { name: string; branchNumber?: string } | null;
     manualBranchName?: string | null;
     additionalDetails?: string | null;
+    localContactName?: string | null;
+    localContactEmail?: string | null;
+    localContactPhone?: string | null;
   };
   notes?: string;
   link: string;
@@ -342,6 +345,11 @@ export function generateTicketEmailHtml({
     month: 'short',
     day: 'numeric',
   });
+  
+  // Format branch display
+  const branchDisplay = ticket.branch 
+    ? `${ticket.branch.name} ${ticket.branch.branchNumber ? `(#${ticket.branch.branchNumber})` : ''}`
+    : ticket.manualBranchName || 'N/A';
 
   return `
 <!DOCTYPE html>
@@ -571,7 +579,7 @@ export function generateTicketEmailHtml({
               </td>
               <td class="detail-cell" width="50%">
                 <div class="detail-label">Branch</div>
-                <div class="detail-value">${ticket.branch?.name || ticket.manualBranchName || 'N/A'}</div>
+                <div class="detail-value">${branchDisplay}</div>
               </td>
             </tr>
             ${ticket.assignedTo ? `
@@ -579,6 +587,18 @@ export function generateTicketEmailHtml({
               <td class="detail-cell" colspan="2">
                 <div class="detail-label">Assigned Officer</div>
                 <div class="detail-value">${ticket.assignedTo.username}</div>
+              </td>
+            </tr>
+            ` : ''}
+            ${(ticket.localContactName || ticket.localContactEmail || ticket.localContactPhone) ? `
+            <tr>
+              <td class="detail-cell" colspan="2" style="padding-top: 8px;">
+                <div class="detail-label">Local Contact Information</div>
+                <div style="font-size: 14px; color: #1e293b;">
+                  ${ticket.localContactName ? `<div><strong>Name:</strong> ${ticket.localContactName}</div>` : ''}
+                  ${ticket.localContactEmail ? `<div><strong>Email:</strong> ${ticket.localContactEmail}</div>` : ''}
+                  ${ticket.localContactPhone ? `<div><strong>Phone:</strong> ${ticket.localContactPhone}</div>` : ''}
+                </div>
               </td>
             </tr>
             ` : ''}

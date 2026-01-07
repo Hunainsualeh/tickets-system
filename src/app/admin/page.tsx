@@ -25,7 +25,7 @@ import { PieChart } from '@/app/components/PieChart';
 import { SearchBar } from '@/app/components/SearchBar';
 import { Pagination } from '@/app/components/Pagination';
 import { getStatusColor, getPriorityColor, getPriorityLabel, formatDate, formatRelativeTime } from '@/lib/utils';
-import { Users, Building2, Ticket as TicketIcon, Plus, Edit, Trash2, MessageSquare, Clock, CheckCircle, XCircle, Search, Filter, AlertTriangle, MoreVertical, Mail, Phone, MapPin, ArrowLeft, Eye, History, Calendar, FileText, Briefcase, List, UserX, TrendingUp, Activity, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Users, Building2, Ticket as TicketIcon, Plus, Edit, Trash2, MessageSquare, Clock, CheckCircle, XCircle, Search, Filter, AlertTriangle, MoreVertical, Mail, Phone, MapPin, ArrowLeft, Eye, History, Calendar, FileText, Briefcase, List, UserX, TrendingUp, Activity, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react';
 import { Suspense } from 'react';
 import { NoteDetailModal } from '@/app/components/NoteDetailModal';
 import { RequestDetail } from '@/app/components/RequestDetail';
@@ -37,6 +37,7 @@ import { RecentActivity, ActivityItem } from '@/app/components/RecentActivity';
 import { KanbanBoard } from '@/app/components/KanbanBoard';
 import * as XLSX from 'xlsx';
 import NotificationBell from '@/app/components/NotificationBell';
+import { TimeStats } from '@/app/components/TimeStats';
 
 function AdminDashboardContent() {
   const router = useRouter();
@@ -44,7 +45,7 @@ function AdminDashboardContent() {
   const toast = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [companyName, setCompanyName] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'tickets' | 'requests' | 'notes' | 'analytics' | 'reports'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'tickets' | 'requests' | 'notes' | 'analytics' | 'reports' | 'time-tracking'>('overview');
   const [dashboardTab, setDashboardTab] = useState<'stats' | 'reports'>('stats');
   const [overviewTab, setOverviewTab] = useState<'tickets' | 'requests'>('tickets');
   const [selectedReportBranch, setSelectedReportBranch] = useState<string>('ALL');
@@ -111,6 +112,9 @@ function AdminDashboardContent() {
   
   const [editingItem, setEditingItem] = useState<any>(null);
   const [statusUpdate, setStatusUpdate] = useState({ ticketId: '', status: '', adminNote: '', sendToTeam: true });
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isSubmittingBranch, setIsSubmittingBranch] = useState(false);
+  const [isProcessingBulk, setIsProcessingBulk] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'user' | 'branch' | 'ticket' | 'team' | 'request'; name?: string } | null>(null);
   const [bulkDeleteType, setBulkDeleteType] = useState<'tickets' | 'requests' | 'users' | 'branches' | null>(null);
 
@@ -502,6 +506,7 @@ function AdminDashboardContent() {
   const handleBulkCreateBranches = async () => {
     if (parsedBranches.length === 0) return;
 
+    setIsProcessingBulk(true);
     try {
       const result = await apiClient.createBranchesBulk(parsedBranches);
       
@@ -513,11 +518,14 @@ function AdminDashboardContent() {
       fetchData();
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setIsProcessingBulk(false);
     }
   };
 
   const handleCreateBranch = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmittingBranch(true);
     try {
       await apiClient.createBranch(branchForm);
       toast.success('Branch created successfully');
@@ -530,6 +538,8 @@ function AdminDashboardContent() {
       fetchData();
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setIsSubmittingBranch(false);
     }
   };
 
@@ -549,6 +559,7 @@ function AdminDashboardContent() {
     e.preventDefault();
     if (!editingBranchId) return;
 
+    setIsSubmittingBranch(true);
     try {
       await apiClient.updateBranch(editingBranchId, branchForm);
       toast.success('Branch updated successfully');
@@ -563,6 +574,8 @@ function AdminDashboardContent() {
       fetchBranchesData();
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setIsSubmittingBranch(false);
     }
   };
 
@@ -613,6 +626,7 @@ function AdminDashboardContent() {
   };
 
   const handleConfirmStatusUpdate = async () => {
+    setIsUpdatingStatus(true);
     try {
       await apiClient.updateTicket(statusUpdate.ticketId, {
         status: statusUpdate.status,
@@ -630,6 +644,8 @@ function AdminDashboardContent() {
       }
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -970,8 +986,23 @@ function AdminDashboardContent() {
                             >
                               Cancel
                             </Button>
-                            <Button type="submit" size="lg" className="bg-blue-600 hover:bg-blue-500 text-white border-0">
-                              {isEditingBranch ? 'Update Branch' : 'Create Branch'}
+                            <Button 
+                              type="submit" 
+                              size="lg" 
+                              className="bg-blue-600 hover:bg-blue-500 text-white border-0"
+                              disabled={isSubmittingBranch}
+                            >
+                              {isSubmittingBranch ? (
+                                <span className="flex items-center gap-2">
+                                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  {isEditingBranch ? 'Updating...' : 'Creating...'}
+                                </span>
+                              ) : (
+                                isEditingBranch ? 'Update Branch' : 'Create Branch'
+                              )}
                             </Button>
                           </div>
                         </form>
@@ -1012,8 +1043,18 @@ function AdminDashboardContent() {
                             <div className="space-y-4">
                               <div className="flex justify-between items-center">
                                 <h3 className="font-bold text-slate-900">Preview ({parsedBranches.length} branches)</h3>
-                                <Button onClick={handleBulkCreateBranches}>
-                                  Import {parsedBranches.length} Branches
+                                <Button onClick={handleBulkCreateBranches} disabled={isProcessingBulk}>
+                                  {isProcessingBulk ? (
+                                    <span className="flex items-center gap-2">
+                                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                      </svg>
+                                      Processing...
+                                    </span>
+                                  ) : (
+                                    `Import ${parsedBranches.length} Branches`
+                                  )}
                                 </Button>
                               </div>
                               <div className="border border-slate-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
@@ -2173,6 +2214,10 @@ function AdminDashboardContent() {
             />
           )}
 
+          {activeTab === 'time-tracking' && (
+            <TimeStats currentUser={user} />
+          )}
+
           {activeTab === 'tickets' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -2401,7 +2446,16 @@ function AdminDashboardContent() {
                                   <span className="text-xs text-slate-400 font-mono">#{ticket.incNumber || ticket.id.slice(0, 8)}</span>
                                 </div>
                               </TableCell>
-                              <TableCell>{ticket.branch?.name || ticket.manualBranchName || '-'}</TableCell>
+                              <TableCell>
+                                {ticket.branch ? (
+                                  <div className="flex flex-col">
+                                    <span>{ticket.branch.name}</span>
+                                    {ticket.branch.branchNumber && <span className="text-xs text-slate-400">#{ticket.branch.branchNumber}</span>}
+                                  </div>
+                                ) : (
+                                  ticket.manualBranchName || '-'
+                                )}
+                              </TableCell>
                               <TableCell>
                                 <Badge variant={getPriorityColor(ticket.priority)}>{ticket.priority}</Badge>
                               </TableCell>
@@ -3120,11 +3174,16 @@ function AdminDashboardContent() {
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-            <Button type="button" variant="ghost" onClick={() => setShowStatusModal(false)}>
+            <Button type="button" variant="ghost" onClick={() => setShowStatusModal(false)} disabled={isUpdatingStatus}>
               Cancel
             </Button>
-            <Button onClick={handleConfirmStatusUpdate} className="bg-slate-900 hover:bg-slate-800 text-white">
-              Confirm Update
+            <Button onClick={handleConfirmStatusUpdate} className="bg-slate-900 hover:bg-slate-800 text-white" disabled={isUpdatingStatus}>
+              {isUpdatingStatus ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : 'Confirm Update'}
             </Button>
           </div>
         </div>

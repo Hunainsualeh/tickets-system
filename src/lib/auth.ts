@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { NextRequest } from 'next/server';
 
 const JWT_SECRET: string = process.env.JWT_SECRET || 'fallback-secret-key';
 const JWT_EXPIRES_IN: string = process.env.JWT_EXPIRES_IN || '7d';
@@ -15,6 +16,22 @@ export interface JWTPayload {
   iss?: string;
   aud?: string;
 }
+
+
+export const verifyAuth = async (req: NextRequest) => {
+  const token = req.headers.get('authorization')?.split(' ')[1];
+
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const decoded = verifyToken(token);
+    return decoded;
+  } catch (error) {
+    return null;
+  }
+};
 
 export const hashPassword = async (password: string): Promise<string> => {
   // Use a higher cost factor for better security
