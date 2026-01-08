@@ -629,9 +629,7 @@ export function generateTicketEmailHtml({
           </div>
           
           <div class="detail-label">Date Opened</div>
-          <div class="detail-value" style="margin-bottom: 32px;">${dateOpened}</div>
-          
-          <a href="${link}" class="button">View Ticket</a>
+          <div class="detail-value">${dateOpened}</div>
         </td>
       </tr>
     </table>

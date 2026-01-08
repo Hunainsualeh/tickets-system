@@ -11,7 +11,7 @@ import { Input } from '@/app/components/Input';
 import { StatCard } from '@/app/components/StatCard';
 import { Dropdown, DropdownItem } from '@/app/components/Dropdown';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/Table';
-import { Users, Plus, Edit, Trash2, UserPlus, Shield, UserCheck, Building2, Eye, EyeOff, Key, Code, Wrench, Mail } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, UserPlus, Shield, UserCheck, Building2, Eye, EyeOff, Key, Code, Wrench, Mail, Loader2 } from 'lucide-react';
 
 function UsersManagementContent() {
   const router = useRouter();
@@ -34,6 +34,7 @@ function UsersManagementContent() {
   const [teamSearchQuery, setTeamSearchQuery] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<{ id: string; username: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   // Password Update State
@@ -210,6 +211,7 @@ function UsersManagementContent() {
   };
 
   const confirmDelete = async () => {
+    setIsDeleting(true);
     if (selectedUserIds.length > 0) {
       try {
         await Promise.all(selectedUserIds.map(id => apiClient.deleteUser(id)));
@@ -220,12 +222,16 @@ function UsersManagementContent() {
         console.error('Error deleting users:', error);
         toast.error('Failed to delete users');
       } finally {
+        setIsDeleting(false);
         setShowDeleteModal(false);
       }
       return;
     }
 
-    if (!userToDelete) return;
+    if (!userToDelete) {
+      setIsDeleting(false);
+      return;
+    }
 
     try {
       await apiClient.deleteUser(userToDelete.id);
@@ -235,6 +241,7 @@ function UsersManagementContent() {
       console.error('Error deleting user:', error);
       toast.error('Failed to delete user');
     } finally {
+      setIsDeleting(false);
       setShowDeleteModal(false);
       setUserToDelete(null);
     }
@@ -838,14 +845,20 @@ function UsersManagementContent() {
             }
           </p>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setShowDeleteModal(false)}>
+            <Button variant="ghost" onClick={() => setShowDeleteModal(false)} disabled={isDeleting}>
               Cancel
             </Button>
             <Button 
               onClick={confirmDelete}
               className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-500"
+              disabled={isDeleting}
             >
-              {selectedUserIds.length > 0 ? "Delete Users" : "Delete User"}
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (selectedUserIds.length > 0 ? "Delete Users" : "Delete User")}
             </Button>
           </div>
         </div>

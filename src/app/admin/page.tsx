@@ -115,6 +115,10 @@ function AdminDashboardContent() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isSubmittingBranch, setIsSubmittingBranch] = useState(false);
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isCreatingTeam, setIsCreatingTeam] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [isCreatingTicket, setIsCreatingTicket] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'user' | 'branch' | 'ticket' | 'team' | 'request'; name?: string } | null>(null);
   const [bulkDeleteType, setBulkDeleteType] = useState<'tickets' | 'requests' | 'users' | 'branches' | null>(null);
 
@@ -306,6 +310,7 @@ function AdminDashboardContent() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsCreatingUser(true);
     try {
       const userData: any = {
         username: userForm.username,
@@ -322,11 +327,14 @@ function AdminDashboardContent() {
       fetchData();
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setIsCreatingUser(false);
     }
   };
 
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsCreatingTeam(true);
     try {
       const response = await fetch('/api/teams', {
         method: 'POST',
@@ -348,6 +356,8 @@ function AdminDashboardContent() {
       fetchData();
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setIsCreatingTeam(false);
     }
   };
 
@@ -362,6 +372,7 @@ function AdminDashboardContent() {
   };
 
   const confirmDelete = async () => {
+    setIsDeleting(true);
     if (bulkDeleteType) {
       try {
         if (bulkDeleteType === 'tickets') {
@@ -401,13 +412,17 @@ function AdminDashboardContent() {
       } catch (error: any) {
         toast.error(error.message || 'Failed to delete items');
       } finally {
+        setIsDeleting(false);
         setShowDeleteModal(false);
         setBulkDeleteType(null);
       }
       return;
     }
 
-    if (!deleteTarget) return;
+    if (!deleteTarget) {
+      setIsDeleting(false);
+      return;
+    }
     
     try {
       if (deleteTarget.type === 'user') {
@@ -451,6 +466,8 @@ function AdminDashboardContent() {
       fetchData();
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -586,6 +603,7 @@ function AdminDashboardContent() {
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsCreatingTicket(true);
     try {
       await apiClient.createTicket(ticketForm);
       toast.success('Ticket created successfully');
@@ -608,6 +626,8 @@ function AdminDashboardContent() {
       fetchData();
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setIsCreatingTicket(false);
     }
   };
 
@@ -2923,11 +2943,18 @@ function AdminDashboardContent() {
             <Button type="button" variant="ghost" onClick={() => {
               setShowDeleteModal(false);
               setBulkDeleteType(null);
-            }}>
+            }} disabled={isDeleting}>
               Cancel
             </Button>
-            <Button variant="danger" onClick={confirmDelete}>
-              Delete {bulkDeleteType || deleteTarget?.type}
+            <Button variant="danger" onClick={confirmDelete} disabled={isDeleting}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                `Delete ${bulkDeleteType || deleteTarget?.type}`
+              )}
             </Button>
           </div>
         </div>
@@ -2949,10 +2976,17 @@ function AdminDashboardContent() {
             placeholder="e.g., Development Team, Support Team"
           />
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="ghost" onClick={() => setShowTeamModal(false)}>
+            <Button type="button" variant="ghost" onClick={() => setShowTeamModal(false)} disabled={isCreatingTeam}>
               Cancel
             </Button>
-            <Button type="submit">Create Team</Button>
+            <Button type="submit" disabled={isCreatingTeam}>
+              {isCreatingTeam ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : 'Create Team'}
+            </Button>
           </div>
         </form>
       </Modal>
@@ -2988,10 +3022,17 @@ function AdminDashboardContent() {
             ]}
           />
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="ghost" onClick={() => setShowUserModal(false)}>
+            <Button type="button" variant="ghost" onClick={() => setShowUserModal(false)} disabled={isCreatingUser}>
               Cancel
             </Button>
-            <Button type="submit">Create User</Button>
+            <Button type="submit" disabled={isCreatingUser}>
+              {isCreatingUser ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : 'Create User'}
+            </Button>
           </div>
         </form>
       </Modal>
@@ -3028,10 +3069,17 @@ function AdminDashboardContent() {
             ]}
           />
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="ghost" onClick={() => setShowBranchModal(false)}>
+            <Button type="button" variant="ghost" onClick={() => setShowBranchModal(false)} disabled={isSubmittingBranch}>
               Cancel
             </Button>
-            <Button type="submit">Create Branch</Button>
+            <Button type="submit" disabled={isSubmittingBranch}>
+              {isSubmittingBranch ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : 'Create Branch'}
+            </Button>
           </div>
         </form>
       </Modal>
@@ -3115,10 +3163,17 @@ function AdminDashboardContent() {
             </div>
           </div>
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="ghost" onClick={() => setShowTicketModal(false)}>
+            <Button type="button" variant="ghost" onClick={() => setShowTicketModal(false)} disabled={isCreatingTicket}>
               Cancel
             </Button>
-            <Button type="submit">Create Ticket</Button>
+            <Button type="submit" disabled={isCreatingTicket}>
+              {isCreatingTicket ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : 'Create Ticket'}
+            </Button>
           </div>
         </form>
       </Modal>

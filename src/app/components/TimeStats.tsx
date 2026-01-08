@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { StackedComboChart } from './StackedComboChart';
 import { Card, CardBody } from './Card';
 import { Clock, User, Calendar, TrendingUp, Timer, PlayCircle, Users, X, Circle } from 'lucide-react';
-import { Select } from './Select';
+import { CustomSelect } from './CustomSelect';
 
 interface TimeStatsProps {
   currentUser?: any;
@@ -188,22 +188,24 @@ export function TimeStats({ currentUser }: TimeStatsProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-           <h2 className="text-2xl font-bold text-slate-900">Time Tracking</h2>
+           <h2 className="text-xl font-semibold text-slate-900">Time Tracking</h2>
            <p className="text-slate-500 text-sm mt-1">Track your work hours and productivity</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
            {currentUser?.role === 'ADMIN' && (
-               <Select
+             <div className="w-full sm:w-48">
+               <CustomSelect
                  value={roleFilter}
-                 onChange={(e) => setRoleFilter(e.target.value)}
+                 onChange={(value) => setRoleFilter(value)}
                  options={[
                    { value: 'ALL', label: 'All Roles' },
                    { value: 'TECHNICAL', label: 'Field Specialists' },
                    { value: 'DEVELOPER', label: 'Developers' },
                    { value: 'ADMIN', label: 'Admins' },
                  ]}
-                 label=""
+                 placeholder="Filter by role"
                />
+             </div>
            )}
         </div>
       </div>

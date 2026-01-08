@@ -22,7 +22,8 @@ import {
   Activity,
   FileText,
   Building2,
-  Users
+  Users,
+  Loader2
 } from 'lucide-react';
 import { Card, CardBody } from '@/app/components/Card';
 import { Button } from '@/app/components/Button';
@@ -37,6 +38,7 @@ export default function NotificationsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -61,9 +63,14 @@ export default function NotificationsPage() {
 
   const confirmDelete = async () => {
     if (deleteTargetId) {
-      await deleteNotification(deleteTargetId);
-      setShowDeleteModal(false);
-      setDeleteTargetId(null);
+      setIsDeleting(true);
+      try {
+        await deleteNotification(deleteTargetId);
+        setShowDeleteModal(false);
+        setDeleteTargetId(null);
+      } finally {
+        setIsDeleting(false);
+      }
     }
   };
 
@@ -385,11 +392,16 @@ export default function NotificationsPage() {
             Are you sure you want to delete this notification? This action cannot be undone.
           </p>
           <div className="flex justify-end gap-3">
-            <Button variant="ghost" onClick={() => setShowDeleteModal(false)}>
+            <Button variant="ghost" onClick={() => setShowDeleteModal(false)} disabled={isDeleting}>
               Cancel
             </Button>
-            <Button variant="danger" onClick={confirmDelete}>
-              Delete
+            <Button variant="danger" onClick={confirmDelete} disabled={isDeleting}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : 'Delete'}
             </Button>
           </div>
         </div>

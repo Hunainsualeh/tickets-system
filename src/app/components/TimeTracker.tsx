@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Play, Square, Clock, History } from 'lucide-react';
 import { Button } from './Button';
 import { formatRelativeTime } from '@/lib/utils';
@@ -20,6 +20,14 @@ interface TimeTrackerProps {
   currentUser: any;
 }
 
+const getAuthHeaders = () => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+};
+
 export function TimeTracker({ ticketId, currentUser }: TimeTrackerProps) {
   const [activeLog, setActiveLog] = useState<WorkLog | null>(null);
   const [logs, setLogs] = useState<WorkLog[]>([]);
@@ -27,9 +35,15 @@ export function TimeTracker({ ticketId, currentUser }: TimeTrackerProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
   const toast = useToast();
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
-      const res = await fetch(`/api/work-logs?ticketId=${ticketId}`);
+      const res = await fetch(`/api/work-logs?ticketId=${ticketId}`, {
+        headers: getAuthHeaders()
+      });
+      if (!res.ok) {
+        console.error('Failed to fetch logs:', res.status);
+        return;
+      }
       const data = await res.json();
       if (data.logs) {
         setLogs(data.logs);
@@ -40,7 +54,7 @@ export function TimeTracker({ ticketId, currentUser }: TimeTrackerProps) {
     } catch (error) {
       console.error('Failed to fetch logs', error);
     }
-  };
+  }, [ticketId, currentUser.id]);
 
   useEffect(() => {
     fetchLogs();
@@ -71,7 +85,7 @@ export function TimeTracker({ ticketId, currentUser }: TimeTrackerProps) {
     try {
       const res = await fetch('/api/work-logs/check-in', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ ticketId }),
       });
       const data = await res.json();
@@ -79,7 +93,7 @@ export function TimeTracker({ ticketId, currentUser }: TimeTrackerProps) {
         toast.success('Checked in successfully');
         fetchLogs();
       } else {
-        toast.error(data.error);
+        toast.error(data.error || 'Failed to check in');
       }
     } catch (error) {
       toast.error('Failed to check in');
@@ -94,7 +108,7 @@ export function TimeTracker({ ticketId, currentUser }: TimeTrackerProps) {
     try {
       const res = await fetch('/api/work-logs/check-out', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ logId: activeLog.id }),
       });
       const data = await res.json();
@@ -102,7 +116,7 @@ export function TimeTracker({ ticketId, currentUser }: TimeTrackerProps) {
         toast.success(`Checked out. Duration: ${data.log.duration} minutes`);
         fetchLogs();
       } else {
-        toast.error(data.error);
+        toast.error(data.error || 'Failed to check out');
       }
     } catch (error) {
       toast.error('Failed to check out');

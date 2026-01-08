@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { LayoutGrid, Users, Store, ClipboardList, LogOut, Menu, X, Settings, HelpCircle, Bell, Calendar, FileText, MessageSquare, Briefcase, Landmark, BarChart3, ChevronLeft, ChevronRight, FileSpreadsheet, Clock } from 'lucide-react';
+import { LayoutGrid, Users, Store, ClipboardList, LogOut, Menu, X, Settings, HelpCircle, Bell, Calendar, FileText, MessageSquare, Briefcase, Landmark, BarChart3, ChevronLeft, ChevronRight, FileSpreadsheet, Clock, Loader2 } from 'lucide-react';
 import { Button } from './Button';
 import { Modal } from './Modal';
 import { apiClient } from '@/lib/api-client';
@@ -17,6 +17,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChange, onNavigate }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
@@ -39,10 +40,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
   }, [pathname, searchParams]);
 
   const handleLogout = async () => {
+    setIsLoggingOut(true);
     try {
       await apiClient.logout();
     } catch (error) {
       console.error('Logout error:', error);
+    } finally {
+      setIsLoggingOut(false);
     }
     localStorage.removeItem('user');
     router.push('/login');
@@ -244,11 +248,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
             </p>
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-            <Button type="button" variant="ghost" onClick={() => setShowLogoutModal(false)}>
+            <Button type="button" variant="ghost" onClick={() => setShowLogoutModal(false)} disabled={isLoggingOut}>
               Cancel
             </Button>
-            <Button variant="danger" onClick={handleLogout}>
-              Sign Out
+            <Button variant="danger" onClick={handleLogout} disabled={isLoggingOut}>
+              {isLoggingOut ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Signing out...
+                </>
+              ) : 'Sign Out'}
             </Button>
           </div>
         </div>
