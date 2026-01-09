@@ -24,6 +24,7 @@ model User {
   password      String
   role          UserRole       @default(USER)
   isActive      Boolean        @default(true)
+  companyId     String?        // Multi-tenant company association
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   teamId        String?
@@ -34,7 +35,14 @@ model User {
   teams         UserTeam[]
   notifications Notification[]
   workLogs      WorkLog[]
+  company       Company?       @relation("CompanyUsers", fields: [companyId], references: [id])
+  // Chat relations
+  conversations ConversationParticipant[]
+  sentMessages  Message[]      @relation("MessageSender")
+  readReceipts  MessageReadReceipt[]
+  presence      UserPresence?
 
+  @@index([companyId])
   @@map("users")
 }
 
@@ -84,6 +92,7 @@ model Ticket {
   statusHistory     StatusHistory[]
   notes             TicketNote[]
   workLogs          WorkLog[]
+  messages          Message[]
   branch            Branch?         @relation(fields: [branchId], references: [id], onDelete: Cascade)
   team              Team?           @relation(fields: [teamId], references: [id])
   user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -129,6 +138,7 @@ model Request {
   updatedAt   DateTime            @updatedAt
   attachments RequestAttachment[]
   history     RequestHistory[]
+  messages    Message[]
   user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("requests")
@@ -245,4 +255,191 @@ enum RequestStatus {
   REJECTED
   IN_PROGRESS
   COMPLETED
+}
+
+// ==========================================
+// COMPANY / MULTI-TENANT MODELS
+// ==========================================
+
+model Company {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  code        String    @unique  // Short code for identification
+  isActive    Boolean   @default(true)
+  parentId    String?   // For sub-companies
+  parent      Company?  @relation("SubCompanies", fields: [parentId], references: [id])
+  subCompanies Company[] @relation("SubCompanies")
+  users       User[]    @relation("CompanyUsers")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([parentId])
+  @@map("companies")
+}
+
+// ==========================================
+// CHAT SYSTEM MODELS
+// ==========================================
+
+model Conversation {
+  id             String               @id @default(cuid())
+  ticketId       String?              // Link to ticket (optional)
+  requestId      String?              // Link to request (optional)
+  title          String?              // Optional title for the conversation
+  status         ConversationStatus   @default(ACTIVE)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  closedAt       DateTime?
+  participants   ConversationParticipant[]
+  messages       Message[]
+  
+  @@index([ticketId])
+  @@index([requestId])
+  @@index([status])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String
+  role           ParticipantRole @default(MEMBER)
+  joinedAt       DateTime     @default(now())
+  leftAt         DateTime?
+  lastReadAt     DateTime?
+  isTyping       Boolean      @default(false)
+  typingUpdatedAt DateTime?
+  clearedAt      DateTime?    // For "clearing" chat history without leaving
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  messageType    MessageType  @default(TEXT)
+  status         MessageStatus @default(SENT)
+  replyToId      String?      // For threaded replies
+  ticketId       String?      // Reference to a ticket
+  requestId      String?      // Reference to a request
+  isEdited       Boolean      @default(false)
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo        Message?     @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies        Message[]    @relation("MessageReplies")
+  ticket         Ticket?      @relation(fields: [ticketId], references: [id])
+  request        Request?     @relation(fields: [requestId], references: [id])
+  attachments    ChatAttachment[]
+  readReceipts   MessageReadReceipt[]
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@index([ticketId])
+  @@index([requestId])
+  @@map("messages")
+}
+
+model ChatAttachment {
+  id         String   @id @default(cuid())
+  messageId  String
+  fileName   String
+  fileUrl    String
+  fileSize   Int
+  mimeType   String
+  uploadedAt DateTime @default(now())
+  message    Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("chat_attachments")
+}
+
+model MessageReadReceipt {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@map("message_read_receipts")
+}
+
+model UserPresence {
+  id          String        @id @default(cuid())
+  userId      String        @unique
+  status      PresenceStatus @default(OFFLINE)
+  lastSeenAt  DateTime      @default(now())
+  socketId    String?       // Current socket connection ID
+  updatedAt   DateTime      @updatedAt
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("user_presence")
+}
+
+model ChatAuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String   // SEND_MESSAGE, DELETE_MESSAGE, UPLOAD_FILE, etc.
+  resourceType String  // CONVERSATION, MESSAGE, ATTACHMENT
+  resourceId  String
+  metadata    Json?    // Additional context data
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+  @@map("chat_audit_logs")
+}
+
+// ==========================================
+// CHAT ENUMS
+// ==========================================
+
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+  CLOSED
+}
+
+enum ParticipantRole {
+  ADMIN       // Can manage conversation
+  MEMBER      // Regular participant
+  OBSERVER    // Can only read
+}
+
+enum MessageType {
+  TEXT
+  FILE
+  IMAGE
+  SYSTEM      // System-generated messages
+}
+
+enum MessageStatus {
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum PresenceStatus {
+  ONLINE
+  AWAY
+  BUSY
+  OFFLINE
 }

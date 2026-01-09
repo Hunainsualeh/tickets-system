@@ -34,6 +34,8 @@ import { TicketCard } from '@/app/components/TicketCard';
 import { TicketDetail } from '@/app/components/TicketDetail';
 import { TimeStats } from '@/app/components/TimeStats';
 import { TimeClock } from '@/app/components/TimeClock';
+import { ChatPanel, ChatFloatingButton } from '@/app/components/ChatPanel';
+import { ChatSidebar } from '@/app/components/ChatSidebar';
 
 function UserDashboardContent() {
   const router = useRouter();
@@ -46,7 +48,7 @@ function UserDashboardContent() {
   const [requests, setRequests] = useState<any[]>([]);
   const [notes, setNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'dashboard' | 'create' | 'tickets' | 'profile' | 'requests' | 'create-request' | 'notes' | 'analytics' | 'reports' | 'time-tracking'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'create' | 'tickets' | 'profile' | 'requests' | 'create-request' | 'notes' | 'analytics' | 'reports' | 'time-tracking' | 'chat'>('dashboard');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedNote, setSelectedNote] = useState<any | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
@@ -66,6 +68,10 @@ function UserDashboardContent() {
   const [showBranchSuggestions, setShowBranchSuggestions] = useState(false);
   const [overviewTab, setOverviewTab] = useState<'tickets' | 'requests'>('tickets');
   const [isCreatingTicket, setIsCreatingTicket] = useState(false);
+
+  // Chat State
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
   // Reset page on search
   useEffect(() => {
@@ -154,7 +160,7 @@ function UserDashboardContent() {
   // Update view from URL params
   useEffect(() => {
     const viewParam = searchParams.get('view');
-    if (viewParam && ['dashboard', 'create', 'tickets', 'profile', 'requests', 'create-request', 'notes', 'analytics', 'time-tracking'].includes(viewParam)) {
+    if (viewParam && ['dashboard', 'create', 'tickets', 'profile', 'requests', 'create-request', 'notes', 'analytics', 'time-tracking', 'chat'].includes(viewParam)) {
       setView(viewParam as any);
     } else {
       setView('dashboard');
@@ -1318,6 +1324,12 @@ function UserDashboardContent() {
              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                <TimeStats currentUser={user} />
              </div>
+          ) : view === 'chat' ? (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" style={{ height: 'calc(100vh - 200px)', minHeight: '600px' }}>
+                <ChatSidebar userRole={user?.role as any} className="h-full" />
+              </div>
+            </div>
           ) : (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {/* Header */}
@@ -1931,6 +1943,20 @@ function UserDashboardContent() {
         }}
         note={selectedNote}
         isAdmin={false}
+      />
+
+      {/* Chat System */}
+      {!isChatOpen && view !== 'chat' && (
+        <ChatFloatingButton 
+          unreadCount={chatUnreadCount} 
+          onClick={() => setIsChatOpen(true)} 
+        />
+      )}
+      
+      <ChatPanel
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        position="floating"
       />
     </div>
   );

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getSocket } from './useChat';
 
 export interface Notification {
   id: string;
@@ -43,6 +44,29 @@ export function useNotifications() {
 
   useEffect(() => {
     fetchNotifications();
+    
+    // Poll for notifications every 30 seconds as backup
+    const pollInterval = setInterval(fetchNotifications, 30000);
+    
+    // Listen for real-time notifications
+    const socket = getSocket();
+    if (socket) {
+      const handleNewNotification = (notification: any) => {
+        setNotifications((prev) => [notification, ...prev]);
+        setUnreadCount((prev) => prev + 1);
+      };
+      
+      socket.on('new_notification', handleNewNotification);
+      
+      return () => {
+        socket.off('new_notification', handleNewNotification);
+        clearInterval(pollInterval);
+      };
+    }
+    
+    return () => {
+      clearInterval(pollInterval);
+    };
   }, [fetchNotifications]);
 
   const refresh = useCallback(async () => {

@@ -146,3 +146,6 @@ export interface AuthResponse {
   token: string;
   user: User;
 }
+
+// Re-export chat types
+export * from './chat';

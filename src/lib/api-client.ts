@@ -22,6 +22,13 @@ class ApiClient {
   clearToken() {
     this.token = null;
     if (typeof window !== 'undefined') {
+      // SECURITY: Disconnect any active socket connections to prevent stale sessions
+      try {
+        const { disconnectSocket } = require('@/hooks/useChat');
+        disconnectSocket();
+      } catch (e) {
+        console.error('Failed to disconnect socket:', e);
+      }
       localStorage.removeItem('token');
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
@@ -271,6 +278,123 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+  }
+
+  // ==========================================
+  // CHAT METHODS
+  // ==========================================
+
+  // Conversations
+  async getConversations(filters?: { page?: number; pageSize?: number; status?: string; includeStats?: boolean }) {
+    const params = new URLSearchParams();
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.pageSize) params.append('pageSize', filters.pageSize.toString());
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.includeStats) params.append('includeStats', 'true');
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/api/chat/conversations${query}`);
+  }
+
+  async getConversation(id: string) {
+    return this.request(`/api/chat/conversations/${id}`);
+  }
+
+  async createConversation(data: { participantIds: string[]; ticketId?: string; requestId?: string; title?: string }) {
+    return this.request('/api/chat/conversations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateConversation(id: string, action: 'close' | 'archive' | 'reopen', reason?: string) {
+    return this.request(`/api/chat/conversations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ action, reason }),
+    });
+  }
+
+  async leaveConversation(id: string) {
+    return this.request(`/api/chat/conversations/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Messages
+  async getMessages(conversationId: string, filters?: { before?: string; limit?: number }) {
+    const params = new URLSearchParams();
+    params.append('conversationId', conversationId);
+    if (filters?.before) params.append('before', filters.before);
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+
+    return this.request(`/api/chat/messages?${params.toString()}`);
+  }
+
+  async sendMessage(data: { conversationId: string; content: string; messageType?: string; replyToId?: string }) {
+    return this.request('/api/chat/messages', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async editMessage(messageId: string, content: string) {
+    return this.request(`/api/chat/messages/${messageId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  async deleteMessage(messageId: string) {
+    return this.request(`/api/chat/messages/${messageId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Ticket Chat
+  async getTicketConversation(ticketId: string) {
+    return this.request(`/api/chat/ticket/${ticketId}`);
+  }
+
+  // Presence
+  async getPresence(userIds: string[]) {
+    return this.request(`/api/chat/presence?userIds=${userIds.join(',')}`);
+  }
+
+  async updatePresence(status: 'ONLINE' | 'AWAY' | 'BUSY' | 'OFFLINE') {
+    return this.request('/api/chat/presence', {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  // Chat Users
+  async getChatUsers(search?: string) {
+    const params = search ? `?search=${encodeURIComponent(search)}` : '';
+    return this.request(`/api/chat/users${params}`);
+  }
+
+  // File Upload
+  async uploadChatAttachment(conversationId: string, file: File, message?: string) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('conversationId', conversationId);
+    if (message) formData.append('message', message);
+
+    const response = await fetch(`${this.baseURL}/api/chat/attachments`, {
+      method: 'POST',
+      headers: {
+        Authorization: this.token ? `Bearer ${this.token}` : '',
+      },
+      body: formData,
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(error.error || 'Upload failed');
+    }
+
+    return response.json();
   }
 }
 

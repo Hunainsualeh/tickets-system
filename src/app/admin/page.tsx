@@ -38,6 +38,8 @@ import { KanbanBoard } from '@/app/components/KanbanBoard';
 import * as XLSX from 'xlsx';
 import NotificationBell from '@/app/components/NotificationBell';
 import { TimeStats } from '@/app/components/TimeStats';
+import { ChatPanel, ChatFloatingButton } from '@/app/components/ChatPanel';
+import { ChatSidebar } from '@/app/components/ChatSidebar';
 
 function AdminDashboardContent() {
   const router = useRouter();
@@ -45,7 +47,7 @@ function AdminDashboardContent() {
   const toast = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [companyName, setCompanyName] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'tickets' | 'requests' | 'notes' | 'analytics' | 'reports' | 'time-tracking'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'branches' | 'tickets' | 'requests' | 'notes' | 'analytics' | 'reports' | 'time-tracking' | 'chat'>('overview');
   const [dashboardTab, setDashboardTab] = useState<'stats' | 'reports'>('stats');
   const [overviewTab, setOverviewTab] = useState<'tickets' | 'requests'>('tickets');
   const [selectedReportBranch, setSelectedReportBranch] = useState<string>('ALL');
@@ -93,6 +95,11 @@ function AdminDashboardContent() {
   const [selectAllMatchingBranches, setSelectAllMatchingBranches] = useState(false);
   const [requestsViewMode, setRequestsViewMode] = useState<'kanban' | 'list'>('kanban');
   const [ticketsViewMode, setTicketsViewMode] = useState<'kanban' | 'list'>('list');
+
+  // Chat State
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatTicketId, setChatTicketId] = useState<string | undefined>(undefined);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
   // Modals
   const [showUserModal, setShowUserModal] = useState(false);
@@ -185,7 +192,7 @@ function AdminDashboardContent() {
     
     // Update tab from URL params
     const tab = searchParams.get('tab');
-    if (tab && ['overview', 'users', 'branches', 'tickets', 'requests', 'notes', 'analytics'].includes(tab)) {
+    if (tab && ['overview', 'users', 'branches', 'tickets', 'requests', 'notes', 'analytics', 'reports', 'time-tracking', 'chat'].includes(tab)) {
       setActiveTab(tab as any);
     }
   }, [router, searchParams]);
@@ -1244,6 +1251,7 @@ function AdminDashboardContent() {
                     {activeTab === 'notes' && 'Notes Management'}
                     {activeTab === 'analytics' && 'Analytics'}
                     {activeTab === 'reports' && 'Reports Center'}
+                    {activeTab === 'chat' && 'Chat'}
                   </h1>
                   <p className="text-sm text-slate-600 mt-1">
                     {activeTab === 'overview' && 'Monitor and manage all tickets, requests, and system activity'}
@@ -1254,6 +1262,7 @@ function AdminDashboardContent() {
                     {activeTab === 'notes' && 'View all ticket notes and communications'}
                     {activeTab === 'analytics' && 'View ticket and request statistics'}
                     {activeTab === 'reports' && 'Generate and download detailed reports'}
+                    {activeTab === 'chat' && 'Chat with users and manage conversations'}
                   </p>
                 </div>
                 {companyName && (
@@ -2236,6 +2245,12 @@ function AdminDashboardContent() {
 
           {activeTab === 'time-tracking' && (
             <TimeStats currentUser={user} />
+          )}
+
+          {activeTab === 'chat' && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" style={{ height: 'calc(100vh - 200px)', minHeight: '600px' }}>
+              <ChatSidebar userRole="ADMIN" className="h-full" />
+            </div>
           )}
 
           {activeTab === 'tickets' && (
@@ -3257,6 +3272,27 @@ function AdminDashboardContent() {
         }}
         note={selectedNote}
         isAdmin={true}
+      />
+
+      {/* Chat System */}
+      {!isChatOpen && (
+        <ChatFloatingButton 
+          unreadCount={chatUnreadCount} 
+          onClick={() => {
+            setChatTicketId(undefined);
+            setIsChatOpen(true);
+          }} 
+        />
+      )}
+      
+      <ChatPanel
+        isOpen={isChatOpen}
+        onClose={() => {
+          setIsChatOpen(false);
+          setChatTicketId(undefined);
+        }}
+        initialTicketId={chatTicketId}
+        position="floating"
       />
     </div>
   );

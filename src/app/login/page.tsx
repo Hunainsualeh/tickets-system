@@ -27,6 +27,18 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // SECURITY: Clear any existing session data BEFORE login to prevent session mixing
+      // This is critical for banking applications - prevents any cross-user data leakage
+      try {
+        const { disconnectSocket } = await import('@/hooks/useChat');
+        disconnectSocket();
+      } catch (socketErr) {
+        // Socket may not be initialized
+      }
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('authToken');
+      
       const response = await apiClient.login(username, password);
       
       if (!response.token) {
@@ -37,7 +49,11 @@ export default function LoginPage() {
       
       // Store user info securely
       localStorage.setItem('user', JSON.stringify(response.user));
-      localStorage.setItem('authToken', response.token);
+      // Explicitly set the token key used by the rest of the app
+      localStorage.setItem('token', response.token);
+      
+      // Clean up legacy/confusing keys
+      localStorage.removeItem('authToken');
 
       // Redirect based on role
       if (response.user.role === 'ADMIN') {

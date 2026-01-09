@@ -87,6 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
         { icon: Briefcase, label: 'Teams', key: 'teams', href: '/admin/teams' },
         { icon: Store, label: 'Branches', key: 'branches', href: '/admin?tab=branches' },
         { icon: ClipboardList, label: 'Tickets', key: 'tickets', href: '/admin?tab=tickets' },
+        { icon: MessageSquare, label: 'Chat', key: 'chat', href: '/admin?tab=chat' },
         { icon: BarChart3, label: 'Analytics', key: 'analytics', href: '/admin?tab=analytics' },
         { icon: FileSpreadsheet, label: 'Reports', key: 'reports', href: '/admin?tab=reports' },
         { icon: Clock, label: 'Time Tracking', key: 'time-tracking', href: '/admin?tab=time-tracking' },
@@ -96,12 +97,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, username, onTabChang
     ? [
         { icon: LayoutGrid, label: 'Dashboard', href: '/dashboard', key: 'overview' },
         { icon: ClipboardList, label: 'Assigned Tickets', href: '/dashboard?view=tickets', key: 'tickets' },
+        { icon: MessageSquare, label: 'Chat', href: '/dashboard?view=chat', key: 'chat' },
         { icon: Clock, label: 'Time Tracking', href: '/dashboard?view=time-tracking', key: 'time-tracking' },
         { icon: Users, label: 'Profile', href: '/dashboard?view=profile', key: 'profile' },
       ]
     : [
         { icon: LayoutGrid, label: 'Dashboard', href: '/dashboard', key: 'overview' },
         { icon: ClipboardList, label: 'My Tickets', href: '/dashboard?view=tickets', key: 'tickets' },
+        { icon: MessageSquare, label: 'Chat', href: '/dashboard?view=chat', key: 'chat' },
         { icon: BarChart3, label: 'Analytics', href: '/dashboard?view=analytics', key: 'analytics' },
         { icon: FileText, label: 'Requests', href: '/dashboard?view=requests', key: 'requests' },
         { icon: Users, label: 'Profile', href: '/dashboard?view=profile', key: 'profile' },
